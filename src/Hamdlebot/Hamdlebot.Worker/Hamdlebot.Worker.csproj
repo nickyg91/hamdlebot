@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UserSecretsId>dotnet-Hamdlebot.Worker-EA4B0404-72A6-497B-A76C-A75C73632D1A</UserSecretsId>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Configuration" Version="7.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.AzureAppConfiguration" Version="6.1.1" />
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="7.0.1"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Include="..\.dockerignore">
+        <Link>.dockerignore</Link>
+      </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Hamdlebot.Core\Hamdlebot.Core.csproj" />
+      <ProjectReference Include="..\Hamdlebot.TwitchServices\Hamdlebot.TwitchServices.csproj" />
+    </ItemGroup>
+</Project>
