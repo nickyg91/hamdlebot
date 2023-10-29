@@ -7,9 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Hamdlebot.Core\Hamdlebot.Core.csproj" />
-      <ProjectReference Include="..\Hamdlebot.Models\Hamdlebot.Models.csproj" />
-      <ProjectReference Include="..\HamdleBot.Services\HamdleBot.Services.csproj" />
+      <ProjectReference Include="..\Hamdle.Cache\Hamdle.Cache.csproj" />
     </ItemGroup>
 
 </Project>
