@@ -11,7 +11,6 @@ export const useHamdleStore = defineStore('hamdle', () => {
     signalRConnection = connection;
     await startSignalRConnection();
     signalRConnection.on('SendSelectedWord', (word: string) => {
-      console.log(word);
       currentWord.value = word;
     });
     signalRConnection.on('SendGuess', (guess: string) => {
@@ -25,6 +24,7 @@ export const useHamdleStore = defineStore('hamdle', () => {
 
   return {
     currentWord,
-    createSignalRConnection
+    createSignalRConnection,
+    guesses
   };
 });
