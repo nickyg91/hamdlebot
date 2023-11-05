@@ -1,6 +1,6 @@
 using Hamdlebot.Models;
 
-namespace Hamdlebot.TwitchServices.Interfaces;
+namespace HamdleBot.Services.Twitch.Interfaces;
 
 public interface ITwitchIdentityApiService
 {

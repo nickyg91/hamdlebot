@@ -8,6 +8,15 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Hamdle.Cache\Hamdle.Cache.csproj" />
+      <ProjectReference Include="..\Hamdlebot.Models\Hamdlebot.Models.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Events\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="7.0.13" />
     </ItemGroup>
 
 </Project>

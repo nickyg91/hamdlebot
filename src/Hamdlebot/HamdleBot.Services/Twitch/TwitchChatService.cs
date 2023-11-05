@@ -1,11 +1,10 @@
 using System.Net.WebSockets;
 using System.Text;
 using Hamdlebot.Core;
-using HamdleBot.Services;
-using Hamdlebot.TwitchServices.Interfaces;
+using HamdleBot.Services.Twitch.Interfaces;
 using Microsoft.Extensions.Options;
 
-namespace Hamdlebot.TwitchServices.Api;
+namespace HamdleBot.Services.Twitch;
 
 public class TwitchChatService : ITwitchChatService
 {
@@ -37,8 +36,11 @@ public class TwitchChatService : ITwitchChatService
             await _socket.SendAsync(nickSegment, WebSocketMessageType.Text, WebSocketMessageFlags.EndOfMessage, token);
             await _socket.SendAsync(capReqSegment, WebSocketMessageType.Text, WebSocketMessageFlags.EndOfMessage, token);
             await _socket.SendAsync("JOIN #hamhamReborn"u8.ToArray(), WebSocketMessageType.Text, WebSocketMessageFlags.EndOfMessage, token);
-            await WriteMessage("hamdlebot has arrived in style Kappa");
+            await WriteMessage("hamdlebot has arrived Kappa");
         }
+        
+        //register events
+        _wordService.SendMessage += HamdleWordService_SendMessage!;
         
         return _socket;
     }
@@ -73,19 +75,31 @@ public class TwitchChatService : ITwitchChatService
                         await _socket.SendAsync("PONG :tmi.twitch.tv"u8.ToArray(), WebSocketMessageType.Text, WebSocketMessageFlags.EndOfMessage, _cancellationToken);
                     }
 
-                    string command = string.Empty;
-                    if (msg.Contains(":!#"))
+                    if (!IsSelf(msg))
                     {
-                        command = msg.Split("PRIVMSG")[1];
-                        command = command.Split(":")[1].Trim();
+                        if (_wordService.IsHamdleSessionInProgress() && msg.Contains("PRIVMSG"))
+                        {
+                            var privmsg = msg.Split("PRIVMSG")[1];
+                            var parsedGuess =  privmsg.Split(":")[1].Trim();
+                            if (!string.IsNullOrEmpty(parsedGuess))
+                            {
+                                await _wordService.SubmitGuess(parsedGuess);
+                            }
+                        }
+                        else
+                        {
+                            string command = string.Empty;
+                            if (msg.Contains(":!#"))
+                            {
+                                command = msg.Split("PRIVMSG")[1];
+                                command = command.Split(":")[1].Trim();
+                            }
+                            if (ShouldProcess(command))
+                            {
+                                await _wordService.ProcessCommand(command);
+                            }
+                        }
                     }
-                    
-                    if (ShouldProcess(command))
-                    {
-                        var response = await _wordService.ProcessCommand(command);
-                        await WriteMessage(response);
-                    }
-                    Console.WriteLine(command);
                 }
                 ms.Seek(0, SeekOrigin.Begin);
                 ms.Position = 0;
@@ -101,5 +115,21 @@ public class TwitchChatService : ITwitchChatService
     private bool ShouldProcess(string command)
     {
         return command.StartsWith("!#");
+    }
+
+    private async Task SendMessageReceived(string message)
+    {
+        await WriteMessage(message);
+    }
+
+    private async void HamdleWordService_SendMessage(object sender, string message)
+    {
+        await WriteMessage(message);
+    }
+
+    private bool IsSelf(string message)
+    {
+        var parsed = string.Join("", message.TakeWhile(x => x != '!'))?.Replace(":", "");
+        return parsed == "hamdlebot";
     }
 }

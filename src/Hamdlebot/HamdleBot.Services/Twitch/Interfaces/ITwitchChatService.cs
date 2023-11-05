@@ -1,7 +1,6 @@
 using System.Net.WebSockets;
-using Hamdlebot.Models;
 
-namespace Hamdlebot.TwitchServices.Interfaces;
+namespace HamdleBot.Services.Twitch.Interfaces;
 
 public interface ITwitchChatService
 {

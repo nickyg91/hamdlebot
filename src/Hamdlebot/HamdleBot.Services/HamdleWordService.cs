@@ -1,15 +1,27 @@
+using System.Timers;
 using Hamdle.Cache;
+using HamdleBot.Services.Twitch.Interfaces;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace HamdleBot.Services;
 
 public class HamdleWordService : IHamdleWordService
 {
     private readonly ICacheService _cache;
-
-    public HamdleWordService(ICacheService cache)
+    private readonly HubConnection _signalRHub;
+    private bool _isHamdleInProgress;
+    private System.Timers.Timer _guessTimer { get; set; }
+    private readonly HashSet<string> _guesses;
+    private string? _currentWord;
+    
+    public HamdleWordService(ICacheService cache, HubConnection signalRHub)
     {
         _cache = cache;
+        _signalRHub = signalRHub;
+        _guesses = new HashSet<string>();
     }
+
+    public event EventHandler<string>? SendMessage;
 
     public async Task InsertWords()
     {
@@ -66,21 +78,85 @@ public class HamdleWordService : IHamdleWordService
         return await _cache.ContainsMember("commands", command);
     }
 
-    public async Task<string> ProcessCommand(string command)
+    public async Task ProcessCommand(string command)
     {
         var isValidCommand = await IsValidCommand(command);
         if (!isValidCommand)
         {
-            return "Invalid command! SirSad";
+            SendMessage?.Invoke(this, "Invalid command! SirSad");
         }
 
-        var msg = command switch
+        string msg = string.Empty;
+        switch (command)
         {
-            "!#commands" => "Commands: !#commands, !#random",
-            "!#random" => await GetRandomWord(),
-            _ => "Unknown command."
-        };
+            case "!#commands":
+                msg = "Commands: !#commands, !#random, !#hamdle";
+                break;
+            case "!#random":
+                msg = await GetRandomWord();
+                break;
+            case "!#hamdle":
+                await StartHamdleSession();
+                break;
+            default:
+                msg = "Invalid command! SirSad";
+                break;
+        }
 
-        return msg!;
+        if (!string.IsNullOrEmpty(msg))
+        {
+            SendMessage?.Invoke(this, msg);
+        }
+    }
+
+    public async Task StartHamdleSession()
+    {
+        if (_isHamdleInProgress)
+        {
+            return;
+        }
+        _guessTimer = new System.Timers.Timer(120000);
+        _guessTimer.Elapsed += OnGuessTimerExpired!;
+        SendMessage?.Invoke(this, "Guess a 5 letter word! I will be taking guesses for 2 minutes!");
+        _currentWord = await _cache.GetRandomItemFromSet("words")!;
+        await _signalRHub.InvokeAsync("SendSelectedWord", _currentWord);
+        _isHamdleInProgress = true;
+        _guessTimer.Start();
+    }
+
+    public bool IsHamdleSessionInProgress()
+    {
+        return _isHamdleInProgress;
+    }
+
+    private void OnGuessTimerExpired(object source, ElapsedEventArgs e)
+    {
+        _isHamdleInProgress = false;
+        SendMessage?.Invoke(this, "The window for guesses is over!");
+        var guesses = string.Join(", ", _guesses);
+        if (!string.IsNullOrEmpty(guesses))
+        {
+            SendMessage?.Invoke(this, $"The guesses are: {guesses}. For now I will choose the first one.");
+            var selectedGuess = _guesses.First();
+            // send to signalr hub for site.
+        }
+        SendMessage?.Invoke(this, "Nobody guessed! Let's go again.");
+        _guessTimer.Elapsed -= OnGuessTimerExpired!;
+        Task.Run(async () => await StartHamdleSession()).GetAwaiter().GetResult();
+    }
+    
+    public async Task SubmitGuess(string guess)
+    {
+        var isValidGuess = await CheckGuess(guess);
+        if (isValidGuess)
+        {
+            _guesses.Add(guess);
+        }
+    }
+    
+    private async Task<bool> CheckGuess(string guess)
+    {
+        var isValidGuess = await _cache.ContainsMember("words", guess) && guess.Length == 5;
+        return isValidGuess;
     }
 }

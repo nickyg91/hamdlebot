@@ -3,7 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Hamdlebot.Core.Exceptions;
 using Hamdlebot.Models;
-using Hamdlebot.TwitchServices.Interfaces;
+using HamdleBot.Services.Twitch.Interfaces;
 
 namespace Hamdlebot.TwitchServices.Api;
 

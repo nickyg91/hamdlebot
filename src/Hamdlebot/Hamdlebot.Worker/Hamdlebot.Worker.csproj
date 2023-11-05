@@ -9,6 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="7.0.13" />
         <PackageReference Include="Microsoft.Extensions.Configuration" Version="7.0.0"/>
         <PackageReference Include="Microsoft.Extensions.Configuration.AzureAppConfiguration" Version="6.1.1"/>
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="7.0.1"/>
@@ -27,6 +28,5 @@
         <ProjectReference Include="..\Hamdle.Cache\Hamdle.Cache.csproj"/>
         <ProjectReference Include="..\Hamdlebot.Core\Hamdlebot.Core.csproj"/>
         <ProjectReference Include="..\HamdleBot.Services\HamdleBot.Services.csproj" />
-        <ProjectReference Include="..\Hamdlebot.TwitchServices\Hamdlebot.TwitchServices.csproj"/>
     </ItemGroup>
 </Project>
