@@ -12,5 +12,6 @@ public interface IHamdleWordService
     Task StartHamdleSession();
     bool IsHamdleSessionInProgress();
     bool IsHamdleVotingInProgress();
-    Task SubmitGuess(string guess);
+    Task SubmitGuess(string username, string guess);
+    void SubmitVoteForGuess(string username, int submission);
 }

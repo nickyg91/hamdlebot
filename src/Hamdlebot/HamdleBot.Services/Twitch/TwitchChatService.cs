@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.RegularExpressions;
 using Hamdlebot.Core;
 using HamdleBot.Services.Twitch.Interfaces;
 using Microsoft.Extensions.Options;
@@ -12,7 +13,7 @@ public class TwitchChatService : ITwitchChatService
     private readonly AppConfigSettings _settings;
     private ClientWebSocket? _socket;
     private CancellationToken _cancellationToken;
-
+    private Regex _parseUserRegex = new ("(:\\w+!)");
     public TwitchChatService(IOptions<AppConfigSettings> settings, IHamdleWordService wordService)
     {
         _wordService = wordService;
@@ -74,14 +75,21 @@ public class TwitchChatService : ITwitchChatService
                     {
                         await _socket.SendAsync("PONG :tmi.twitch.tv"u8.ToArray(), WebSocketMessageType.Text, WebSocketMessageFlags.EndOfMessage, _cancellationToken);
                     }
-
+                    
+                    var user = _parseUserRegex
+                        .Match(msg)
+                        .Value?.Replace(":", "")?.Replace("!", "");
+                    
                     if (!IsSelf(msg))
                     {
                         if (_wordService.IsHamdleVotingInProgress() && msg.Contains("PRIVMSG"))
                         {
                             var privmsg = msg.Split("PRIVMSG")[1];
                             var parsedVote =  privmsg.Split(":")[1].Trim();
-                            //TODO submit vote
+                            if (int.TryParse(parsedVote, out var vote))
+                            {
+                                _wordService.SubmitVoteForGuess(user, vote);
+                            }
                         }
                         if (!_wordService.IsHamdleVotingInProgress() && _wordService.IsHamdleSessionInProgress() && msg.Contains("PRIVMSG"))
                         {
@@ -89,7 +97,7 @@ public class TwitchChatService : ITwitchChatService
                             var parsedGuess =  privmsg.Split(":")[1].Trim();
                             if (!string.IsNullOrEmpty(parsedGuess))
                             {
-                                await _wordService.SubmitGuess(parsedGuess);
+                                await _wordService.SubmitGuess(user, parsedGuess);
                             }
                         }
                         else

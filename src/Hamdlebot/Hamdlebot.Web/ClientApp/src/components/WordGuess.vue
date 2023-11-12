@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { type IPositionalLetter } from '../models/positional-letter.interface';
 
-const props = defineProps<{ currentWord: string; guess: string | null }>();
+const props = defineProps<{ currentWord: string; guess: string | null | undefined }>();
 const letters = computed(() => {
   if (!props.guess) {
     return [null, null, null, null, null];
@@ -37,7 +37,7 @@ const letters = computed(() => {
 .letter {
   border-radius: 5px;
   border: 2px white solid;
-  font-size: 3em;
+  font-size: 1.75em;
   height: 72px;
   width: 56px;
   color: white;
