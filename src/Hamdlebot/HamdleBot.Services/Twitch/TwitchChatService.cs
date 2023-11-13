@@ -52,7 +52,9 @@ public class TwitchChatService : ITwitchChatService
         var msg = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ircMessage));
         await _socket!.SendAsync(msg, WebSocketMessageType.Text, WebSocketMessageFlags.EndOfMessage, _cancellationToken);
     }
-    
+    // we can simplify this at some point as it is a bit of spaghetti.
+    // turn it into an event based model where we permanently listen for messages and
+    // each message fires off an event to be invoked and listened to in other classes.
     public async Task HandleMessages()
     {
         try
@@ -61,9 +63,9 @@ public class TwitchChatService : ITwitchChatService
             {
                 using var ms = new MemoryStream();
                 WebSocketReceiveResult result;
+                var messageBuffer = WebSocket.CreateClientBuffer(2048, 64);
                 do
                 {
-                    var messageBuffer = WebSocket.CreateClientBuffer(1024, 24);
                     result = await _socket.ReceiveAsync(messageBuffer, _cancellationToken);
                     await ms.WriteAsync(messageBuffer.Array.AsMemory(messageBuffer.Offset, result.Count),  _cancellationToken);
                 } 
@@ -129,11 +131,6 @@ public class TwitchChatService : ITwitchChatService
     private bool ShouldProcess(string command)
     {
         return command.StartsWith("!#");
-    }
-
-    private async Task SendMessageReceived(string message)
-    {
-        await WriteMessage(message);
     }
 
     private async void HamdleWordService_SendMessage(object sender, string message)

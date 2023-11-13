@@ -113,7 +113,6 @@ public class HamdleWordService : IHamdleWordService
     {
         if (_currentChance == 1)
         {
-            //120000 ms, 60000 for debugging.
             _guessTimer = new System.Timers.Timer(120000);
             _guessTimer.Elapsed += OnGuessTimerExpired!;
             
@@ -192,9 +191,12 @@ public class HamdleWordService : IHamdleWordService
             SendMessage?.Invoke(this, $"We have a winner! The word was {_currentWord}.");
             SendMessage?.Invoke(this, $"This concludes this instance of hamdle. To initiate another, type !#hamdle!");
         }
+        else
+        {
+            ResetGuessesAndVotes();
+            Task.Run(async () => await StartHamdleSession()).GetAwaiter().GetResult();
+        }
         _guessTimer!.Elapsed -= OnGuessTimerExpired!;
-        ResetGuessesAndVotes();
-        Task.Run(async () => await StartHamdleSession()).GetAwaiter().GetResult();
     }
     
     public async Task SubmitGuess(string username, string guess)
