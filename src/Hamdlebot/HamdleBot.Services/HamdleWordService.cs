@@ -154,6 +154,7 @@ public class HamdleWordService : IHamdleWordService
         {
             SendMessage?.Invoke(this, "Nobody guessed! Let's go again.");
             _currentChance--;
+            await StartHamdleSession();
         }
         
         _guessTimer!.Elapsed -= OnGuessTimerExpired!;
