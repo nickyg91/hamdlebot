@@ -7,21 +7,16 @@ namespace Hamdlebot.Worker;
 
 public class Worker : BackgroundService
 {
-    private readonly ILogger<Worker> _logger;
     private readonly ITwitchChatService _twitchChatService;
-    private readonly ICacheService _cache;
     private readonly IHamdleWordService _wordService;
     private readonly HubConnection _signalr;
 
-    public Worker(ILogger<Worker> logger, 
+    public Worker(
         ITwitchChatService twitchChatService,
-        ICacheService cache,
         IHamdleWordService wordService,
         HubConnection signalr)
     {
-        _logger = logger;
         _twitchChatService = twitchChatService;
-        _cache = cache;
         _wordService = wordService;
         _signalr = signalr;
     }

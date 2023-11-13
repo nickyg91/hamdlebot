@@ -63,7 +63,7 @@ public class TwitchChatService : ITwitchChatService
             {
                 using var ms = new MemoryStream();
                 WebSocketReceiveResult result;
-                var messageBuffer = WebSocket.CreateClientBuffer(2048, 64);
+                var messageBuffer = WebSocket.CreateClientBuffer(2048, 1024);
                 do
                 {
                     result = await _socket.ReceiveAsync(messageBuffer, _cancellationToken);
@@ -141,6 +141,6 @@ public class TwitchChatService : ITwitchChatService
     private bool IsSelf(string message)
     {
         var parsed = string.Join("", message.TakeWhile(x => x != '!'))?.Replace(":", "");
-        return parsed == "hamdlebot";
+        return parsed == "hamdlebot" || parsed == "nightbot";
     }
 }

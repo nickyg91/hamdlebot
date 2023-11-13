@@ -1,10 +1,15 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { HubConnectionBuilder, HubConnection } from '@microsoft/signalr';
 
 export const useHamdleStore = defineStore('hamdle', () => {
   const currentWord = ref('');
   const guesses = ref<string[]>([]);
+  const guessMs = ref(0);
+  const votingMs = ref(0);
+
+  const showGuessTimer = computed(() => guessMs.value > 0);
+  const showVotingTimer = computed(() => votingMs.value > 0);
   let signalRConnection: HubConnection;
   async function createSignalRConnection(): Promise<void> {
     const connection = new HubConnectionBuilder().withUrl('/hamdlebothub').build();
@@ -16,15 +21,40 @@ export const useHamdleStore = defineStore('hamdle', () => {
     signalRConnection.on('SendGuess', (guess: string) => {
       guesses.value.push(guess);
     });
+    signalRConnection.on('ResetState', () => {
+      guesses.value = [];
+      currentWord.value = '';
+    });
+    signalRConnection.on('StartGuessTimer', (ms) => {
+      guessMs.value = ms;
+    });
+    signalRConnection.on('StartVoteTimer', (ms) => {
+      votingMs.value = ms;
+    });
   }
 
   async function startSignalRConnection(): Promise<void> {
+    signalRConnection.keepAliveIntervalInMilliseconds = 1000;
     await signalRConnection.start();
+  }
+
+  function resetGuessTimer(): void {
+    guessMs.value = 0;
+  }
+
+  function resetVotingTimer(): void {
+    votingMs.value = 0;
   }
 
   return {
     currentWord,
     createSignalRConnection,
-    guesses
+    guesses,
+    showGuessTimer,
+    showVotingTimer,
+    guessMs,
+    votingMs,
+    resetGuessTimer,
+    resetVotingTimer
   };
 });

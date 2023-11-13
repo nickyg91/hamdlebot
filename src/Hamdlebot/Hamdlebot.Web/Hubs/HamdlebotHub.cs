@@ -13,4 +13,19 @@ public class HamdlebotHub : Hub
     {
         await Clients.All.SendAsync("SendGuess", word);
     }
+
+    public async Task ResetState()
+    {
+        await Clients.All.SendAsync("ResetState");
+    }
+
+    public async Task StartGuessTimer(int milliseconds)
+    {
+        await Clients.All.SendAsync("StartGuessTimer", milliseconds);
+    }
+    
+    public async Task StartVoteTimer(int milliseconds)
+    {
+        await Clients.All.SendAsync("StartVoteTimer", milliseconds);
+    }
 }

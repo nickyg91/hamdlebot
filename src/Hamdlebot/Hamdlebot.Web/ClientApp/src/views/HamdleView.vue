@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import HamdleTimer from '@/components/HamdleTimer.vue';
 import WordGuess from '@/components/WordGuess.vue';
 import { useHamdleStore } from '@/stores/hamdle.store';
 import { computed, onMounted } from 'vue';
 
 const store = useHamdleStore();
+
 onMounted(async () => {
   await store.createSignalRConnection();
 });
@@ -22,6 +24,7 @@ const guesses = computed(() => {
 <template>
   <div>
     <div class="flex flex-column align-items-center">
+      <HamdleTimer class="flex p-3 mb-1 justify-content-center"></HamdleTimer>
       <WordGuess
         class="flex p-5 mb-5"
         v-for="(guess, index) in guesses"
