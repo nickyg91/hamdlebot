@@ -7,9 +7,11 @@ export const useHamdleStore = defineStore('hamdle', () => {
   const guesses = ref<string[]>([]);
   const guessMs = ref(0);
   const votingMs = ref(0);
+  const betweenRoundMs = ref(0);
 
   const showGuessTimer = computed(() => guessMs.value > 0);
   const showVotingTimer = computed(() => votingMs.value > 0);
+  const showBetweenRoundMs = computed(() => betweenRoundMs.value > 0);
   let signalRConnection: HubConnection;
   async function createSignalRConnection(): Promise<void> {
     const connection = new HubConnectionBuilder().withUrl('/hamdlebothub').build();
@@ -31,6 +33,9 @@ export const useHamdleStore = defineStore('hamdle', () => {
     signalRConnection.on('StartVoteTimer', (ms) => {
       votingMs.value = ms;
     });
+    signalRConnection.on('StartBetweenRoundTimer', (ms) => {
+      betweenRoundMs.value = ms;
+    });
   }
 
   async function startSignalRConnection(): Promise<void> {
@@ -48,12 +53,14 @@ export const useHamdleStore = defineStore('hamdle', () => {
 
   return {
     currentWord,
-    createSignalRConnection,
     guesses,
     showGuessTimer,
     showVotingTimer,
+    showBetweenRoundMs,
     guessMs,
     votingMs,
+    betweenRoundMs,
+    createSignalRConnection,
     resetGuessTimer,
     resetVotingTimer
   };

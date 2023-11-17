@@ -10,7 +10,7 @@ const letters = computed(() => {
   const letters: IPositionalLetter[] = [];
   for (let i = 0; i < 5; i++) {
     letters.push({
-      isCorrect: props.guess.charAt(i) === props.currentWord.charAt(i),
+      isCorrect: props.guess.charAt(i).toLowerCase() === props.currentWord.charAt(i).toLowerCase(),
       letter: props.guess.charAt(i).toUpperCase()
     });
   }
@@ -23,7 +23,7 @@ const letters = computed(() => {
       <div
         :class="{
           'bg-yellow-300': letter && !letter.isCorrect,
-          'bg-green-300': letter && letter.isCorrect
+          correct: letter && letter.isCorrect
         }"
         class="letter flex p-3 mr-2"
       >
@@ -42,5 +42,9 @@ const letters = computed(() => {
   width: 56px;
   color: white;
   text-shadow: black;
+}
+
+.correct {
+  background-color: #0072b2;
 }
 </style>

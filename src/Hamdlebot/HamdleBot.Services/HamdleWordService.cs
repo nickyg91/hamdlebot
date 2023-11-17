@@ -37,6 +37,12 @@ public class HamdleWordService : IHamdleWordService
     public event EventHandler<string>? SendMessage;
     public event EventHandler<OBSRequest<GetSceneItemListRequest>>? SendGetSceneItemListRequestToObs;
 
+    //TODO
+    //BUGS
+    //Between round timer not showing. 
+    //Need to select random item if all votes are tied.
+    //Make sure everything is lowercase.
+    //Do not add item to all guesses if word not chosen after voting. 
     public async Task InsertWords()
     {
         if (await _cache.KeyExists("words"))
@@ -117,11 +123,11 @@ public class HamdleWordService : IHamdleWordService
     public async Task StartHamdleRound()
     {
         _isInGuessVotingState = false;
+        _isHamdleRoundInProgress = true;
         if (_currentRound == 1)
         {
             _currentWord = await _cache.GetRandomItemFromSet("words");
             await _signalRHub.InvokeAsync("SendSelectedWord", _currentWord);
-            _isHamdleRoundInProgress = true;
         }
         _guessTimer = new System.Timers.Timer(30000);
         _guessTimer.Elapsed += OnGuessTimerExpired!;
@@ -141,7 +147,9 @@ public class HamdleWordService : IHamdleWordService
     }
 
     private async void OnGuessTimerExpired(object source, ElapsedEventArgs e)
-    { 
+    {
+        _guessTimer!.Elapsed -= OnGuessTimerExpired!;
+        _currentRound++;
         if (_currentRound > _maxRound)
         {
             SendMessage?.Invoke(this, $"Nobody has guessed the word. It was {_currentWord}. Use !#hamdle to begin again.");
@@ -149,7 +157,6 @@ public class HamdleWordService : IHamdleWordService
             return;
         }
         SendMessage?.Invoke(this, "The window for guesses is over!");
-        _currentRound++;
         if (_roundGuesses.Any())
         {
             await StartVoting();
@@ -160,15 +167,13 @@ public class HamdleWordService : IHamdleWordService
             _currentRound--;
             await StartHamdleRound();
         }
-        
-        _guessTimer!.Elapsed -= OnGuessTimerExpired!;
     }
 
     private async Task StartVoting()
     {
         _isInGuessVotingState = true;
         var words = string.Join("\r\n", _roundGuesses.Select((x, idx) => $"{idx + 1}: {x}"));
-        SendMessage!.Invoke(this, $"Please vote for one the following words:\r\n {words}");
+        SendMessage!.Invoke(this, $"Please vote for one the following words:\r\n {words.ToLower()}");
         _voteTimer = new System.Timers.Timer(30000);
         _voteTimer.Elapsed += OnVotingTimerExpired!;
         await _signalRHub.InvokeAsync("StartVoteTimer", 30000);
@@ -178,15 +183,16 @@ public class HamdleWordService : IHamdleWordService
     private async void OnVotingTimerExpired(object source, ElapsedEventArgs e)
     {
         _isInGuessVotingState = false;
-
         if (!_roundGuesses.Any())
         {
             SendMessage?.Invoke(this, "Nobody guessed. Let's guess again.");
+            _voteTimer!.Elapsed -= OnVotingTimerExpired!;
             await StartHamdleRound();
             return;
         }
         
         var key = 0;
+        //add a case for tied votes
         if (!_votes.Keys.Any())
         {
             SendMessage?.Invoke(this, "No one voted. I will select a random guess.");
@@ -203,13 +209,17 @@ public class HamdleWordService : IHamdleWordService
         {
             SendMessage?.Invoke(this, $"We have a winner! The word was {_currentWord}.");
             SendMessage?.Invoke(this, $"This concludes this instance of hamdle. To initiate another, type !#hamdle!");
+            Thread.Sleep(10000);
+            _voteTimer!.Elapsed -= OnVotingTimerExpired!;
             await ResetHamdle();
             return;
         }
         ResetGuessesAndVotes();
-        await StartHamdleRound();
-        
+        SendMessage?.Invoke(this, $"10 seconds until next round!");
+        await _signalRHub.InvokeAsync("StartBetweenRoundTimer", 10000);
+        Thread.Sleep(5000);
         _voteTimer!.Elapsed -= OnVotingTimerExpired!;
+        await StartHamdleRound();
     }
     
     public async Task SubmitGuess(string username, string guess)

@@ -15,4 +15,8 @@
       <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="7.0.13" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Events\" />
+    </ItemGroup>
+
 </Project>

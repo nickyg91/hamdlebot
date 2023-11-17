@@ -28,4 +28,9 @@ public class HamdlebotHub : Hub
     {
         await Clients.All.SendAsync("StartVoteTimer", milliseconds);
     }
+
+    public async Task StartBetweenRoundTimer(int milliseconds)
+    {
+        await Clients.All.SendAsync("StartBetweenRoundTimer", milliseconds);
+    }
 }

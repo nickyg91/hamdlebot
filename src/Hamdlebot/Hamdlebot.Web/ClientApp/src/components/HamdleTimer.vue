@@ -5,8 +5,10 @@ import { ref, watchEffect } from 'vue';
 const store = useHamdleStore();
 const guessTimer = ref(0);
 const votingTimer = ref(0);
+const betweenRoundsTimer = ref(0);
 const guessInterval = ref<number | null>(null);
 const votingInterval = ref<number | null>(null);
+const betweenRoundsInterval = ref<number | null>(null);
 
 watchEffect(() => {
   if (store.showGuessTimer) {
@@ -28,8 +30,23 @@ watchEffect(() => {
       if (votingTimer.value === 0) {
         clearInterval(votingInterval.value!);
         store.resetVotingTimer();
+        return;
       }
       votingTimer.value--;
+    }, 1000);
+  }
+});
+
+watchEffect(() => {
+  if (store.showBetweenRoundMs) {
+    betweenRoundsTimer.value = store.betweenRoundMs / 1000;
+    betweenRoundsInterval.value = setInterval(() => {
+      if (betweenRoundsTimer.value === 0) {
+        clearInterval(betweenRoundsInterval.value!);
+        store.resetVotingTimer();
+        return;
+      }
+      betweenRoundsTimer.value--;
     }, 1000);
   }
 });
@@ -41,6 +58,9 @@ watchEffect(() => {
     </span>
     <span class="timer-text" v-if="store.showVotingTimer">
       Time to vote: {{ votingTimer }} seconds
+    </span>
+    <span class="timer-text" v-if="store.showBetweenRoundMs">
+      Time to vote: {{ betweenRoundsTimer }} seconds
     </span>
   </div>
 </template>
