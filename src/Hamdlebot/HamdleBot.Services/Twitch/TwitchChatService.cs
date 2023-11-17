@@ -93,7 +93,9 @@ public class TwitchChatService : ITwitchChatService
                                 _wordService.SubmitVoteForGuess(user, vote);
                             }
                         }
-                        if (!_wordService.IsHamdleVotingInProgress() && _wordService.IsHamdleSessionInProgress() && msg.Contains("PRIVMSG"))
+                        if (!_wordService.IsHamdleVotingInProgress() 
+                            && _wordService.IsHamdleSessionInProgress() 
+                            && msg.Contains("PRIVMSG"))
                         {
                             var privmsg = msg.Split("PRIVMSG")[1];
                             var parsedGuess =  privmsg.Split(":")[1].Trim();

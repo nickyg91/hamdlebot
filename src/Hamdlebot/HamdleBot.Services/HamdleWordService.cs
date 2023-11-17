@@ -1,5 +1,7 @@
 using System.Timers;
 using Hamdle.Cache;
+using Hamdlebot.Models.OBS;
+using Hamdlebot.Models.OBS.RequestTypes;
 using Microsoft.AspNetCore.SignalR.Client;
 
 namespace HamdleBot.Services;
@@ -8,10 +10,10 @@ public class HamdleWordService : IHamdleWordService
 {
     private readonly ICacheService _cache;
     private readonly HubConnection _signalRHub;
-    private bool _isHamdleInProgress;
+    private bool _isHamdleRoundInProgress;
     private bool _isInGuessVotingState;
-    private byte _currentChance = 1;
-    private byte _maxChances = 5;
+    private byte _currentRound = 1;
+    private byte _maxRound = 5;
     private System.Timers.Timer? _guessTimer;
     private System.Timers.Timer? _voteTimer;
     private HashSet<string> _allGuesses;
@@ -33,6 +35,7 @@ public class HamdleWordService : IHamdleWordService
     }
 
     public event EventHandler<string>? SendMessage;
+    public event EventHandler<OBSRequest<GetSceneItemListRequest>>? SendGetSceneItemListRequestToObs;
 
     public async Task InsertWords()
     {
@@ -103,32 +106,33 @@ public class HamdleWordService : IHamdleWordService
                 SendMessage?.Invoke(this, word ?? "nooooo!");
                 break;
             case "!#hamdle":
-                if (!_isHamdleInProgress)
+                if (!_isHamdleRoundInProgress)
                 {
-                    await StartHamdleSession();
+                    await StartHamdleRound();
                 }
                 break;
         }
     }
 
-    public async Task StartHamdleSession()
+    public async Task StartHamdleRound()
     {
-        if (_currentChance == 1)
+        _isInGuessVotingState = false;
+        if (_currentRound == 1)
         {
             _currentWord = await _cache.GetRandomItemFromSet("words");
             await _signalRHub.InvokeAsync("SendSelectedWord", _currentWord);
-            _isHamdleInProgress = true;
+            _isHamdleRoundInProgress = true;
         }
         _guessTimer = new System.Timers.Timer(30000);
         _guessTimer.Elapsed += OnGuessTimerExpired!;
         SendMessage?.Invoke(this, "Guess a 5 letter word!");
-        _guessTimer?.Start();
         await _signalRHub.InvokeAsync("StartGuessTimer", 30000);
+        _guessTimer?.Start();
     }
 
     public bool IsHamdleSessionInProgress()
     {
-        return _isHamdleInProgress;
+        return _isHamdleRoundInProgress;
     }
 
     public bool IsHamdleVotingInProgress()
@@ -138,14 +142,14 @@ public class HamdleWordService : IHamdleWordService
 
     private async void OnGuessTimerExpired(object source, ElapsedEventArgs e)
     { 
-        if (_currentChance > _maxChances)
+        if (_currentRound > _maxRound)
         {
             SendMessage?.Invoke(this, $"Nobody has guessed the word. It was {_currentWord}. Use !#hamdle to begin again.");
             await ResetHamdle();
             return;
         }
         SendMessage?.Invoke(this, "The window for guesses is over!");
-        _currentChance++;
+        _currentRound++;
         if (_roundGuesses.Any())
         {
             await StartVoting();
@@ -153,8 +157,8 @@ public class HamdleWordService : IHamdleWordService
         else
         {
             SendMessage?.Invoke(this, "Nobody guessed! Let's go again.");
-            _currentChance--;
-            await StartHamdleSession();
+            _currentRound--;
+            await StartHamdleRound();
         }
         
         _guessTimer!.Elapsed -= OnGuessTimerExpired!;
@@ -162,11 +166,10 @@ public class HamdleWordService : IHamdleWordService
 
     private async Task StartVoting()
     {
+        _isInGuessVotingState = true;
         var words = string.Join("\r\n", _roundGuesses.Select((x, idx) => $"{idx + 1}: {x}"));
-        Thread.Sleep(1000);
         SendMessage!.Invoke(this, $"Please vote for one the following words:\r\n {words}");
         _voteTimer = new System.Timers.Timer(30000);
-        _isInGuessVotingState = true;
         _voteTimer.Elapsed += OnVotingTimerExpired!;
         await _signalRHub.InvokeAsync("StartVoteTimer", 30000);
         _voteTimer.Start();
@@ -176,6 +179,13 @@ public class HamdleWordService : IHamdleWordService
     {
         _isInGuessVotingState = false;
 
+        if (!_roundGuesses.Any())
+        {
+            SendMessage?.Invoke(this, "Nobody guessed. Let's guess again.");
+            await StartHamdleRound();
+            return;
+        }
+        
         var key = 0;
         if (!_votes.Keys.Any())
         {
@@ -197,7 +207,7 @@ public class HamdleWordService : IHamdleWordService
             return;
         }
         ResetGuessesAndVotes();
-        await StartHamdleSession();
+        await StartHamdleRound();
         
         _voteTimer!.Elapsed -= OnVotingTimerExpired!;
     }
@@ -225,6 +235,11 @@ public class HamdleWordService : IHamdleWordService
             return;
         }
 
+        if (submission > _roundGuesses.Count)
+        {
+            return;
+        }
+        
         _userVotes.Add(username);
         if (_votes.ContainsKey(submission))
         {
@@ -255,10 +270,10 @@ public class HamdleWordService : IHamdleWordService
         ResetGuessesAndVotes();
         _guessTimer!.Elapsed -= OnGuessTimerExpired!;
         _voteTimer!.Elapsed -= OnVotingTimerExpired!;
-        _isHamdleInProgress = false;
+        _isHamdleRoundInProgress = false;
         _isInGuessVotingState = false;
         _currentWord = null;
-        _currentChance = 1;
+        _currentRound = 1;
         _allGuesses = new HashSet<string>();
         await _signalRHub.InvokeAsync("ResetState");
     }
