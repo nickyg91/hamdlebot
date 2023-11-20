@@ -105,7 +105,7 @@ public class HamdleWordService : IHamdleWordService
         switch (command)
         {
             case "!#commands":
-                SendMessage?.Invoke(this, "Commands: !#commands, !#random, !#hamdle");
+                SendMessage?.Invoke(this, "Commands: !#<command> commands, random, hamdle");
                 break;
             case "!#random":
                 var word = await GetRandomWord();

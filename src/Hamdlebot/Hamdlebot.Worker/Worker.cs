@@ -29,13 +29,15 @@ public class Worker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await _signalr.StartAsync(stoppingToken);
         //await _obsService.CreateWebSocket(stoppingToken);
         //await _obsService.HandleMessages();
         //await _obsService.SendRequest(req);
-        await _wordService.InsertValidCommands();
-        await _wordService.InsertWords();
-        await _twitchChatService.CreateWebSocket(stoppingToken);
-        await _twitchChatService.HandleMessages();
+        await Task.WhenAll(
+            //_signalr.StartAsync(stoppingToken), 
+            _wordService.InsertValidCommands(), 
+            _wordService.InsertWords(),
+            _twitchChatService.CreateWebSocket(stoppingToken));
+        
+        await Task.Run(() => _twitchChatService.HandleMessages(), stoppingToken);
     }
 }
