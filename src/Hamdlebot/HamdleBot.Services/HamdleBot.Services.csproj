@@ -17,6 +17,7 @@
 
     <ItemGroup>
       <Folder Include="Events\" />
+      <Folder Include="StateMachines\" />
     </ItemGroup>
 
 </Project>
