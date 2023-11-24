@@ -14,8 +14,14 @@ public class HamdleWordService : IHamdleWordService
     private bool _isInGuessVotingState;
     private byte _currentRound = 1;
     private byte _maxRound = 5;
-    private System.Timers.Timer? _guessTimer;
-    private System.Timers.Timer? _voteTimer;
+    private System.Timers.Timer? _guessTimer = new System.Timers.Timer(30000)
+    {
+        AutoReset = false,
+    };
+    private System.Timers.Timer? _voteTimer = new System.Timers.Timer(30000)
+    {
+        AutoReset = false
+    };
     private HashSet<string> _allGuesses;
     private HashSet<string> _roundGuesses;
     private HashSet<string> _usersWhoGuessed;
@@ -23,6 +29,7 @@ public class HamdleWordService : IHamdleWordService
     private string? _currentWord;
     private Dictionary<int, int> _votes;
     private Random _randomNumberGenerator = new ();
+    
     public HamdleWordService(ICacheService cache, HubConnection signalRHub)
     {
         _cache = cache;
@@ -32,17 +39,14 @@ public class HamdleWordService : IHamdleWordService
         _votes = new Dictionary<int, int>();
         _userVotes = new HashSet<string>();
         _usersWhoGuessed = new HashSet<string>();
+        
+        _voteTimer.Elapsed += OnVotingTimerExpired!;
+        _guessTimer.Elapsed += OnGuessTimerExpired!;
     }
 
     public event EventHandler<string>? SendMessage;
     public event EventHandler<OBSRequest<GetSceneItemListRequest>>? SendGetSceneItemListRequestToObs;
 
-    //TODO
-    //BUGS
-    //Between round timer not showing. 
-    //Need to select random item if all votes are tied.
-    //Make sure everything is lowercase.
-    //Do not add item to all guesses if word not chosen after voting. 
     public async Task InsertWords()
     {
         if (await _cache.KeyExists("words"))
@@ -129,8 +133,6 @@ public class HamdleWordService : IHamdleWordService
             _currentWord = await _cache.GetRandomItemFromSet("words");
             await _signalRHub.InvokeAsync("SendSelectedWord", _currentWord);
         }
-        _guessTimer = new System.Timers.Timer(30000);
-        _guessTimer.Elapsed += OnGuessTimerExpired!;
         SendMessage?.Invoke(this, "Guess a 5 letter word!");
         await _signalRHub.InvokeAsync("StartGuessTimer", 30000);
         _guessTimer?.Start();
@@ -148,7 +150,6 @@ public class HamdleWordService : IHamdleWordService
 
     private async void OnGuessTimerExpired(object source, ElapsedEventArgs e)
     {
-        _guessTimer!.Elapsed -= OnGuessTimerExpired!;
         _currentRound++;
         if (_currentRound > _maxRound)
         {
@@ -174,10 +175,8 @@ public class HamdleWordService : IHamdleWordService
         _isInGuessVotingState = true;
         var words = string.Join("\r\n", _roundGuesses.Select((x, idx) => $"{idx + 1}: {x}"));
         SendMessage!.Invoke(this, $"Please vote for one the following words:\r\n {words.ToLower()}");
-        _voteTimer = new System.Timers.Timer(30000);
-        _voteTimer.Elapsed += OnVotingTimerExpired!;
         await _signalRHub.InvokeAsync("StartVoteTimer", 30000);
-        _voteTimer.Start();
+        _voteTimer!.Start();
     }
 
     private async void OnVotingTimerExpired(object source, ElapsedEventArgs e)
@@ -186,16 +185,20 @@ public class HamdleWordService : IHamdleWordService
         if (!_roundGuesses.Any())
         {
             SendMessage?.Invoke(this, "Nobody guessed. Let's guess again.");
-            _voteTimer!.Elapsed -= OnVotingTimerExpired!;
             await StartHamdleRound();
             return;
         }
         
         var key = 0;
-        //add a case for tied votes
+        var allVotesTied = _votes.Values.Distinct().Count() == 1 && _votes.Count > 1;
         if (!_votes.Keys.Any())
         {
             SendMessage?.Invoke(this, "No one voted. I will select a random guess.");
+            key = _randomNumberGenerator.Next(1, _roundGuesses.Count);
+        }
+        else if (allVotesTied)
+        {
+            SendMessage?.Invoke(this, "Votes are tied between all guesses! Taking a random word for fairness.");
             key = _randomNumberGenerator.Next(1, _roundGuesses.Count);
         }
         else
@@ -210,15 +213,15 @@ public class HamdleWordService : IHamdleWordService
             SendMessage?.Invoke(this, $"We have a winner! The word was {_currentWord}.");
             SendMessage?.Invoke(this, $"This concludes this instance of hamdle. To initiate another, type !#hamdle!");
             Thread.Sleep(10000);
-            _voteTimer!.Elapsed -= OnVotingTimerExpired!;
             await ResetHamdle();
             return;
         }
+
+        _allGuesses.Add(guess);
         ResetGuessesAndVotes();
         SendMessage?.Invoke(this, $"10 seconds until next round!");
         await _signalRHub.InvokeAsync("StartBetweenRoundTimer", 10000);
-        Thread.Sleep(5000);
-        _voteTimer!.Elapsed -= OnVotingTimerExpired!;
+        Thread.Sleep(10000);
         await StartHamdleRound();
     }
     
@@ -229,11 +232,10 @@ public class HamdleWordService : IHamdleWordService
             return;
         }
         
-        var isValidGuess = await CheckGuess(guess);
+        var isValidGuess = await CheckGuess(guess.ToLower());
         if (isValidGuess)
         {
-            _roundGuesses.Add(guess);
-            _allGuesses.Add(guess);
+            _roundGuesses.Add(guess.ToLower());
             _usersWhoGuessed.Add(username);
         }
     }
@@ -278,8 +280,6 @@ public class HamdleWordService : IHamdleWordService
     private async Task ResetHamdle()
     {
         ResetGuessesAndVotes();
-        _guessTimer!.Elapsed -= OnGuessTimerExpired!;
-        _voteTimer!.Elapsed -= OnVotingTimerExpired!;
         _isHamdleRoundInProgress = false;
         _isInGuessVotingState = false;
         _currentWord = null;

@@ -14,7 +14,7 @@ watchEffect(() => {
   if (store.showGuessTimer) {
     guessTimer.value = store.guessMs / 1000;
     guessInterval.value = setInterval(() => {
-      if (guessTimer.value === 0) {
+      if (guessTimer.value === 1) {
         clearInterval(guessInterval.value!);
         store.resetGuessTimer();
       }
@@ -27,7 +27,7 @@ watchEffect(() => {
   if (store.showVotingTimer) {
     votingTimer.value = store.votingMs / 1000;
     votingInterval.value = setInterval(() => {
-      if (votingTimer.value === 0) {
+      if (votingTimer.value === 1) {
         clearInterval(votingInterval.value!);
         store.resetVotingTimer();
         return;
@@ -41,9 +41,9 @@ watchEffect(() => {
   if (store.showBetweenRoundMs) {
     betweenRoundsTimer.value = store.betweenRoundMs / 1000;
     betweenRoundsInterval.value = setInterval(() => {
-      if (betweenRoundsTimer.value === 0) {
+      if (betweenRoundsTimer.value === 1) {
         clearInterval(betweenRoundsInterval.value!);
-        store.resetVotingTimer();
+        store.resetBetweenGuessTimer();
         return;
       }
       betweenRoundsTimer.value--;
@@ -53,15 +53,15 @@ watchEffect(() => {
 </script>
 <template>
   <div>
-    <span class="timer-text" v-if="store.showGuessTimer">
+    <div class="timer-text" v-if="store.showGuessTimer">
       Time to guess: {{ guessTimer }} seconds
-    </span>
-    <span class="timer-text" v-if="store.showVotingTimer">
+    </div>
+    <div class="timer-text" v-if="store.showVotingTimer">
       Time to vote: {{ votingTimer }} seconds
-    </span>
-    <span class="timer-text" v-if="store.showBetweenRoundMs">
-      Time to vote: {{ betweenRoundsTimer }} seconds
-    </span>
+    </div>
+    <div class="timer-text" v-if="store.showBetweenRoundMs">
+      Time to next round: {{ betweenRoundsTimer }} seconds
+    </div>
   </div>
 </template>
 
