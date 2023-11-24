@@ -14,14 +14,7 @@ public class HamdleWordService : IHamdleWordService
     private bool _isInGuessVotingState;
     private byte _currentRound = 1;
     private byte _maxRound = 5;
-    private System.Timers.Timer? _guessTimer = new System.Timers.Timer(30000)
-    {
-        AutoReset = false,
-    };
-    private System.Timers.Timer? _voteTimer = new System.Timers.Timer(30000)
-    {
-        AutoReset = false
-    };
+    private byte _maxNoGuesses = 3;
     private HashSet<string> _allGuesses;
     private HashSet<string> _roundGuesses;
     private HashSet<string> _usersWhoGuessed;
@@ -29,6 +22,14 @@ public class HamdleWordService : IHamdleWordService
     private string? _currentWord;
     private Dictionary<int, int> _votes;
     private Random _randomNumberGenerator = new ();
+    private System.Timers.Timer? _guessTimer = new (30000)
+    {
+        AutoReset = false,
+    };
+    private System.Timers.Timer? _voteTimer = new (30000)
+    {
+        AutoReset = false
+    };
     
     public HamdleWordService(ICacheService cache, HubConnection signalRHub)
     {
@@ -40,8 +41,8 @@ public class HamdleWordService : IHamdleWordService
         _userVotes = new HashSet<string>();
         _usersWhoGuessed = new HashSet<string>();
         
-        _voteTimer.Elapsed += OnVotingTimerExpired!;
-        _guessTimer.Elapsed += OnGuessTimerExpired!;
+        _voteTimer!.Elapsed += OnVotingTimerExpired!;
+        _guessTimer!.Elapsed += OnGuessTimerExpired!;
     }
 
     public event EventHandler<string>? SendMessage;
@@ -166,7 +167,19 @@ public class HamdleWordService : IHamdleWordService
         {
             SendMessage?.Invoke(this, "Nobody guessed! Let's go again.");
             _currentRound--;
-            await StartHamdleRound();
+            _maxNoGuesses++;
+            if (_maxNoGuesses == 3)
+            {
+                _voteTimer!.Stop();
+                _guessTimer!.Stop();
+                SendMessage?.Invoke(this, "Nobody is playing SirSad. Stopping the game.");
+                await ResetHamdle();
+                ResetGuessesAndVotes();
+            }
+            else
+            {
+                await StartHamdleRound();    
+            }
         }
     }
 
