@@ -66,7 +66,7 @@ public class VotingState : BaseState<HamdleContext>
             await Context.StartGuesses();
             return;
         }
-        
+        // TODO do not vote if only one word. just pick it.
         var key = 0;
         var allVotesTied = _votes.Values.Distinct().Count() == 1 && _votes.Count > 1;
         if (!_votes.Keys.Any())
@@ -74,10 +74,15 @@ public class VotingState : BaseState<HamdleContext>
             Context.SendMessage("No one voted. I will select a random guess.");
             key = _randomNumberGenerator.Next(1, _roundGuesses.Count);
         }
+        else if (_roundGuesses.Count == 1)
+        {
+            Context.SendMessage("Only one guess was submitted. Taking that one.");
+            key = 1;
+        }
         else if (allVotesTied)
         {
             Context.SendMessage("Votes are tied between all guesses! Taking a random word for fairness.");
-            key = _randomNumberGenerator.Next(1, _roundGuesses.Count);
+            key = _randomNumberGenerator.Next(1, _roundGuesses.Count + 1);
         }
         else
         {
@@ -91,13 +96,22 @@ public class VotingState : BaseState<HamdleContext>
             Context.SendMessage($"We have a winner! The word was {Context.CurrentWord}.");
             Context.SendMessage($"This concludes this instance of hamdle. To initiate another, type !#hamdle!");
             Thread.Sleep(10000);
+            await SignalR.InvokeAsync("ResetState");
             return;
         }
 
         Context.Guesses.Add(guess);
-        Context.Guesses.Add(guess);
-        Context.SendMessage("10 seconds until next round!");
-        await SignalR.InvokeAsync("StartBetweenRoundTimer", 10000);
-        Thread.Sleep(10000);
+        Context.CurrentRound++;
+        if (Context.CurrentRound == 6)
+        {
+            await Context.SignalGameFinished();
+        }
+        else
+        {
+            Context.SendMessage("10 seconds until next round!");
+            await SignalR.InvokeAsync("StartBetweenRoundTimer", 10000);
+            Thread.Sleep(10000);
+            await Context.StartGuesses();
+        }
     }
 }

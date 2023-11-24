@@ -21,11 +21,10 @@ public class HamdleContext
         _sendMessage = SendMessage;
     }
     public string CurrentWord { get; set; }
-    public byte CurrentRound { get; set; }
+    public byte CurrentRound { get; set; } = 1;
     private BaseState<HamdleContext>? State { get; set; }
     public bool IsInVotingState => State?.GetType() == typeof(VotingState);
     public bool IsRoundInProgress => State?.GetType() == typeof(GuessState) || IsInVotingState;
-    public readonly byte MaxRounds = 5;
     public HashSet<string> Guesses { get; set; }
     public byte NoGuesses { get; set; }
     
@@ -34,14 +33,14 @@ public class HamdleContext
         _sendMessage!.Invoke(this, message);
     }
 
-    public async Task ResetHamdle()
+    public async Task SignalGameFinished()
     {
-        State = null;
-        CurrentWord = string.Empty;
-        CurrentRound = 1;
+        Console.WriteLine(CurrentRound);
+        SendMessage($"Game over! Nobody has guessed the word. It was {CurrentWord}. Use !#hamdle to begin again.");
+        StopAndReset();
         await _signalRHub.InvokeAsync("ResetState");
     }
-
+    
     public async Task StartGuesses()
     {
         var guessState = new GuessState(this, _cache, _signalRHub);

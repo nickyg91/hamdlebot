@@ -6,7 +6,7 @@ namespace HamdleBot.Services.Hamdle.States;
 
 public class GuessState : BaseState<HamdleContext>
 {
-    public event EventHandler<HashSet<string>> StartVoting;
+    public event EventHandler<HashSet<string>>? StartVoting;
     
     private readonly HashSet<string> _guesses;
     private HashSet<string> _usersWhoGuessed;
@@ -22,7 +22,7 @@ public class GuessState : BaseState<HamdleContext>
         _guesses = new HashSet<string>();
         _usersWhoGuessed = new HashSet<string>();
     }
-
+//TODO figure out random guess issue
     public override async Task Start()
     {
         if (Context!.CurrentRound == 1)
@@ -64,17 +64,10 @@ public class GuessState : BaseState<HamdleContext>
     
     private async void OnGuessTimerExpired(object source, ElapsedEventArgs e)
     {
-        Context!.CurrentRound++;
-        if (Context.CurrentRound > Context.MaxRounds)
-        {
-            Context.SendMessage($"Nobody has guessed the word. It was {Context.CurrentWord}. Use !#hamdle to begin again.");
-            Context.StopAndReset();
-            return;
-        }
         Context.SendMessage("The window for guesses is over!");
         if (_guesses.Any())
         {
-            StartVoting.Invoke(this, _guesses);
+            StartVoting?.Invoke(this, _guesses);
         }
         else
         {
