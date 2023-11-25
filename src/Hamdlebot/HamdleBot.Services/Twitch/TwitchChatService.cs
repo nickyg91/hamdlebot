@@ -98,7 +98,7 @@ public class TwitchChatService : ITwitchChatService
                             var parsedVote = privmsg.Split(":")[1].Trim();
                             if (int.TryParse(parsedVote, out var vote))
                             {
-                                _wordService.SubmitVoteForGuess(user, vote);
+                                _wordService.SubmitVoteForGuess(user!, vote);
                             }
                         }
 
@@ -110,7 +110,7 @@ public class TwitchChatService : ITwitchChatService
                             var parsedGuess = privmsg.Split(":")[1].Trim();
                             if (!string.IsNullOrEmpty(parsedGuess))
                             {
-                                await _wordService.SubmitGuess(user, parsedGuess);
+                                await _wordService.SubmitGuess(user!, parsedGuess);
                             }
                         }
                         else

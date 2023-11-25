@@ -51,6 +51,10 @@ export const useHamdleStore = defineStore('hamdle', () => {
     votingMs.value = 0;
   }
 
+  function resetBetweenGuessTimer(): void {
+    betweenRoundMs.value = 0;
+  }
+
   return {
     currentWord,
     guesses,
@@ -62,6 +66,7 @@ export const useHamdleStore = defineStore('hamdle', () => {
     betweenRoundMs,
     createSignalRConnection,
     resetGuessTimer,
-    resetVotingTimer
+    resetVotingTimer,
+    resetBetweenGuessTimer
   };
 });
