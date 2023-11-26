@@ -12,6 +12,7 @@ export const useHamdleStore = defineStore('hamdle', () => {
   const showGuessTimer = computed(() => guessMs.value > 0);
   const showVotingTimer = computed(() => votingMs.value > 0);
   const showBetweenRoundMs = computed(() => betweenRoundMs.value > 0);
+
   let signalRConnection: HubConnection;
   async function createSignalRConnection(): Promise<void> {
     const connection = new HubConnectionBuilder().withUrl('/hamdlebothub').build();

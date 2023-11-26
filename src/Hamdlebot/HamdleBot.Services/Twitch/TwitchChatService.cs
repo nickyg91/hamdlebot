@@ -43,8 +43,7 @@ public class TwitchChatService : ITwitchChatService
                 WebSocketMessageFlags.EndOfMessage, token);
             await WriteMessage("hamdlebot has arrived Kappa");
         }
-
-        //register events
+        
         _wordService.SendMessage += HamdleWordService_SendMessage!;
 
         return _socket;
