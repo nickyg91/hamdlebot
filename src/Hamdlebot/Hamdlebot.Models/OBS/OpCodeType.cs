@@ -6,9 +6,9 @@ public enum OpCodeType : byte
     Identify = 1,
     Identified = 2,
     Reidentify = 3,
-    Event = 4,
-    Request = 5,
-    RequestResponse = 6,
-    RequestBatch = 7,
-    RequestBatchResponse = 8
+    Event = 5,
+    Request = 6,
+    RequestResponse = 7,
+    RequestBatch = 8,
+    RequestBatchResponse = 9
 }

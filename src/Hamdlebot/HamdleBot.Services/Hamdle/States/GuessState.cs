@@ -36,7 +36,7 @@ public class GuessState : BaseState<HamdleContext>
             Context.CurrentWord = word;
             await SignalR.InvokeAsync("SendSelectedWord", Context.CurrentWord);
         }
-        Context.SendMessage("Guess a 5 letter word!");
+        Context.Send("Guess a 5 letter word!");
         await SignalR.InvokeAsync("StartGuessTimer", 30000);
         _guessTimer?.Start();
     }
@@ -64,20 +64,20 @@ public class GuessState : BaseState<HamdleContext>
     
     private async void OnGuessTimerExpired(object source, ElapsedEventArgs e)
     {
-        Context.SendMessage("The window for guesses is over!");
+        Context.Send("The window for guesses is over!");
         if (_guesses.Any())
         {
             StartVoting?.Invoke(this, _guesses);
         }
         else
         {
-            Context.SendMessage("Nobody guessed! Let's go again.");
+            Context.Send("Nobody guessed! Let's go again.");
             Context.CurrentRound--;
             Context.NoGuesses++;
             if (Context.NoGuesses == 3)
             {
                 _guessTimer!.Stop();
-                Context.SendMessage("Nobody is playing SirSad. Stopping the game.");
+                Context.Send("Nobody is playing SirSad. Stopping the game.");
                 Context.StopAndReset();
             }
             else

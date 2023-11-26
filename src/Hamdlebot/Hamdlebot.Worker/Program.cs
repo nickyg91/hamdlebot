@@ -2,6 +2,7 @@ using Hamdle.Cache;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
 using HamdleBot.Services;
+using HamdleBot.Services.Mediators;
 using HamdleBot.Services.OBS;
 using HamdleBot.Services.Twitch;
 using HamdleBot.Services.Twitch.Interfaces;
@@ -15,7 +16,6 @@ IHost host = Host.CreateDefaultBuilder(args)
         config.AddEnvironmentVariables();
         var settings = config.Build();
         config.AddAzureAppConfig(settings, builder.HostingEnvironment.IsDevelopment());
-        //var settings = builder.Configuration.GetSection("Settings");
     })
     .ConfigureServices((builder, services) =>
     {
@@ -29,7 +29,8 @@ IHost host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<ICacheService, CacheService>();
         services.AddSingleton<IHamdleWordService, HamdleWordService>();
         services.AddSingleton<HubConnection>((_) => new HubConnectionBuilder().WithUrl("https://localhost:7256/hamdlebothub").Build());
-        services.AddSingleton<IOBSService, OBSService>();
+        services.AddSingleton<IObsService, ObsService>();
+        services.AddSingleton<HamdleMediator>();
         services.AddHostedService<Worker>();
     })
     .Build();

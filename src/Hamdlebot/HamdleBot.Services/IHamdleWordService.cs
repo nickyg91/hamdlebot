@@ -1,11 +1,12 @@
 using Hamdlebot.Models.OBS;
 using Hamdlebot.Models.OBS.RequestTypes;
+using Hamdlebot.Models.OBS.ResponseTypes;
 
 namespace HamdleBot.Services;
 public interface IHamdleWordService
 {
     event EventHandler<string> SendMessage;
-    event EventHandler<OBSRequest<GetSceneItemListRequest>> SendGetSceneItemListRequestToObs;
+    event EventHandler<ObsRequest<GetSceneItemListRequest>> SendGetSceneItemListRequestToObs;
     Task InsertWords();
     Task RemoveWord(string word);
     Task AddWord(string word);
@@ -18,4 +19,5 @@ public interface IHamdleWordService
     bool IsHamdleVotingInProgress();
     Task SubmitGuess(string username, string guess);
     void SubmitVoteForGuess(string username, int submission);
+    void SetHamdleSceneItem(SceneItem item);
 }

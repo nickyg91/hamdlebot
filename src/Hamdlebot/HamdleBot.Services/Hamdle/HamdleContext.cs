@@ -9,16 +9,16 @@ public class HamdleContext
 {
     private readonly ICacheService _cache;
     private readonly HubConnection _signalRHub;
-    private event EventHandler<string>? _sendMessage;
+    private event EventHandler<string>? SendMessage;
     public HamdleContext(
         ICacheService cache, 
-        HubConnection signalRHub, EventHandler<string>? SendMessage)
+        HubConnection signalRHub, EventHandler<string>? sendMessage)
     {
         _cache = cache;
         _signalRHub = signalRHub;
         CurrentWord = string.Empty;
         Guesses = new HashSet<string>();
-        _sendMessage = SendMessage;
+        SendMessage = sendMessage;
     }
     public string CurrentWord { get; set; }
     public byte CurrentRound { get; set; } = 1;
@@ -28,15 +28,15 @@ public class HamdleContext
     public HashSet<string> Guesses { get; set; }
     public byte NoGuesses { get; set; }
     
-    public void SendMessage(string message)
+    public void Send(string message)
     {
-        _sendMessage!.Invoke(this, message);
+        SendMessage!.Invoke(this, message);
     }
 
     public async Task SignalGameFinished()
     {
         Console.WriteLine(CurrentRound);
-        SendMessage($"Game over! Nobody has guessed the word. It was {CurrentWord}. Use !#hamdle to begin again.");
+        Send($"Game over! Nobody has guessed the word. It was {CurrentWord}. Use !#hamdle to begin again.");
         StopAndReset();
         await _signalRHub.InvokeAsync("ResetState");
     }

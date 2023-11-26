@@ -1,7 +1,10 @@
 using Hamdle.Cache;
 using Hamdlebot.Models.OBS;
 using Hamdlebot.Models.OBS.RequestTypes;
+using Hamdlebot.Models.OBS.ResponseTypes;
 using HamdleBot.Services.Hamdle;
+using HamdleBot.Services.Mediators;
+using HamdleBot.Services.OBS;
 using Microsoft.AspNetCore.SignalR.Client;
 
 namespace HamdleBot.Services;
@@ -10,16 +13,19 @@ public class HamdleWordService : IHamdleWordService
 {
     private readonly ICacheService _cache;
     private readonly HubConnection _signalRHub;
-    private HamdleContext _hamdleContext;
+    private readonly HamdleMediator _mediator;
+    private HamdleContext? _hamdleContext;
+    private SceneItem? _hamdleScene;
 
-    public HamdleWordService(ICacheService cache, HubConnection signalRHub)
+    public HamdleWordService(ICacheService cache, HubConnection signalRHub, HamdleMediator mediator)
     {
         _cache = cache;
         _signalRHub = signalRHub;
+        _mediator = mediator;
     }
 
     public event EventHandler<string>? SendMessage;
-    public event EventHandler<OBSRequest<GetSceneItemListRequest>>? SendGetSceneItemListRequestToObs;
+    public event EventHandler<ObsRequest<GetSceneItemListRequest>>? SendGetSceneItemListRequestToObs;
 
     public async Task InsertWords()
     {
@@ -91,6 +97,22 @@ public class HamdleWordService : IHamdleWordService
                 SendMessage?.Invoke(this, word ?? "nooooo!");
                 break;
             case "!#hamdle":
+                if (_hamdleScene == null)
+                {
+                    await _mediator.SendObsRequest(new ObsRequest<GetSceneItemListRequest>
+                    {
+                        RequestData = new RequestWrapper<GetSceneItemListRequest>()
+                        {
+                            RequestId = Guid.NewGuid(),
+                            RequestType = "GetSceneItemList",
+                            RequestData = new GetSceneItemListRequest
+                            {
+                                SceneName = "Desktop Capture",   
+                            }
+                        },
+                        Op = OpCodeType.Request
+                    });
+                }
                 if (_hamdleContext?.IsRoundInProgress ?? false)
                 {
                     await StartHamdleRound();
@@ -123,5 +145,10 @@ public class HamdleWordService : IHamdleWordService
     public void SubmitVoteForGuess(string username, int submission)
     {
         _hamdleContext.SubmitVoteForGuess(username, submission);
+    }
+
+    public void SetHamdleSceneItem(SceneItem item)
+    {
+        _hamdleScene = item;
     }
 }

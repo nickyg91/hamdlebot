@@ -3,11 +3,11 @@ using Hamdlebot.Models.OBS;
 
 namespace HamdleBot.Services.OBS;
 
-public interface IOBSService
+public interface IObsService
 {
     Task CreateWebSocket(CancellationToken cancellationToken);
     
-    Task SendRequest<T>(OBSRequest<T> message) where T : class;
-    Task<OBSResponse<T>?> ProcessMessage<T>(string message) where T : class;
+    Task SendRequest<T>(ObsRequest<T> message) where T : class;
+    ObsResponse<T>? ProcessMessage<T>(string message) where T : class;
     Task HandleMessages();
 }

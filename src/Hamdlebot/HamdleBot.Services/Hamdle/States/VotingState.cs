@@ -30,7 +30,7 @@ public class VotingState : BaseState<HamdleContext>
     public override async Task Start()
     {
         var words = string.Join("\r\n", _roundGuesses.Select((x, idx) => $"{idx + 1}: {x}"));
-        Context.SendMessage($"Please vote for one the following words:\r\n {words.ToLower()}");
+        Context.Send($"Please vote for one the following words:\r\n {words.ToLower()}");
         await SignalR.InvokeAsync("StartVoteTimer", 30000);
         _voteTimer!.Start();
     }
@@ -62,7 +62,7 @@ public class VotingState : BaseState<HamdleContext>
     {
         if (!_roundGuesses.Any())
         {
-            Context.SendMessage("Nobody guessed. Let's guess again.");
+            Context.Send("Nobody guessed. Let's guess again.");
             await Context.StartGuesses();
             return;
         }
@@ -71,17 +71,17 @@ public class VotingState : BaseState<HamdleContext>
         var allVotesTied = _votes.Values.Distinct().Count() == 1 && _votes.Count > 1;
         if (!_votes.Keys.Any())
         {
-            Context.SendMessage("No one voted. I will select a random guess.");
+            Context.Send("No one voted. I will select a random guess.");
             key = _randomNumberGenerator.Next(1, _roundGuesses.Count);
         }
         else if (_roundGuesses.Count == 1)
         {
-            Context.SendMessage("Only one guess was submitted. Taking that one.");
+            Context.Send("Only one guess was submitted. Taking that one.");
             key = 1;
         }
         else if (allVotesTied)
         {
-            Context.SendMessage("Votes are tied between all guesses! Taking a random word for fairness.");
+            Context.Send("Votes are tied between all guesses! Taking a random word for fairness.");
             key = _randomNumberGenerator.Next(1, _roundGuesses.Count + 1);
         }
         else
@@ -93,8 +93,8 @@ public class VotingState : BaseState<HamdleContext>
         await SignalR.InvokeAsync("SendGuess", guess);
         if (guess == Context.CurrentWord)
         {
-            Context.SendMessage($"We have a winner! The word was {Context.CurrentWord}.");
-            Context.SendMessage($"This concludes this instance of hamdle. To initiate another, type !#hamdle!");
+            Context.Send($"We have a winner! The word was {Context.CurrentWord}.");
+            Context.Send($"This concludes this instance of hamdle. To initiate another, type !#hamdle!");
             Thread.Sleep(10000);
             await SignalR.InvokeAsync("ResetState");
             return;
@@ -108,7 +108,7 @@ public class VotingState : BaseState<HamdleContext>
         }
         else
         {
-            Context.SendMessage("10 seconds until next round!");
+            Context.Send("10 seconds until next round!");
             await SignalR.InvokeAsync("StartBetweenRoundTimer", 10000);
             Thread.Sleep(10000);
             await Context.StartGuesses();
