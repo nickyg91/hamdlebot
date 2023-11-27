@@ -11,13 +11,13 @@ namespace Hamdlebot.Worker;
 public class Worker : BackgroundService
 {
     private readonly ITwitchChatService _twitchChatService;
-    private readonly IHamdleWordService _wordService;
+    private readonly IWordService _wordService;
     private readonly IObsService _obsService;
     private readonly HubConnection _signalr;
 
     public Worker(
         ITwitchChatService twitchChatService,
-        IHamdleWordService wordService,
+        IWordService wordService,
         HubConnection signalr,
         IObsService obsService)
     {
@@ -29,31 +29,13 @@ public class Worker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        //await _obsService.CreateWebSocket(stoppingToken);
-        //await _obsService.HandleMessages();
-        //await _obsService.SendRequest(req);
-        // await Task.WhenAll(
-        //     //_signalr.StartAsync(stoppingToken), 
-        //     _wordService.InsertValidCommands(), 
-        //     _wordService.InsertWords(),
-        //     _twitchChatService.CreateWebSocket(stoppingToken));
-        //
-        // Task.Run(() => _twitchChatService.HandleMessages(), stoppingToken);
-        await _obsService.CreateWebSocket(stoppingToken);
+        await Task.WhenAll(
+            _signalr.StartAsync(stoppingToken),
+            _obsService.CreateWebSocket(stoppingToken),
+            _wordService.InsertWords(),
+            _twitchChatService.CreateWebSocket(stoppingToken));
 
+        Task.Run(() => _twitchChatService.HandleMessages(), stoppingToken);
         Task.Run(() => _obsService.HandleMessages());
-        // await _obsService.SendRequest(new OBSRequest<GetSceneItemListRequest>
-        // {
-        //     RequestData = new RequestWrapper<GetSceneItemListRequest>()
-        //     {
-        //         RequestType = "GetSceneItemList",
-        //         RequestData = new GetSceneItemListRequest
-        //         {
-        //             SceneName = "Desktop Capture",   
-        //         }
-        //     },
-        //     RequestId = Guid.NewGuid().ToString(),
-        //     Op = OpCodeType.Request
-        // });
     }
 }

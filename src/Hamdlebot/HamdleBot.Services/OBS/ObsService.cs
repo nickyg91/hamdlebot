@@ -3,22 +3,24 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using Hamdle.Cache;
 using Hamdlebot.Models.OBS;
 using Hamdlebot.Models.OBS.RequestTypes;
 using Hamdlebot.Models.OBS.ResponseTypes;
 using HamdleBot.Services.Mediators;
+using StackExchange.Redis;
 
 namespace HamdleBot.Services.OBS;
 
 public class ObsService : IObsService
 {
-    private readonly HamdleMediator _mediator;
     private ClientWebSocket? _socket;
     private CancellationToken _cancellationToken;
+    private ICacheService _cache;
 
-    public ObsService(HamdleMediator mediator)
+    public ObsService(ICacheService cache)
     {
-        _mediator = mediator;
+        _cache = cache;
     }
 
     public async Task CreateWebSocket(CancellationToken cancellationToken)
@@ -95,7 +97,7 @@ public class ObsService : IObsService
                             var response = ProcessMessage<GetSceneItemListResponse>(msg);
                             if (response != null)
                             {
-                                GetHamdleScene(response.Response.ResponseData);
+                                await GetHamdleScene(response.Response.ResponseData);
                             }
                         }
                     }
@@ -112,13 +114,16 @@ public class ObsService : IObsService
         }
     }
 
-    private void GetHamdleScene(GetSceneItemListResponse scenes)
+    private async Task GetHamdleScene(GetSceneItemListResponse scenes)
     {
         var scene = scenes.SceneItems.FirstOrDefault(x => x.SourceName?.ToLower() == "hamdle");
         if (scene == null)
         {
             throw new KeyNotFoundException("Hamdle not found within set of scene items.");
         }
-        _mediator.SetHamdleSceneItem(scene);
+
+        var jsonString = JsonSerializer.Serialize(scene);
+        await _cache.Subscriber.PublishAsync(
+            new RedisChannel("onSceneRetrieved", RedisChannel.PatternMode.Auto), jsonString);
     }
 }

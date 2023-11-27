@@ -66,18 +66,12 @@ public class VotingState : BaseState<HamdleContext>
             await Context.StartGuesses();
             return;
         }
-        // TODO do not vote if only one word. just pick it.
         var key = 0;
         var allVotesTied = _votes.Values.Distinct().Count() == 1 && _votes.Count > 1;
         if (!_votes.Keys.Any())
         {
             Context.Send("No one voted. I will select a random guess.");
             key = _randomNumberGenerator.Next(1, _roundGuesses.Count);
-        }
-        else if (_roundGuesses.Count == 1)
-        {
-            Context.Send("Only one guess was submitted. Taking that one.");
-            key = 1;
         }
         else if (allVotesTied)
         {

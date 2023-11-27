@@ -6,6 +6,7 @@ public interface ICacheService
 {
     ConnectionMultiplexer Connect(byte numberOfRetries);
     IDatabase Database { get; }
+    ISubscriber Subscriber { get; }
     Task AddToSet(string key, string item);
     Task<List<string>> GetItemsInSet(string key);
     Task RemoveFromSet(string key, string item);

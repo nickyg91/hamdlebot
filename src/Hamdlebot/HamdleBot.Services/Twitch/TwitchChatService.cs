@@ -1,24 +1,38 @@
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.RegularExpressions;
+using Hamdle.Cache;
 using Hamdlebot.Core;
+using HamdleBot.Services.Mediators;
 using HamdleBot.Services.Twitch.Interfaces;
 using Microsoft.Extensions.Options;
+using StackExchange.Redis;
 
 namespace HamdleBot.Services.Twitch;
 
 public class TwitchChatService : ITwitchChatService
 {
-    private readonly IHamdleWordService _wordService;
+    private readonly ICacheService _cache;
+    private readonly IWordService _wordService;
     private readonly AppConfigSettings _settings;
+    private readonly IHamdleService _hamdleService;
+    private readonly HamdleMediator _mediator;
     private ClientWebSocket? _socket;
     private CancellationToken _cancellationToken;
     private Regex _parseUserRegex = new("(:\\w+!)");
 
-    public TwitchChatService(IOptions<AppConfigSettings> settings, IHamdleWordService wordService)
+    public TwitchChatService(
+        IOptions<AppConfigSettings> settings, 
+        IWordService wordService, 
+        ICacheService cache,
+        IHamdleService hamdleService,
+        HamdleMediator mediator)
     {
         _wordService = wordService;
         _settings = settings.Value;
+        _cache = cache;
+        _hamdleService = hamdleService;
+        _mediator = mediator;
     }
 
     public async Task<ClientWebSocket> CreateWebSocket(CancellationToken token)
@@ -26,7 +40,7 @@ public class TwitchChatService : ITwitchChatService
         _socket = new ClientWebSocket();
         _cancellationToken = token;
         await _socket.ConnectAsync(new Uri("wss://irc-ws.chat.twitch.tv:443"), token);
-
+        await InsertValidCommands();
         if (_socket.State == WebSocketState.Open)
         {
             var capReq = $"CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands";
@@ -43,12 +57,16 @@ public class TwitchChatService : ITwitchChatService
                 WebSocketMessageFlags.EndOfMessage, token);
             await WriteMessage("hamdlebot has arrived Kappa");
         }
-        
-        _wordService.SendMessage += HamdleWordService_SendMessage!;
 
+        _hamdleService.SendMessageToChat += Handle_Hamdle_Message!;
         return _socket;
     }
 
+    private async void Handle_Hamdle_Message(object sender, string message)
+    {
+        await WriteMessage(message);
+    }
+    
     public async Task WriteMessage(string message)
     {
         var ircMessage = $"PRIVMSG #hamhamReborn :{message}";
@@ -91,25 +109,25 @@ public class TwitchChatService : ITwitchChatService
 
                     if (!IsSelf(msg))
                     {
-                        if (_wordService.IsHamdleVotingInProgress() && msg.Contains("PRIVMSG"))
+                        if (_hamdleService.IsHamdleVotingInProgress() && msg.Contains("PRIVMSG"))
                         {
                             var privmsg = msg.Split("PRIVMSG")[1];
                             var parsedVote = privmsg.Split(":")[1].Trim();
                             if (int.TryParse(parsedVote, out var vote))
                             {
-                                _wordService.SubmitVoteForGuess(user!, vote);
+                                _hamdleService.SubmitVoteForGuess(user!, vote);
                             }
                         }
 
-                        if (!_wordService.IsHamdleVotingInProgress()
-                            && _wordService.IsHamdleSessionInProgress()
+                        if (!_hamdleService.IsHamdleVotingInProgress()
+                            && _hamdleService.IsHamdleSessionInProgress()
                             && msg.Contains("PRIVMSG"))
                         {
                             var privmsg = msg.Split("PRIVMSG")[1];
                             var parsedGuess = privmsg.Split(":")[1].Trim();
                             if (!string.IsNullOrEmpty(parsedGuess))
                             {
-                                await _wordService.SubmitGuess(user!, parsedGuess);
+                                await _hamdleService.SubmitGuess(user!, parsedGuess);
                             }
                         }
                         else
@@ -123,7 +141,7 @@ public class TwitchChatService : ITwitchChatService
 
                             if (ShouldProcess(command))
                             {
-                                await _wordService.ProcessCommand(command);
+                                await ProcessCommand(command);
                             }
                         }
                     }
@@ -145,14 +163,51 @@ public class TwitchChatService : ITwitchChatService
         return command.StartsWith("!#");
     }
 
-    private async void HamdleWordService_SendMessage(object sender, string message)
-    {
-        await WriteMessage(message);
-    }
-
     private bool IsSelf(string message)
     {
         var parsed = string.Join("", message.TakeWhile(x => x != '!'))?.Replace(":", "");
         return parsed == "hamdlebot" || parsed == "nightbot";
+    }
+    
+    private async Task InsertValidCommands()
+    {
+        var validCommands = new List<string>
+        {
+            "!#commands",
+            "!#random",
+            "!#hamdle"
+        };
+        foreach (var command in validCommands)
+        {
+            await _cache.AddToSet("commands", command);
+        }
+    }
+
+    private async Task<bool> IsValidCommand(string command)
+    {
+        return await _cache.ContainsMember("commands", command);
+    }
+
+    private async Task ProcessCommand(string command)
+    {
+        var isValidCommand = await IsValidCommand(command);
+        if (!isValidCommand)
+        {
+            await WriteMessage("Invalid command! SirSad");
+        }
+
+        switch (command)
+        {
+            case "!#commands":
+                await WriteMessage("Commands: !#<command> commands, random, hamdle");
+                break;
+            case "!#random":
+                var word = await _wordService.GetRandomWord();
+                await WriteMessage(word ?? "nooooo!");
+                break;
+            case "!#hamdle":
+                await _cache.Subscriber.PublishAsync(new RedisChannel("startHamdleScene", RedisChannel.PatternMode.Auto), "start");
+                break;
+        }
     }
 }

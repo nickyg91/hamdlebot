@@ -27,9 +27,11 @@ IHost host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<ITwitchChatService, TwitchChatService>();
         services.AddSingleton<ITwitchIdentityApiService, TwitchIdentityApiService>();
         services.AddSingleton<ICacheService, CacheService>();
-        services.AddSingleton<IHamdleWordService, HamdleWordService>();
-        services.AddSingleton<HubConnection>((_) => new HubConnectionBuilder().WithUrl("https://localhost:7256/hamdlebothub").Build());
+        services.AddSingleton<IWordService, WordService>();
+        services.AddSingleton<HubConnection>((_) => new HubConnectionBuilder()
+            .WithUrl("https://localhost:7256/hamdlebothub").Build());
         services.AddSingleton<IObsService, ObsService>();
+        services.AddSingleton<IHamdleService, HamdleService>();
         services.AddSingleton<HamdleMediator>();
         services.AddHostedService<Worker>();
     })

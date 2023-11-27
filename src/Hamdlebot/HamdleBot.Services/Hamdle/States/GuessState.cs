@@ -61,11 +61,31 @@ public class GuessState : BaseState<HamdleContext>
         var isValidGuess = await Cache.ContainsMember("words", guess) && guess.Length == 5;
         return isValidGuess && !Context.Guesses.Contains(guess);
     }
+
+    private async Task CorrectWordGuessed()
+    {
+        Context.Send($"We have a winner! The word was {Context.CurrentWord}.");
+        Context.Send($"This concludes this instance of hamdle. To initiate another, type !#hamdle!");
+        Thread.Sleep(10000);
+        await SignalR.InvokeAsync("ResetState");
+    }
     
     private async void OnGuessTimerExpired(object source, ElapsedEventArgs e)
     {
         Context.Send("The window for guesses is over!");
-        if (_guesses.Any())
+        if (_guesses.Count == 1)
+        {
+            var guess = _guesses.First();
+            if (guess == Context.CurrentWord)
+            {
+                await CorrectWordGuessed();
+                return;
+            }
+            Context.Send("Only one guess was submitted. Let's take that one.");
+            await SignalR.InvokeAsync("SendGuess", guess);
+            await Context.StartGuesses();
+        }
+        else if (_guesses.Count > 1)
         {
             StartVoting?.Invoke(this, _guesses);
         }
@@ -78,7 +98,7 @@ public class GuessState : BaseState<HamdleContext>
             {
                 _guessTimer!.Stop();
                 Context.Send("Nobody is playing SirSad. Stopping the game.");
-                Context.StopAndReset();
+                await Context.StopAndReset();
             }
             else
             {

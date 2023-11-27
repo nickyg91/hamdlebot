@@ -10,6 +10,7 @@ public class CacheService : ICacheService
     private readonly string _connectionString;
     private readonly byte _maxRetries;
     public IDatabase Database => _redisConnection.Value.GetDatabase();
+    public ISubscriber Subscriber => _redisConnection.Value.GetSubscriber();
 
     public CacheService(IOptions<AppConfigSettings> settings)
     {
