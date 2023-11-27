@@ -10,22 +10,9 @@ public static class AppConfigServiceExtensions
     {
         var env = isDev ? "Dev" : "Prod";
         // DO NOT SHOW VALUES ON STREAM.
-        var managedIdentityClientId = "";
-        var appConfigConnectionString = "";
-        var tenantId = "";
-
-        if (isDev)
-        {
-            appConfigConnectionString = root["ConnectionStrings:AppConfig"];
-            tenantId = root["Hyperion:ManagedIdentity:TenantId"];
-            managedIdentityClientId = root["Hyperion:ManagedIdentity:ClientId"];
-        }
-        else
-        {
-            appConfigConnectionString = Environment.GetEnvironmentVariable("APPCONFIG_CONNECTIONSTRING");
-            tenantId = Environment.GetEnvironmentVariable("AZURE_TENANTID");
-            managedIdentityClientId = Environment.GetEnvironmentVariable("MANAGED_USER_CLIENTID");
-        }
+        var appConfigConnectionString = root["ConnectionStrings:AppConfig"];
+        var tenantId = root["Hyperion:ManagedIdentity:TenantId"];
+        var managedIdentityClientId = root["Hyperion:ManagedIdentity:ClientId"];
 
         var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
         {
