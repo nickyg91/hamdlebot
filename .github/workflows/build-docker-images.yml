@@ -1,0 +1,20 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+    name: Build Hamdlebot
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build Hamdlebot Worker Docker Image
+      run: docker build . --file ./src/Hamdlebot.Worker/Dockerfile --tag hamdlebot-worker:$(date +%s)
+    - name: Build Hamdlebot Web Docker Image
+      run: docker build . --file ./src/Hamdlebot.Web/Dockerfile --tag hamdlebot-web:$(date +%s)
