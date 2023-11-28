@@ -68,7 +68,7 @@ jobs:
           push: true
           tags: hamdlebot-web:1.0.0
           labels: ${{ steps.meta.outputs.labels }}
-          file: ./src/Hamdlebot/Hamdlebot.Web
+          file: ./src/Hamdlebot/Hamdlebot.Web/Dockerfile
 
   build-worker:
     name: Build Hamdlebot Worker Container
@@ -105,4 +105,4 @@ jobs:
           push: true
           tags: hamdlebot-web:1.0.0
           labels: ${{ steps.meta.outputs.labels }}
-          file: ./src/Hamdlebot/Hamdlebot.Worker
+          file: ./src/Hamdlebot/Hamdlebot.Worker/Dockerfile
