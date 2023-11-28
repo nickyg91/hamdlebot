@@ -65,7 +65,7 @@ jobs:
       - name: Build and push Hamdlebot Web
         uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
         with:
-          context: ./src/Hamdlebot/Hamdlebot.Worker
+          context: ./src/Hamdlebot
           push: true
           tags: hamdlebot-web:1.0.0
           labels: ${{ steps.meta.outputs.labels }}
@@ -102,7 +102,7 @@ jobs:
       - name: Build and push Hamdlebot Worker
         uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
         with:
-          context: ./src/Hamdlebot/Hamdlebot.Worker
+          context: ./src/Hamdlebot
           push: true
           tags: hamdlebot-web:1.0.0
           labels: ${{ steps.meta.outputs.labels }}
