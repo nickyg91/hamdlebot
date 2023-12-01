@@ -22,7 +22,7 @@ public class GuessState : BaseState<HamdleContext>
         _guesses = new HashSet<string>();
         _usersWhoGuessed = new HashSet<string>();
     }
-//TODO figure out random guess issue
+    
     public override async Task Start()
     {
         if (Context!.CurrentRound == 1)
@@ -82,10 +82,12 @@ public class GuessState : BaseState<HamdleContext>
                 return;
             }
             Context.Send("Only one guess was submitted. Let's take that one.");
-            Context.CurrentRound++;
+            Context.IncrementCurrentRound();
+            Console.WriteLine(Context.CurrentRound);
             if (Context.CurrentRound > 5)
             {
                 await Context.SignalGameFinished();
+                return;
             }
             await SignalR.InvokeAsync("SendGuess", guess);
             await Context.StartGuesses();
@@ -97,7 +99,7 @@ public class GuessState : BaseState<HamdleContext>
         else
         {
             Context.Send("Nobody guessed! Let's go again.");
-            Context.CurrentRound--;
+            Context.DecrementCurrentRound();
             Context.NoGuesses++;
             if (Context.NoGuesses == 3)
             {

@@ -46,7 +46,6 @@ public class HamdleContext
 
     public async Task SignalGameFinished()
     {
-        Console.WriteLine(CurrentRound);
         Send($"Game over! Nobody has guessed the word. It was {CurrentWord}. Use !#hamdle to begin again.");
         await StopAndReset();
         await _signalRHub.InvokeAsync("ResetState");
@@ -92,7 +91,16 @@ public class HamdleContext
         await EnableHamdleScene(false);
         Restarted?.Invoke(this, null!);
     }
-    
+
+    public void DecrementCurrentRound()
+    {
+        CurrentRound--;
+    }
+
+    public void IncrementCurrentRound()
+    {
+        CurrentRound++;
+    }
     private async void StartVoting(object sender, HashSet<string> roundGuesses)
     {
         if (State == null || State.GetType() != typeof(GuessState))
