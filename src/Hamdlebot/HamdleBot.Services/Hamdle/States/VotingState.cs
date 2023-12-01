@@ -96,7 +96,7 @@ public class VotingState : BaseState<HamdleContext>
 
         Context.Guesses.Add(guess);
         Context.CurrentRound++;
-        if (Context.CurrentRound == 6)
+        if (Context.CurrentRound > 5)
         {
             await Context.SignalGameFinished();
         }

@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Hamdle.Cache;
 using Hamdlebot.Core;
+using Hamdlebot.Core.Extensions;
 using HamdleBot.Services.Mediators;
 using HamdleBot.Services.Twitch.Interfaces;
 using Microsoft.Extensions.Options;
@@ -76,8 +77,6 @@ public class TwitchChatService : ITwitchChatService
     }
 
     // we can simplify this at some point as it is a bit of spaghetti.
-    // turn it into an event based model where we permanently listen for messages and
-    // each message fires off an event to be invoked and listened to in other classes.
     public async Task HandleMessages()
     {
         try
@@ -97,51 +96,33 @@ public class TwitchChatService : ITwitchChatService
                 if (result.MessageType == WebSocketMessageType.Text)
                 {
                     var msg = Encoding.UTF8.GetString(ms.ToArray());
-                    if (msg.Contains("PING"))
+                    var chatMessage = msg.ToTwitchMessage();
+                    if (chatMessage.Message.Contains("PING"))
                     {
                         await _socket.SendAsync("PONG :tmi.twitch.tv"u8.ToArray(), WebSocketMessageType.Text,
                             WebSocketMessageFlags.EndOfMessage, _cancellationToken);
                     }
-
-                    var user = _parseUserRegex
-                        .Match(msg)
-                        .Value?.Replace(":", "")?.Replace("!", "");
-
-                    if (!IsSelf(msg))
+                    
+                    if (!IsSelf(chatMessage.DisplayName))
                     {
-                        if (_hamdleService.IsHamdleVotingInProgress() && msg.Contains("PRIVMSG"))
+                        if (_hamdleService.IsHamdleVotingInProgress())
                         {
-                            var privmsg = msg.Split("PRIVMSG")[1];
-                            var parsedVote = privmsg.Split(":")[1].Trim();
-                            if (int.TryParse(parsedVote, out var vote))
+                            if (int.TryParse(chatMessage.Message, out var vote))
                             {
-                                _hamdleService.SubmitVoteForGuess(user!, vote);
+                                _hamdleService.SubmitVoteForGuess(chatMessage.DisplayName!, vote);
                             }
                         }
 
                         if (!_hamdleService.IsHamdleVotingInProgress()
-                            && _hamdleService.IsHamdleSessionInProgress()
-                            && msg.Contains("PRIVMSG"))
+                            && _hamdleService.IsHamdleSessionInProgress())
                         {
-                            var privmsg = msg.Split("PRIVMSG")[1];
-                            var parsedGuess = privmsg.Split(":")[1].Trim();
-                            if (!string.IsNullOrEmpty(parsedGuess))
-                            {
-                                await _hamdleService.SubmitGuess(user!, parsedGuess);
-                            }
+                                await _hamdleService.SubmitGuess(chatMessage.User!, chatMessage.Message);
                         }
                         else
                         {
-                            string command = string.Empty;
-                            if (msg.Contains(":!#"))
+                            if (chatMessage.Message.Contains("!#") && ShouldProcess(chatMessage.Message))
                             {
-                                command = msg.Split("PRIVMSG")[1];
-                                command = command.Split(":")[1].Trim();
-                            }
-
-                            if (ShouldProcess(command))
-                            {
-                                await ProcessCommand(command);
+                                await ProcessCommand(chatMessage.Message);
                             }
                         }
                     }
@@ -154,7 +135,6 @@ public class TwitchChatService : ITwitchChatService
         catch (Exception e)
         {
             Console.WriteLine(e);
-            throw;
         }
     }
 
