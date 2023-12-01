@@ -83,13 +83,12 @@ public class GuessState : BaseState<HamdleContext>
             }
             Context.Send("Only one guess was submitted. Let's take that one.");
             Context.IncrementCurrentRound();
-            Console.WriteLine(Context.CurrentRound);
+            await SignalR.InvokeAsync("SendGuess", guess);
             if (Context.CurrentRound > 5)
             {
                 await Context.SignalGameFinished();
                 return;
             }
-            await SignalR.InvokeAsync("SendGuess", guess);
             await Context.StartGuesses();
         }
         else if (_guesses.Count > 1)

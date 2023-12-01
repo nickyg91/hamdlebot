@@ -48,6 +48,7 @@ public class HamdleContext
     {
         Send($"Game over! Nobody has guessed the word. It was {CurrentWord}. Use !#hamdle to begin again.");
         await StopAndReset();
+        Thread.Sleep(5000);
         await _signalRHub.InvokeAsync("ResetState");
     }
     
