@@ -11,7 +11,8 @@ const letters = computed(() => {
   for (let i = 0; i < 5; i++) {
     letters.push({
       isCorrect: props.guess.charAt(i).toLowerCase() === props.currentWord.charAt(i).toLowerCase(),
-      letter: props.guess.charAt(i).toUpperCase()
+      letter: props.guess.charAt(i).toUpperCase(),
+      isInWord: props.currentWord.indexOf(props.guess.charAt(i)) > -1
     });
   }
   return letters;
@@ -22,10 +23,11 @@ const letters = computed(() => {
     <template v-for="(letter, index) in letters" :key="index">
       <div
         :class="{
-          'bg-yellow-300': letter && !letter.isCorrect,
-          correct: letter && letter.isCorrect
+          'bg-yellow-300': letter && !letter.isCorrect && letter.isInWord,
+          correct: letter && letter.isCorrect,
+          'wrong-letter': letter && !letter.isCorrect && !letter.isInWord
         }"
-        class="letter flex p-3 mr-2"
+        class="letter flex justify-content-center p-3 mr-2"
       >
         {{ letter?.letter }}
       </div>
@@ -46,5 +48,9 @@ const letters = computed(() => {
 
 .correct {
   background-color: #0072b2;
+}
+
+.wrong-letter {
+  background-color: darkgray;
 }
 </style>
