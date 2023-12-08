@@ -6,7 +6,7 @@ namespace Hamdlebot.Core.Extensions;
 
 public static class AppConfigServiceExtensions
 {
-    public static void AddAzureAppConfig(this IConfigurationBuilder configuration, IConfigurationRoot root, bool isDev)
+    public static IConfigurationBuilder AddAzureAppConfig(this IConfigurationBuilder configuration, IConfigurationRoot root, bool isDev)
     {
         var env = isDev ? "Dev" : "Prod";
         // DO NOT SHOW VALUES ON STREAM.
@@ -29,5 +29,6 @@ public static class AppConfigServiceExtensions
                 .Select(KeyFilter.Any)
                 .Select(KeyFilter.Any, env);
         });
+        return configuration;
     }
 }

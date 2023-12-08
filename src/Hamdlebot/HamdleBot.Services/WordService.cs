@@ -29,16 +29,6 @@ public class WordService : IWordService
         await Task.WhenAll(addTasks);
     }
 
-    // public async Task RemoveWord(string word)
-    // {
-    //     throw new NotImplementedException();
-    // }
-    //
-    // public async Task AddWord(string word)
-    // {
-    //     throw new NotImplementedException();
-    // }
-
     public async Task<string?> GetRandomWord()
     {
         return await _cache.GetRandomItemFromSet("words");

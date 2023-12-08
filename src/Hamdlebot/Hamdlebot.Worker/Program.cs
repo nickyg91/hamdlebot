@@ -13,14 +13,15 @@ using Microsoft.AspNetCore.SignalR.Client;
 IHost host = Host.CreateDefaultBuilder(args)
     .ConfigureAppConfiguration((builder, config) =>
     {
-        config.AddEnvironmentVariables();
         var settings = config.Build();
-        config.AddAzureAppConfig(settings, builder.HostingEnvironment.IsDevelopment());
+        config
+            .AddEnvironmentVariables()
+            .AddAzureAppConfig(settings, builder.HostingEnvironment.IsDevelopment());
     })
     .ConfigureServices((builder, services) =>
     {
         var appSettings = builder.Configuration.GetSection("Settings");
-        services.Configure <AppConfigSettings>(appSettings);
+        services.Configure<AppConfigSettings>(appSettings);
         var oauthHandler = new HttpClientHandler();
         var oauthHttpClient = new HttpClient(oauthHandler);
         services.AddSingleton(oauthHttpClient);

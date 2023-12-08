@@ -1,11 +1,13 @@
 using System.Text.Json;
 using Hamdle.Cache;
+using Hamdlebot.Core;
 using Hamdlebot.Models.OBS;
 using Hamdlebot.Models.OBS.RequestTypes;
 using Hamdlebot.Models.OBS.ResponseTypes;
 using HamdleBot.Services.Hamdle;
 using HamdleBot.Services.Mediators;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace HamdleBot.Services;
@@ -15,18 +17,21 @@ public class HamdleService : IHamdleService
     private readonly ICacheService _cache;
     private readonly HubConnection _signalRHub;
     private readonly HamdleMediator _hamdleMediator;
+    private readonly ObsSettings _obsSettings;
     private HamdleContext? _hamdleContext;
     private SceneItem? _hamdleScene;
     public event EventHandler<string>? SendMessageToChat;
     public HamdleService(
         ICacheService cache, 
         HubConnection signalRHub, 
-        HamdleMediator hamdleMediator)
+        HamdleMediator hamdleMediator,
+        IOptions<AppConfigSettings> settings)
     {
         _cache = cache;
         _signalRHub = signalRHub;
         _hamdleMediator = hamdleMediator;
-        
+        _obsSettings = settings.Value.ObsSettingsOptions;
+
         _cache.Subscriber
             .Subscribe(new RedisChannel("onSceneRetrieved", RedisChannel.PatternMode.Auto)).OnMessage(async channelMessage =>
         {
@@ -101,7 +106,7 @@ public class HamdleService : IHamdleService
                 RequestData = new GetSceneItemListRequest
                 {
                     // make this more flexible
-                    SceneName = "Desktop Capture",   
+                    SceneName = _obsSettings.SceneName,   
                 }
             },
             Op = OpCodeType.Request

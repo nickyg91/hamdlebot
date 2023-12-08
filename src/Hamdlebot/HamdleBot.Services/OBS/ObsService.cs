@@ -4,10 +4,12 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Hamdle.Cache;
+using Hamdlebot.Core;
 using Hamdlebot.Models.OBS;
 using Hamdlebot.Models.OBS.RequestTypes;
 using Hamdlebot.Models.OBS.ResponseTypes;
 using HamdleBot.Services.Mediators;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace HamdleBot.Services.OBS;
@@ -17,10 +19,12 @@ public class ObsService : IObsService
     private ClientWebSocket? _socket;
     private CancellationToken _cancellationToken;
     private ICacheService _cache;
+    private readonly ObsSettings _obsSettings;
 
-    public ObsService(ICacheService cache)
+    public ObsService(ICacheService cache, IOptions<AppConfigSettings> settings)
     {
         _cache = cache;
+        _obsSettings = settings.Value.ObsSettingsOptions;
     }
 
     public async Task CreateWebSocket(CancellationToken cancellationToken)
@@ -110,13 +114,12 @@ public class ObsService : IObsService
         catch (Exception e)
         {
             Console.WriteLine(e);
-            throw;
         }
     }
 
     private async Task GetHamdleScene(GetSceneItemListResponse scenes)
     {
-        var scene = scenes.SceneItems.FirstOrDefault(x => x.SourceName?.ToLower() == "hamdle");
+        var scene = scenes.SceneItems.FirstOrDefault(x => x.SourceName?.ToLower() == _obsSettings.HamdleSourceName.ToLower());
         if (scene == null)
         {
             throw new KeyNotFoundException("Hamdle not found within set of scene items.");
