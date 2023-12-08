@@ -17,7 +17,7 @@ export const useHamdleStore = defineStore('hamdle', () => {
   async function createSignalRConnection(): Promise<void> {
     const connection = new HubConnectionBuilder().withUrl('/hamdlebothub').build();
     signalRConnection = connection;
-    //await startSignalRConnection();
+    await startSignalRConnection();
     signalRConnection.on('SendSelectedWord', (word: string) => {
       currentWord.value = word;
     });

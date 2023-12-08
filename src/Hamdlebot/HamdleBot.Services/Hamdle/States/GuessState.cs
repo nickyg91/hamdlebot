@@ -25,7 +25,7 @@ public class GuessState : BaseState<HamdleContext>
     
     public override async Task Start()
     {
-        if (Context!.CurrentRound == 1)
+        if (Context.CurrentRound == 1)
         {
             var word = await Cache.GetRandomItemFromSet("words");
             if (string.IsNullOrEmpty(word))
