@@ -29,9 +29,16 @@ public class ObsService : IObsService
 
     public async Task CreateWebSocket(CancellationToken cancellationToken)
     {
-        _socket = new ClientWebSocket();
-        _cancellationToken = cancellationToken;
-        await _socket.ConnectAsync(new Uri("ws://localhost:4455"), _cancellationToken);
+        try
+        {
+            _socket = new ClientWebSocket();
+            _cancellationToken = cancellationToken;
+            await _socket.ConnectAsync(new Uri("ws://localhost:4455"), _cancellationToken);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
     }
 
     public async Task SendRequest<T>(ObsRequest<T> message) where T : class

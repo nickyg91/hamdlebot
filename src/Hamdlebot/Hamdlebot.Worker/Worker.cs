@@ -35,7 +35,7 @@ public class Worker : BackgroundService
             _wordService.InsertWords(),
             _twitchChatService.CreateWebSocket(stoppingToken));
 
-        Task.Run(() => _twitchChatService.HandleMessages(), stoppingToken);
-        Task.Run(() => _obsService.HandleMessages(), stoppingToken);
+        Task.Factory.StartNew(() => _twitchChatService.HandleMessages(), TaskCreationOptions.LongRunning);
+        Task.Factory.StartNew(() => _obsService.HandleMessages(), TaskCreationOptions.LongRunning);
     }
 }
