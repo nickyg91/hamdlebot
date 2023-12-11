@@ -5,6 +5,16 @@ services:
     image: "redis"
     volumes:
       - "hamdle-data:/redis"
+  hamdle-web:
+    container_name: "hamdlebot-web"
+    restart: unless-stopped
+    image: ghcr.io/nickyg91/hamdlebot-web:1.0.0
+    ports:
+      - 7256:8080
+      - 5141:80
+    depends_on: 
+      redis:
+        condition: service_started
   hamdle-worker:
     environment:
       - Settings__ObsSettingsOptions__SocketUrl
@@ -17,15 +27,7 @@ services:
     depends_on:
       redis:
         condition: service_started
-  hamdle-web:
-    container_name: "hamdlebot-web"
-    restart: unless-stopped
-    image: ghcr.io/nickyg91/hamdlebot-web:1.0.0
-    ports:
-      - 7256:8080
-      - 5141:80
-    depends_on: 
-      redis:
+      hamdle-web:
         condition: service_started
   volumes:
     hamdle-data:
