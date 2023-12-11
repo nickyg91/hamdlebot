@@ -33,7 +33,7 @@ public class ObsService : IObsService
         {
             _socket = new ClientWebSocket();
             _cancellationToken = cancellationToken;
-            await _socket.ConnectAsync(new Uri("ws://localhost:4455"), _cancellationToken);
+            await _socket.ConnectAsync(new Uri(_obsSettings.SocketUrl), _cancellationToken);
         }
         catch (Exception e)
         {
