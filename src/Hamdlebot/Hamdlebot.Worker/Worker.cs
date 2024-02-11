@@ -1,6 +1,3 @@
-using Hamdle.Cache;
-using Hamdlebot.Models.OBS;
-using Hamdlebot.Models.OBS.RequestTypes;
 using HamdleBot.Services;
 using HamdleBot.Services.OBS;
 using HamdleBot.Services.Twitch.Interfaces;

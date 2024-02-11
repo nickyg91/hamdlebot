@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Hamdle.Cache;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
+using Hamdlebot.Models;
 using HamdleBot.Services.Mediators;
 using HamdleBot.Services.Twitch.Interfaces;
 using Microsoft.Extensions.Options;
@@ -21,23 +22,27 @@ public class TwitchChatService : ITwitchChatService
     private ClientWebSocket? _socket;
     private CancellationToken _cancellationToken;
     private Regex _parseUserRegex = new("(:\\w+!)");
+    private ITwitchIdentityApiService _identityApiService;
 
     public TwitchChatService(
         IOptions<AppConfigSettings> settings, 
         IWordService wordService, 
         ICacheService cache,
         IHamdleService hamdleService,
-        HamdleMediator mediator)
+        HamdleMediator mediator, 
+        ITwitchIdentityApiService identityApiService)
     {
         _wordService = wordService;
         _settings = settings.Value;
         _cache = cache;
         _hamdleService = hamdleService;
         _mediator = mediator;
+        _identityApiService = identityApiService;
     }
 
     public async Task<ClientWebSocket> CreateWebSocket(CancellationToken token)
     {
+        var tokenResponse = await Authenticate();
         _socket = new ClientWebSocket();
         _cancellationToken = token;
         await _socket.ConnectAsync(new Uri("wss://irc-ws.chat.twitch.tv:443"), token);
@@ -45,7 +50,7 @@ public class TwitchChatService : ITwitchChatService
         if (_socket.State == WebSocketState.Open)
         {
             var capReq = $"CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands";
-            var pass = $"PASS oauth:{_settings.TwitchConnectionInfo.ClientSecret}";
+            var pass = $"PASS oauth:{tokenResponse!.AccessToken}";
             var nick = "NICK hamdlebot";
             var passSegment = new ArraySegment<byte>(Encoding.UTF8.GetBytes(pass));
             var nickSegment = new ArraySegment<byte>(Encoding.UTF8.GetBytes(nick));
@@ -63,6 +68,47 @@ public class TwitchChatService : ITwitchChatService
         return _socket;
     }
 
+    private async Task<ClientCredentialsTokenResponse> Authenticate()
+    {
+        ClientCredentialsTokenResponse? tokenResponse = null;
+        var oauthToken = await _cache.GetItem("twitchOauthToken");
+        var refreshToken = await _cache.GetItem("twitchRefreshToken");
+
+        if (oauthToken != null)
+        {
+            return new ClientCredentialsTokenResponse
+            {
+                AccessToken = oauthToken!
+            };
+        }
+        
+        if (oauthToken == null && refreshToken == null)
+        {
+            tokenResponse = await _identityApiService.GetTokenFromCodeFlow(new ClientCredentialsTokenRequest
+            {
+                ClientId = _settings.TwitchConnectionInfo.ClientId,
+                ClientSecret = _settings.TwitchConnectionInfo.ClientSecret,
+            });
+            await _cache.AddItem("twitchOauthToken", tokenResponse!.AccessToken, TimeSpan.FromSeconds(tokenResponse!.ExpiresIn));
+            await _cache.AddItem("twitchRefreshToken", tokenResponse!.RefreshToken, TimeSpan.FromDays(30));
+            return tokenResponse;
+        }
+        
+        if (refreshToken != null)
+        {
+            tokenResponse = await _identityApiService.RefreshToken(new ClientCredentialsTokenRequest
+            {
+                ClientId = _settings.TwitchConnectionInfo.ClientId,
+                ClientSecret = _settings.TwitchConnectionInfo.ClientSecret,
+                RefreshToken = refreshToken
+            });
+            await _cache.AddItem("twitchOauthToken", tokenResponse!.AccessToken, TimeSpan.FromSeconds(tokenResponse!.ExpiresIn));
+            await _cache.AddItem("twitchRefreshToken", tokenResponse!.RefreshToken, TimeSpan.FromDays(30));
+            return tokenResponse;
+        }
+        throw new Exception("An error occurred while authenticating with Twitch.");
+    }
+    
     private async void Handle_Hamdle_Message(object sender, string message)
     {
         await WriteMessage(message);

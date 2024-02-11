@@ -10,4 +10,6 @@ public class ClientCredentialsTokenResponse
     public int ExpiresIn { get; set; }
     [JsonPropertyName("token_type")]
     public string TokenType { get; set; }
+    [JsonPropertyName("refresh_token")]
+    public string RefreshToken { get; set; }
 }

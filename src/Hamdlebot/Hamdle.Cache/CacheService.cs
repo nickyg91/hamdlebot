@@ -76,4 +76,14 @@ public class CacheService : ICacheService
     {
         return await Database.KeyExistsAsync(key);
     }
+
+    public async Task AddItem(string key, string item, TimeSpan? expiry = null)
+    {
+        await Database.StringSetAsync(key, item, expiry);
+    }
+
+    public async Task<string?> GetItem(string key)
+    {
+        return await Database.StringGetAsync(key);
+    }
 }

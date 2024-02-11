@@ -6,7 +6,6 @@ using HamdleBot.Services.Mediators;
 using HamdleBot.Services.OBS;
 using HamdleBot.Services.Twitch;
 using HamdleBot.Services.Twitch.Interfaces;
-using Hamdlebot.TwitchServices.Api;
 using Hamdlebot.Worker;
 using Microsoft.AspNetCore.SignalR.Client;
 
