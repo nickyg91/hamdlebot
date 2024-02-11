@@ -84,11 +84,7 @@ public class TwitchChatService : ITwitchChatService
         
         if (oauthToken == null && refreshToken == null)
         {
-            tokenResponse = await _identityApiService.GetTokenFromCodeFlow(new ClientCredentialsTokenRequest
-            {
-                ClientId = _settings.TwitchConnectionInfo.ClientId,
-                ClientSecret = _settings.TwitchConnectionInfo.ClientSecret,
-            });
+            tokenResponse = await _identityApiService.GetTokenFromCodeFlow();
             await _cache.AddItem("twitchOauthToken", tokenResponse!.AccessToken, TimeSpan.FromSeconds(tokenResponse!.ExpiresIn));
             await _cache.AddItem("twitchRefreshToken", tokenResponse!.RefreshToken, TimeSpan.FromDays(30));
             return tokenResponse;
@@ -96,12 +92,7 @@ public class TwitchChatService : ITwitchChatService
         
         if (refreshToken != null)
         {
-            tokenResponse = await _identityApiService.RefreshToken(new ClientCredentialsTokenRequest
-            {
-                ClientId = _settings.TwitchConnectionInfo.ClientId,
-                ClientSecret = _settings.TwitchConnectionInfo.ClientSecret,
-                RefreshToken = refreshToken
-            });
+            tokenResponse = await _identityApiService.RefreshToken(refreshToken);
             await _cache.AddItem("twitchOauthToken", tokenResponse!.AccessToken, TimeSpan.FromSeconds(tokenResponse!.ExpiresIn));
             await _cache.AddItem("twitchRefreshToken", tokenResponse!.RefreshToken, TimeSpan.FromDays(30));
             return tokenResponse;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GuessedLetters from '@/components/GuessedLetters.vue';
 import HamdleTimer from '@/components/HamdleTimer.vue';
 import WordGuess from '@/components/WordGuess.vue';
 import { useHamdleStore } from '@/stores/hamdle.store';
@@ -9,6 +10,7 @@ const store = useHamdleStore();
 onMounted(async () => {
   await store.createSignalRConnection();
 });
+
 const guesses = computed(() => {
   const guesses = [];
   for (let i = 0; i < 5; i++) {
@@ -32,6 +34,7 @@ const guesses = computed(() => {
         :guess="guess"
         :current-word="store.currentWord"
       ></WordGuess>
+      <GuessedLetters> </GuessedLetters>
     </div>
   </div>
 </template>

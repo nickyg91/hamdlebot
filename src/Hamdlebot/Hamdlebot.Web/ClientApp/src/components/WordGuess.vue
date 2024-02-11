@@ -10,9 +10,11 @@ const letters = computed(() => {
   const letters: IPositionalLetter[] = [];
   for (let i = 0; i < 5; i++) {
     letters.push({
-      isCorrect: props.guess.charAt(i).toLowerCase() === props.currentWord.charAt(i).toLowerCase(),
       letter: props.guess.charAt(i).toUpperCase(),
-      isInWord: props.currentWord.indexOf(props.guess.charAt(i)) > -1
+      isCorrect: props.guess.charAt(i).toLowerCase() === props.currentWord.charAt(i).toLowerCase(),
+      isInWord:
+        props.currentWord.indexOf(props.guess.charAt(i)) > -1 &&
+        props.guess.charAt(i) !== props.currentWord.charAt(i)
     });
   }
   return letters;

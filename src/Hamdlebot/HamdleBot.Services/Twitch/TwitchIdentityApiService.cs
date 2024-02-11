@@ -12,13 +12,13 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
 {
     private readonly HttpClient _client;
     private readonly AppConfigSettings _settings;
-    public TwitchIdentityApiService(HttpClient client, AppConfigSettings settings)
+    public TwitchIdentityApiService(HttpClient client, IOptions<AppConfigSettings> settings)
     {
         _client = client;
-        _settings = settings;
+        _settings = settings.Value;
     }
 
-    public async Task<ClientCredentialsTokenResponse?> GetToken(ClientCredentialsTokenRequest request)
+    public async Task<ClientCredentialsTokenResponse?> GetToken()
     {
         _client.DefaultRequestHeaders.Clear();
         using var content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
@@ -39,7 +39,7 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
             $"An error occurred while generating a twitch token: {response.StatusCode}.");
     }
 
-    public async Task<ClientCredentialsTokenResponse?> GetTokenFromCodeFlow(ClientCredentialsTokenRequest request)
+    public async Task<ClientCredentialsTokenResponse?> GetTokenFromCodeFlow()
     {
         var code = await ListenForRedirect(_settings.TwitchConnectionInfo.RedirectUrl);
         if (code == null)
@@ -66,14 +66,14 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
         return responseObject;
     }
 
-    public async Task<ClientCredentialsTokenResponse?> RefreshToken(ClientCredentialsTokenRequest request)
+    public async Task<ClientCredentialsTokenResponse?> RefreshToken(string refreshToken)
     {
         using var content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
         {
             new("client_id", _settings.TwitchConnectionInfo.ClientId),
             new("client_secret", _settings.TwitchConnectionInfo.ClientSecret),
             new("grant_type", "refresh_token"),
-            new("refresh_token", request.RefreshToken),
+            new("refresh_token", refreshToken),
         });
         var response = await _client.PostAsync(new Uri("https://id.twitch.tv/oauth2/token"), content);
         var json = await response.Content.ReadAsStringAsync();

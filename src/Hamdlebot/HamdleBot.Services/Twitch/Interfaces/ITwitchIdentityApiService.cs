@@ -5,8 +5,8 @@ namespace HamdleBot.Services.Twitch.Interfaces;
 
 public interface ITwitchIdentityApiService
 {
-    Task<ClientCredentialsTokenResponse?> GetToken(ClientCredentialsTokenRequest request);
-    Task<ClientCredentialsTokenResponse?> GetTokenFromCodeFlow(ClientCredentialsTokenRequest request);
-    Task<ClientCredentialsTokenResponse?> RefreshToken(ClientCredentialsTokenRequest request);
+    Task<ClientCredentialsTokenResponse?> GetToken();
+    Task<ClientCredentialsTokenResponse?> GetTokenFromCodeFlow();
+    Task<ClientCredentialsTokenResponse?> RefreshToken(string refreshToken);
     Task<string?> ListenForRedirect(string redirectUrl);
 }
