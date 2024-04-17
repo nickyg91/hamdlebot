@@ -17,6 +17,14 @@ public class HamdleContext
     private readonly int _hamdleSceneId;
     public event EventHandler<string>? SendMessageToChat;
     public event EventHandler? Restarted;
+    public string CurrentWord { get; set; }
+    public byte CurrentRound { get; set; } = 1;
+    private BaseState<HamdleContext>? State { get; set; }
+    public bool IsInVotingState => State?.GetType() == typeof(VotingState);
+    public bool IsRoundInProgress => State?.GetType() == typeof(GuessState) || IsInVotingState;
+    public HashSet<string> Guesses { get; set; }
+    public byte NoGuesses { get; set; }
+    
     public HamdleContext(
         ICacheService cache, 
         HubConnection signalRHub,
@@ -30,13 +38,6 @@ public class HamdleContext
         Guesses = new HashSet<string>();
         _hamdleSceneId = hamdleSceneId;
     }
-    public string CurrentWord { get; set; }
-    public byte CurrentRound { get; set; } = 1;
-    private BaseState<HamdleContext>? State { get; set; }
-    public bool IsInVotingState => State?.GetType() == typeof(VotingState);
-    public bool IsRoundInProgress => State?.GetType() == typeof(GuessState) || IsInVotingState;
-    public HashSet<string> Guesses { get; set; }
-    public byte NoGuesses { get; set; }
     
     public void Send(string message)
     {

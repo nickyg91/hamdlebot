@@ -26,6 +26,7 @@ const guesses = computed(() => {
 <template>
   <div>
     <div class="flex flex-column align-items-center">
+      {{ store.currentWord }}
       <HamdleTimer class="flex p-3 mb-1 justify-content-center"></HamdleTimer>
       <WordGuess
         class="flex p-5 mb-5"

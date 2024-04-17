@@ -91,6 +91,7 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
     {
         var listener = new HttpListener();
         listener.Prefixes.Add("http://localhost:3000/");
+        //listener.Prefixes.Add("https://*:3000/");
         listener.Start();
         var code = await OnRequest(listener);
         listener.Stop();

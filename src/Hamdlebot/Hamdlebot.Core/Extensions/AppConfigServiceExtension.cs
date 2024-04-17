@@ -31,4 +31,30 @@ public static class AppConfigServiceExtensions
         });
         return configuration;
     }
+    
+    public static ConfigurationManager AddAzureAppConfig(this ConfigurationManager configuration, bool isDev)
+    {
+        var env = isDev ? "Dev" : "Prod";
+        // DO NOT SHOW VALUES ON STREAM.
+        var appConfigConnectionString = configuration["ConnectionStrings:AppConfig"];
+        var tenantId = configuration["Hyperion:ManagedIdentity:TenantId"];
+        var managedIdentityClientId = configuration["Hyperion:ManagedIdentity:ClientId"];
+
+        var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+        {
+            ManagedIdentityClientId = managedIdentityClientId,
+            TenantId = tenantId,
+        });
+
+        // AGAIN DONT SHOW THESE WHEN DEBUGGING!
+        configuration.AddAzureAppConfiguration(options =>
+        {
+            options
+                .Connect(appConfigConnectionString)
+                .ConfigureKeyVault(kv => { kv.SetCredential(credential); })
+                .Select(KeyFilter.Any)
+                .Select(KeyFilter.Any, env);
+        });
+        return configuration;
+    }
 }

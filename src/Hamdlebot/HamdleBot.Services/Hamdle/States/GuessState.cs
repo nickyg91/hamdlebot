@@ -67,7 +67,7 @@ public class GuessState : BaseState<HamdleContext>
         Context.Send($"We have a winner! The word was {Context.CurrentWord}.");
         Context.Send($"This concludes this instance of hamdle. To initiate another, type !#hamdle!");
         Thread.Sleep(10000);
-        await SignalR.InvokeAsync("ResetState");
+        await Context.StopAndReset();
     }
     
     private async void OnGuessTimerExpired(object source, ElapsedEventArgs e)
@@ -78,6 +78,7 @@ public class GuessState : BaseState<HamdleContext>
             var guess = _guesses.First();
             if (guess == Context.CurrentWord)
             {
+                await SignalR.InvokeAsync("SendGuess", guess);
                 await CorrectWordGuessed();
                 return;
             }
