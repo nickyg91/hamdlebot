@@ -15,28 +15,28 @@ export const useHamdleStore = defineStore('hamdle', () => {
   const showVotingTimer = computed(() => votingMs.value > 0);
   const showBetweenRoundMs = computed(() => betweenRoundMs.value > 0);
 
-  signalRConnection?.on('startguesstimer', (word: string) => {
+  signalRConnection?.on('SendSelectedWord', (word: string) => {
     currentWord.value = word;
   });
 
-  signalRConnection?.on('sendguess', (guess: string) => {
+  signalRConnection?.on('SendGuess', (guess: string) => {
     guesses.value.push(guess);
   });
 
-  signalRConnection?.on('resetstate', () => {
+  signalRConnection?.on('ResetState', () => {
     guesses.value = [];
     currentWord.value = '';
   });
 
-  signalRConnection?.on('startguesstimer', (ms) => {
+  signalRConnection?.on('StartGuessTimer', (ms) => {
     guessMs.value = ms;
   });
 
-  signalRConnection?.on('startvotetimer', (ms) => {
+  signalRConnection?.on('StartVoteTimer', (ms) => {
     votingMs.value = ms;
   });
 
-  signalRConnection?.on('startbetweenroundtimer', (ms) => {
+  signalRConnection?.on('StartBetweenRoundTimer', (ms) => {
     betweenRoundMs.value = ms;
   });
 

@@ -7,8 +7,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const logMessages = ref<ILogMessage[]>([]);
   const { getConnectionByHub } = useSignalR();
   const signalRConnection = getConnectionByHub('botloghub');
-
-  signalRConnection?.on('logmessage', (message: ILogMessage) => {
+  signalRConnection?.on('LogMessage', (message: ILogMessage) => {
     logMessages.value.push(message);
   });
 

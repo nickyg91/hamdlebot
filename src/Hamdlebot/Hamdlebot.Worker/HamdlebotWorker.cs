@@ -47,11 +47,14 @@ public class HamdlebotWorker : BackgroundService
         // The application has fully started, start the background tasks
         await Task.WhenAll(
             _hamdleHub.StartAsync(cancellationToken),
-            _logHub.StartAsync(cancellationToken),
+            _logHub.StartAsync(cancellationToken)
+        );
+        await _logClient.LogMessage(new LogMessage("Bot connected.", DateTime.UtcNow, SeverityLevel.Info));
+        await Task.WhenAll(
             _obsService.CreateWebSocket(cancellationToken),
             _wordService.InsertWords(),
             _twitchChatService.CreateWebSocket(cancellationToken));
-        await _logClient.LogMessage(new LogMessage("Bot connected.", DateTime.UtcNow, SeverityLevel.Info));        
+        
         Task.Run(() => _twitchChatService.HandleMessages());
         Task.Run(() => _obsService.HandleMessages());
     }

@@ -3,14 +3,22 @@ import type { ILogMessage } from '@/models/log-message.interface';
 import { SeverityLevel } from '@/models/severity-level.enum';
 defineProps<{ message: ILogMessage }>();
 
-const toTimestamp = (date: Date) => date.toISOString().replace('T', ' ').replace('Z', '');
+const toTimestamp = (date: string) => date?.replace('T', ' ')?.replace('Z', '') + ' UTC';
 const toLevel = (level: SeverityLevel) => SeverityLevel[level];
 </script>
 <template>
-  <div class="log-message">
-    <span>{{ toTimestamp(message.timeStamp) }}</span>
-    <span>{{ toLevel(message.severityLevel) }}</span>
-    <span>{{ message.message }}</span>
+  <div class="log-message p-2">
+    <span class="mr-1">{{ toTimestamp(message.timestamp) }}</span>
+    <span
+      :class="{
+        'text-blue-500': message.severityLevel === SeverityLevel.Info,
+        'text-red-500': message.severityLevel === SeverityLevel.Error,
+        'text-yellow-500': message.severityLevel === SeverityLevel.Warning
+      }"
+      class="mr-1"
+      >{{ toLevel(message.severityLevel) }}</span
+    >
+    <span class="mr-1">{{ message.message }}</span>
   </div>
 </template>
 

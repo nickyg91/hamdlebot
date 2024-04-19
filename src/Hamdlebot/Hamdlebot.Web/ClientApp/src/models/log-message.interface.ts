@@ -2,6 +2,6 @@ import type { SeverityLevel } from './severity-level.enum';
 
 export interface ILogMessage {
   message: string;
-  timeStamp: Date;
+  timestamp: string;
   severityLevel: SeverityLevel;
 }
