@@ -1,38 +1,40 @@
 using Hamdle.Cache;
 using Hamdlebot.Core.Exceptions;
+using Hamdlebot.Core.SignalR.Clients;
 using Hamdlebot.Models.OBS;
 using Hamdlebot.Models.OBS.RequestTypes;
 using HamdleBot.Services.Hamdle.States;
 using HamdleBot.Services.Mediators;
-using Microsoft.AspNetCore.SignalR.Client;
 
 namespace HamdleBot.Services.Hamdle;
 
 public class HamdleContext
 {
+    private const int StopAndResetDelay = 5000;
+    private const int WaitBeforeSceneSet = 1000;
     private readonly ICacheService _cache;
-    private readonly HubConnection _signalRHub;
+    private readonly IHamdleHubClient _hamdleHubClient;
     private readonly HamdleMediator _mediator;
     private bool _isSceneEnabled;
     private readonly int _hamdleSceneId;
+    private BaseState<HamdleContext, IHamdleHubClient>? State { get; set; }
     public event EventHandler<string>? SendMessageToChat;
     public event EventHandler? Restarted;
     public string CurrentWord { get; set; }
-    public byte CurrentRound { get; set; } = 1;
-    private BaseState<HamdleContext>? State { get; set; }
+    public byte CurrentRound { get; private set; } = 1;
     public bool IsInVotingState => State?.GetType() == typeof(VotingState);
     public bool IsRoundInProgress => State?.GetType() == typeof(GuessState) || IsInVotingState;
-    public HashSet<string> Guesses { get; set; }
-    public byte NoGuesses { get; set; }
+    public HashSet<string> Guesses { get; private set; }
+    public byte NoGuesses { get; private set; }
     
     public HamdleContext(
         ICacheService cache, 
-        HubConnection signalRHub,
+        IHamdleHubClient hamdleHubClient,
         HamdleMediator mediator,
         int hamdleSceneId)
     {
         _cache = cache;
-        _signalRHub = signalRHub;
+        _hamdleHubClient = hamdleHubClient;
         _mediator = mediator;
         CurrentWord = string.Empty;
         Guesses = new HashSet<string>();
@@ -41,7 +43,6 @@ public class HamdleContext
     
     public void Send(string message)
     {
-        //await _mediator.SendChatMessage(message);
         SendMessageToChat?.Invoke(this, message);
     }
 
@@ -49,8 +50,8 @@ public class HamdleContext
     {
         Send($"Game over! Nobody has guessed the word. It was {CurrentWord}. Use !#hamdle to begin again.");
         await StopAndReset();
-        Thread.Sleep(5000);
-        await _signalRHub.InvokeAsync("ResetState");
+        await Task.Delay(StopAndResetDelay);
+        await _hamdleHubClient.ResetState();
     }
     
     public async Task StartGuesses()
@@ -59,8 +60,8 @@ public class HamdleContext
         {
             await EnableHamdleScene(true);
         }
-        Thread.Sleep(1000);
-        var guessState = new GuessState(this, _cache, _signalRHub);
+        await Task.Delay(WaitBeforeSceneSet);
+        var guessState = new GuessState(this, _cache, _hamdleHubClient);
         guessState.StartVoting += StartVoting!;
         State = guessState;
         await State.Start();
@@ -89,7 +90,7 @@ public class HamdleContext
         State = null;
         CurrentWord = "";
         CurrentRound = 1;
-        Guesses = new HashSet<string>();
+        Guesses = [];
         await EnableHamdleScene(false);
         Restarted?.Invoke(this, null!);
     }
@@ -103,13 +104,19 @@ public class HamdleContext
     {
         CurrentRound++;
     }
+
+    public void IncrementNoGuesses()
+    {
+        NoGuesses++;
+    }
+    
     private async void StartVoting(object sender, HashSet<string> roundGuesses)
     {
         if (State == null || State.GetType() != typeof(GuessState))
         {
             throw new InvalidStateException("State must be GuessState.");
         }
-        var votingState = new VotingState(roundGuesses, this, _cache, _signalRHub);
+        var votingState = new VotingState(roundGuesses, this, _cache, _hamdleHubClient);
         State = votingState;
         await State.Start();
     }

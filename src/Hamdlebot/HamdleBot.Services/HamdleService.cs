@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Hamdle.Cache;
 using Hamdlebot.Core;
+using Hamdlebot.Core.SignalR.Clients;
 using Hamdlebot.Models.OBS;
 using Hamdlebot.Models.OBS.RequestTypes;
 using Hamdlebot.Models.OBS.ResponseTypes;
@@ -15,7 +16,7 @@ namespace HamdleBot.Services;
 public class HamdleService : IHamdleService
 {
     private readonly ICacheService _cache;
-    private readonly HubConnection _signalRHub;
+    private readonly IHamdleHubClient _hamdleHubClient;
     private readonly HamdleMediator _hamdleMediator;
     private readonly ObsSettings _obsSettings;
     private HamdleContext? _hamdleContext;
@@ -23,12 +24,12 @@ public class HamdleService : IHamdleService
     public event EventHandler<string>? SendMessageToChat;
     public HamdleService(
         ICacheService cache, 
-        HubConnection signalRHub, 
+        IHamdleHubClient hamdleHubClient, 
         HamdleMediator hamdleMediator,
         IOptions<AppConfigSettings> settings)
     {
         _cache = cache;
-        _signalRHub = signalRHub;
+        _hamdleHubClient = hamdleHubClient;
         _hamdleMediator = hamdleMediator;
         _obsSettings = settings.Value.ObsSettingsOptions;
 
@@ -41,7 +42,7 @@ public class HamdleService : IHamdleService
         });
         
         _cache.Subscriber.Subscribe(new RedisChannel("startHamdleScene", RedisChannel.PatternMode.Auto))
-            .OnMessage(async channelMessage =>
+            .OnMessage(async _ =>
             {
                 if (_hamdleContext is null)
                 {
@@ -75,7 +76,7 @@ public class HamdleService : IHamdleService
         _hamdleContext = 
             new HamdleContext(
                 _cache, 
-                _signalRHub, 
+                _hamdleHubClient, 
                 _hamdleMediator,
                 _hamdleScene!.SceneItemId);
         _hamdleContext.SendMessageToChat += SendMessageToChat;

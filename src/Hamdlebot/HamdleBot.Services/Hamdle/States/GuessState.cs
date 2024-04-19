@@ -1,22 +1,23 @@
 using System.Timers;
 using Hamdle.Cache;
-using Microsoft.AspNetCore.SignalR.Client;
+using Hamdlebot.Core.SignalR.Clients;
 
 namespace HamdleBot.Services.Hamdle.States;
 
-public class GuessState : BaseState<HamdleContext>
+public class GuessState : BaseState<HamdleContext, IHamdleHubClient>
 {
-    public event EventHandler<HashSet<string>>? StartVoting;
-    
+    private const int GuessTimer = 30000;
+    private const int TimeBetweenRounds = 10000;
+    private const int MaxNoGuesses = 3;
     private readonly HashSet<string> _guesses;
-    private HashSet<string> _usersWhoGuessed;
-    private System.Timers.Timer? _guessTimer = new (30000)
+    private readonly HashSet<string> _usersWhoGuessed;
+    private readonly System.Timers.Timer? _guessTimer = new (GuessTimer)
     {
         AutoReset = false,
     };
-    
-    public GuessState(HamdleContext context, ICacheService cache, HubConnection signalRHub) 
-        : base(context, cache, signalRHub)
+    public event EventHandler<HashSet<string>>? StartVoting;
+    public GuessState(HamdleContext context, ICacheService cache, IHamdleHubClient hamdleHubClient) 
+        : base(context, cache, hamdleHubClient)
     {
         _guessTimer!.Elapsed += OnGuessTimerExpired!;
         _guesses = new HashSet<string>();
@@ -34,10 +35,10 @@ public class GuessState : BaseState<HamdleContext>
             }
 
             Context.CurrentWord = word;
-            await SignalR.InvokeAsync("SendSelectedWord", Context.CurrentWord);
+            await HubClient!.SendSelectedWord(Context.CurrentWord);
         }
         Context.Send("Guess a 5 letter word!");
-        await SignalR.InvokeAsync("StartGuessTimer", 30000);
+        await HubClient!.StartGuessTimer(GuessTimer);
         _guessTimer?.Start();
     }
     
@@ -66,7 +67,7 @@ public class GuessState : BaseState<HamdleContext>
     {
         Context.Send($"We have a winner! The word was {Context.CurrentWord}.");
         Context.Send($"This concludes this instance of hamdle. To initiate another, type !#hamdle!");
-        Thread.Sleep(10000);
+        await Task.Delay(TimeBetweenRounds);
         await Context.StopAndReset();
     }
     
@@ -78,13 +79,13 @@ public class GuessState : BaseState<HamdleContext>
             var guess = _guesses.First();
             if (guess == Context.CurrentWord)
             {
-                await SignalR.InvokeAsync("SendGuess", guess);
+                await HubClient!.SendGuess(guess);
                 await CorrectWordGuessed();
                 return;
             }
             Context.Send("Only one guess was submitted. Let's take that one.");
             Context.IncrementCurrentRound();
-            await SignalR.InvokeAsync("SendGuess", guess);
+            await HubClient!.SendGuess(guess);
             if (Context.CurrentRound > 5)
             {
                 await Context.SignalGameFinished();
@@ -100,8 +101,8 @@ public class GuessState : BaseState<HamdleContext>
         {
             Context.Send("Nobody guessed! Let's go again.");
             Context.DecrementCurrentRound();
-            Context.NoGuesses++;
-            if (Context.NoGuesses == 3)
+            Context.IncrementNoGuesses();
+            if (Context.NoGuesses == MaxNoGuesses)
             {
                 _guessTimer!.Stop();
                 Context.Send("Nobody is playing SirSad. Stopping the game.");
