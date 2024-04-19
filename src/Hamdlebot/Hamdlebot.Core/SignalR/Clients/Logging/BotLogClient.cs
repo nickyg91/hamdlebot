@@ -1,12 +1,13 @@
 using Hamdlebot.Core.Models.Logging;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Hamdlebot.Core.SignalR.Clients.Logging;
 
 public class BotLogClient : IBotLogClient
 {
     private readonly HubConnection _hub;
-    public BotLogClient(HubConnection hub)
+    public BotLogClient([FromKeyedServices("logHub")] HubConnection hub)
     {
         _hub = hub;
     }

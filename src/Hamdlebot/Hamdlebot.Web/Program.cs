@@ -29,7 +29,14 @@ var oauthHandler = new HttpClientHandler();
 var oauthHttpClient = new HttpClient(oauthHandler);
 
 var hamdleBotHubConnection = new HubConnectionBuilder()
-    .WithUrl("https://localhost:7256/hamdlebothub").Build();
+    .WithUrl("https://localhost:7256/hamdlebothub")
+    .WithAutomaticReconnect()
+    .Build();
+
+var botLogHubConnection = new HubConnectionBuilder()
+    .WithUrl("https://localhost:7256/botloghub")
+    .WithAutomaticReconnect()
+    .Build();
 
 builder.Services.AddSingleton(oauthHttpClient);
 builder.Services.AddSingleton<ITwitchChatService, TwitchChatService>();
@@ -41,7 +48,8 @@ builder.Services.AddTransient<IBotLogClient, BotLogClient>();
 builder.Services.AddSingleton<IObsService, ObsService>();
 builder.Services.AddSingleton<IHamdleService, HamdleService>();
 builder.Services.AddSingleton<HamdleMediator>();
-builder.Services.AddSingleton(hamdleBotHubConnection);
+builder.Services.AddKeyedSingleton("logHub", botLogHubConnection);
+builder.Services.AddKeyedSingleton("hamdleHub", hamdleBotHubConnection);
 builder.Services.AddHostedService<HamdlebotWorker>();
 var app = builder.Build();
 

@@ -1,6 +1,7 @@
 import HamdleView from '@/views/HamdleView.vue';
 import AuthenticateView from '@/views/AuthenticateView.vue';
 import { createRouter, createWebHistory } from 'vue-router';
+import DashboardView from '@/views/DashboardView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -19,6 +20,11 @@ const router = createRouter({
       path: '/authenticated',
       name: 'authenticated',
       component: AuthenticateView
+    },
+    {
+      path: '/dashboard',
+      name: 'dashboard',
+      component: DashboardView
     }
   ]
 });

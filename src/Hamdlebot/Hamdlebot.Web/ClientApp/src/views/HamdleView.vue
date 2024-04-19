@@ -2,14 +2,15 @@
 import GuessedLetters from '@/components/GuessedLetters.vue';
 import HamdleTimer from '@/components/HamdleTimer.vue';
 import WordGuess from '@/components/WordGuess.vue';
+import { useSignalR } from '@/composables/signalr.composable';
 import { useHamdleStore } from '@/stores/hamdle.store';
-import { computed, onMounted } from 'vue';
-
-const store = useHamdleStore();
-
+import { onMounted } from 'vue';
+import { computed } from 'vue';
+const { createSignalRConnection } = useSignalR();
 onMounted(async () => {
-  await store.createSignalRConnection();
+  await createSignalRConnection('hamdlebothub');
 });
+const store = useHamdleStore();
 
 const guesses = computed(() => {
   const guesses = [];

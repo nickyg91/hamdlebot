@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Hamdlebot.Core.SignalR.Clients.Hamdle;
 
@@ -6,7 +7,7 @@ public class HamdleHubClient : IHamdleHubClient
 {
     private readonly HubConnection _hub;
 
-    public HamdleHubClient(HubConnection hub)
+    public HamdleHubClient([FromKeyedServices("hamdleHub")] HubConnection hub)
     {
         _hub = hub;
     }

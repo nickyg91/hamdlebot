@@ -12,21 +12,24 @@ public class HamdlebotWorker : BackgroundService
     private readonly ITwitchChatService _twitchChatService;
     private readonly IWordService _wordService;
     private readonly IObsService _obsService;
-    private readonly HubConnection _signalr;
+    private readonly HubConnection _hamdleHub;
+    private readonly HubConnection _logHub;
     private readonly IHostApplicationLifetime _appLifetime;
     private readonly IBotLogClient _logClient;
 
     public HamdlebotWorker(
         ITwitchChatService twitchChatService,
         IWordService wordService,
-        HubConnection signalr,
+        [FromKeyedServices("hamdleHub")] HubConnection hamdleHub,
+        [FromKeyedServices("logHub")] HubConnection logHub,
         IObsService obsService,
         IHostApplicationLifetime appLifetime,
         IBotLogClient logClient)
     {
         _twitchChatService = twitchChatService;
         _wordService = wordService;
-        _signalr = signalr;
+        _hamdleHub = hamdleHub;
+        _logHub = logHub;
         _obsService = obsService;
         _appLifetime = appLifetime;
         _logClient = logClient;
@@ -43,7 +46,8 @@ public class HamdlebotWorker : BackgroundService
     {
         // The application has fully started, start the background tasks
         await Task.WhenAll(
-            _signalr.StartAsync(cancellationToken),
+            _hamdleHub.StartAsync(cancellationToken),
+            _logHub.StartAsync(cancellationToken),
             _obsService.CreateWebSocket(cancellationToken),
             _wordService.InsertWords(),
             _twitchChatService.CreateWebSocket(cancellationToken));
