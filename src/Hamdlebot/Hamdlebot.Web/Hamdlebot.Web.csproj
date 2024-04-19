@@ -36,6 +36,7 @@
       <ProjectReference Include="..\Hamdle.Cache\Hamdle.Cache.csproj" />
       <ProjectReference Include="..\Hamdlebot.Core\Hamdlebot.Core.csproj" />
       <ProjectReference Include="..\HamdleBot.Services\HamdleBot.Services.csproj" />
+      <ProjectReference Include="..\Hamdlebot.Worker\Hamdlebot.Worker.csproj" />
     </ItemGroup>
 
     <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And !Exists('$(SpaRoot)node_modules') ">
