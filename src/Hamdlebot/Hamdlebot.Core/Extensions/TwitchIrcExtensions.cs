@@ -3,17 +3,14 @@ using Hamdlebot.Core.Models;
 
 namespace Hamdlebot.Core.Extensions;
 
-public static class TwitchIrcExtensions
+public static partial class TwitchIrcExtensions
 {
     public static TwitchMessage ToTwitchMessage(this string ircMessage)
     {
-        var identifierRegex = @"([\w]+!\w+@\w+.tmi.twitch.tv)";
-        var tagsRegex = @"(?<Tags>((\w(-*))+=(\w|#|:|-)+))";
-        var messageRegex = @"(?<EntireMessage>(PRIVMSG)(?<User>\s.*:{1})(?<Message>.+))";
-        var userHandle = Regex.Match(ircMessage, identifierRegex);
-        var message = Regex.Match(ircMessage, messageRegex)?.Groups["Message"]?.Value?.Trim();
-
-        var tagMatches = Regex.Matches(ircMessage, tagsRegex);
+        var userHandle = UsernameRegex().Match(ircMessage);
+        var message = MessageRegex().Match(ircMessage)?.Groups["Message"]?.Value?.Trim().ToLower();
+        var tagMatches = TagRegex().Matches(ircMessage);
+        
         var dict = new Dictionary<string, string>();
         foreach (Match match in tagMatches)
         {
@@ -48,4 +45,11 @@ public static class TwitchIrcExtensions
         
         return twitchIrcMessage;
     }
+
+    [GeneratedRegex(@"([\w]+!\w+@\w+.tmi.twitch.tv)")]
+    private static partial Regex UsernameRegex();
+    [GeneratedRegex(@"(?<EntireMessage>(PRIVMSG)(?<User>\s.*:{1})(?<Message>.+))")]
+    private static partial Regex MessageRegex();
+    [GeneratedRegex(@"(?<Tags>((\w(-*))+=(\w|#|:|-)+))")]
+    private static partial Regex TagRegex();
 }

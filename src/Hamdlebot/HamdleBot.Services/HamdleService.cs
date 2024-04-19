@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Hamdle.Cache;
 using Hamdlebot.Core;
 using Hamdlebot.Core.SignalR.Clients;
@@ -7,14 +8,14 @@ using Hamdlebot.Models.OBS.RequestTypes;
 using Hamdlebot.Models.OBS.ResponseTypes;
 using HamdleBot.Services.Hamdle;
 using HamdleBot.Services.Mediators;
-using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace HamdleBot.Services;
 
-public class HamdleService : IHamdleService
+public partial class HamdleService : IHamdleService
 {
+    private Regex _onlyLetters = OnlyLetters();
     private readonly ICacheService _cache;
     private readonly IHamdleHubClient _hamdleHubClient;
     private readonly HamdleMediator _hamdleMediator;
@@ -61,9 +62,14 @@ public class HamdleService : IHamdleService
         return _hamdleContext?.IsInVotingState ?? false;
     }
 
-    public async Task SubmitGuess(string username, string guess)
+    public async Task<bool> SubmitGuess(string username, string guess)
     {
+        if (!_onlyLetters.Match(guess).Success)
+        {
+            return false;
+        }
         await _hamdleContext!.SubmitGuess(username, guess);
+        return true;
     }
 
     public void SubmitVoteForGuess(string username, int submission)
@@ -113,4 +119,7 @@ public class HamdleService : IHamdleService
             Op = OpCodeType.Request
         });
     }
+
+    [GeneratedRegex("^[a-zA-Z]+$")]
+    private static partial Regex OnlyLetters();
 }
