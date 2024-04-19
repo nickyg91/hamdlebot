@@ -2,7 +2,10 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Hamdle.Cache;
 using Hamdlebot.Core;
+using Hamdlebot.Core.Models.Logging;
 using Hamdlebot.Core.SignalR.Clients;
+using Hamdlebot.Core.SignalR.Clients.Hamdle;
+using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Models.OBS;
 using Hamdlebot.Models.OBS.RequestTypes;
 using Hamdlebot.Models.OBS.ResponseTypes;
@@ -19,6 +22,7 @@ public partial class HamdleService : IHamdleService
     private readonly ICacheService _cache;
     private readonly IHamdleHubClient _hamdleHubClient;
     private readonly HamdleMediator _hamdleMediator;
+    private readonly IBotLogClient _logClient;
     private readonly ObsSettings _obsSettings;
     private HamdleContext? _hamdleContext;
     private SceneItem? _hamdleScene;
@@ -27,11 +31,13 @@ public partial class HamdleService : IHamdleService
         ICacheService cache, 
         IHamdleHubClient hamdleHubClient, 
         HamdleMediator hamdleMediator,
-        IOptions<AppConfigSettings> settings)
+        IOptions<AppConfigSettings> settings,
+        IBotLogClient logClient)
     {
         _cache = cache;
         _hamdleHubClient = hamdleHubClient;
         _hamdleMediator = hamdleMediator;
+        _logClient = logClient;
         _obsSettings = settings.Value.ObsSettingsOptions;
 
         _cache.Subscriber
@@ -47,6 +53,7 @@ public partial class HamdleService : IHamdleService
             {
                 if (_hamdleContext is null)
                 {
+                    await _logClient.LogMessage(new LogMessage("Starting Hamdle Scene", DateTime.UtcNow, SeverityLevel.Info));
                     await SendObsSceneRequest();
                 }
             });
@@ -84,7 +91,8 @@ public partial class HamdleService : IHamdleService
                 _cache, 
                 _hamdleHubClient, 
                 _hamdleMediator,
-                _hamdleScene!.SceneItemId);
+                _hamdleScene!.SceneItemId,
+                _logClient);
         _hamdleContext.SendMessageToChat += SendMessageToChat;
         _hamdleContext.Restarted += Restart_Triggered!;
     }

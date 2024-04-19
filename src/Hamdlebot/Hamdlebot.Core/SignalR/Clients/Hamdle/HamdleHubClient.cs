@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.SignalR.Client;
 
-namespace Hamdlebot.Core.SignalR.Clients;
+namespace Hamdlebot.Core.SignalR.Clients.Hamdle;
 
 public class HamdleHubClient : IHamdleHubClient
 {

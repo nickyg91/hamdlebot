@@ -1,6 +1,7 @@
 using System.Timers;
 using Hamdle.Cache;
 using Hamdlebot.Core.SignalR.Clients;
+using Hamdlebot.Core.SignalR.Clients.Hamdle;
 
 namespace HamdleBot.Services.Hamdle.States;
 

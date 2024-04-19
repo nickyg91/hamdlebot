@@ -2,6 +2,8 @@ using Hamdle.Cache;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
 using Hamdlebot.Core.SignalR.Clients;
+using Hamdlebot.Core.SignalR.Clients.Hamdle;
+using Hamdlebot.Core.SignalR.Clients.Logging;
 using HamdleBot.Services;
 using HamdleBot.Services.Mediators;
 using HamdleBot.Services.OBS;
@@ -35,6 +37,7 @@ builder.Services.AddSingleton<ITwitchIdentityApiService, TwitchIdentityApiServic
 builder.Services.AddSingleton<ICacheService, CacheService>();
 builder.Services.AddSingleton<IWordService, WordService>();
 builder.Services.AddTransient<IHamdleHubClient, HamdleHubClient>();
+builder.Services.AddTransient<IBotLogClient, BotLogClient>();
 builder.Services.AddSingleton<IObsService, ObsService>();
 builder.Services.AddSingleton<IHamdleService, HamdleService>();
 builder.Services.AddSingleton<HamdleMediator>();
@@ -59,6 +62,7 @@ app.MapControllerRoute(
     pattern: "{controller}/{action=Index}/{id?}");
 
 app.MapHub<HamdlebotHub>("/hamdlebothub");
+app.MapHub<BotLogHub>("/botloghub");
 app.MapFallbackToFile("index.html");
 
 app.Run();

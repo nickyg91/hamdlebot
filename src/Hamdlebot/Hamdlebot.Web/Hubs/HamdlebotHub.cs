@@ -1,4 +1,5 @@
 using Hamdlebot.Core.SignalR.Clients;
+using Hamdlebot.Core.SignalR.Clients.Hamdle;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Hamdlebot.Web.Hubs;

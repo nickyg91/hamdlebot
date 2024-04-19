@@ -1,6 +1,9 @@
 using Hamdle.Cache;
 using Hamdlebot.Core.Exceptions;
+using Hamdlebot.Core.Models.Logging;
 using Hamdlebot.Core.SignalR.Clients;
+using Hamdlebot.Core.SignalR.Clients.Hamdle;
+using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Models.OBS;
 using Hamdlebot.Models.OBS.RequestTypes;
 using HamdleBot.Services.Hamdle.States;
@@ -17,6 +20,7 @@ public class HamdleContext
     private readonly HamdleMediator _mediator;
     private bool _isSceneEnabled;
     private readonly int _hamdleSceneId;
+    private readonly IBotLogClient _logClient;
     private BaseState<HamdleContext, IHamdleHubClient>? State { get; set; }
     public event EventHandler<string>? SendMessageToChat;
     public event EventHandler? Restarted;
@@ -31,7 +35,8 @@ public class HamdleContext
         ICacheService cache, 
         IHamdleHubClient hamdleHubClient,
         HamdleMediator mediator,
-        int hamdleSceneId)
+        int hamdleSceneId,
+        IBotLogClient logClient)
     {
         _cache = cache;
         _hamdleHubClient = hamdleHubClient;
@@ -39,6 +44,7 @@ public class HamdleContext
         CurrentWord = string.Empty;
         Guesses = new HashSet<string>();
         _hamdleSceneId = hamdleSceneId;
+        _logClient = logClient;
     }
     
     public void Send(string message)
@@ -73,6 +79,7 @@ public class HamdleContext
         {
             throw new InvalidStateException("State must be VotingState.");
         }
+        _logClient.LogMessage(new LogMessage($"Hamdle vote submitted by {username} for submission {submission}.", DateTime.UtcNow, SeverityLevel.Info));
         ((VotingState)State).SubmitVoteForGuess(username, submission);
     }
     
@@ -82,6 +89,8 @@ public class HamdleContext
         {
             throw new InvalidStateException("State must be GuessState.");
         }
+        
+        await _logClient.LogMessage(new LogMessage($"Hamdle guess '{guess}' submitted by {username}", DateTime.UtcNow, SeverityLevel.Info));
         await ((GuessState)State).SubmitGuess(username, guess);
     }
 
@@ -91,6 +100,8 @@ public class HamdleContext
         CurrentWord = "";
         CurrentRound = 1;
         Guesses = [];
+        
+        await _logClient.LogMessage(new LogMessage($"Stop hamdle context and reset state.", DateTime.UtcNow, SeverityLevel.Info));
         await EnableHamdleScene(false);
         Restarted?.Invoke(this, null!);
     }
@@ -116,6 +127,8 @@ public class HamdleContext
         {
             throw new InvalidStateException("State must be GuessState.");
         }
+        
+        await _logClient.LogMessage(new LogMessage($"Hamdle voting started.", DateTime.UtcNow, SeverityLevel.Info));
         var votingState = new VotingState(roundGuesses, this, _cache, _hamdleHubClient);
         State = votingState;
         await State.Start();

@@ -4,6 +4,8 @@ using System.Text.RegularExpressions;
 using Hamdle.Cache;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
+using Hamdlebot.Core.Models.Logging;
+using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Models;
 using HamdleBot.Services.Mediators;
 using HamdleBot.Services.Twitch.Interfaces;
@@ -21,8 +23,8 @@ public class TwitchChatService : ITwitchChatService
     private readonly HamdleMediator _mediator;
     private ClientWebSocket? _socket;
     private CancellationToken _cancellationToken;
-    private Regex _parseUserRegex = new("(:\\w+!)");
-    private ITwitchIdentityApiService _identityApiService;
+    private readonly ITwitchIdentityApiService _identityApiService;
+    private readonly IBotLogClient _logClient;
 
     public TwitchChatService(
         IOptions<AppConfigSettings> settings, 
@@ -30,7 +32,8 @@ public class TwitchChatService : ITwitchChatService
         ICacheService cache,
         IHamdleService hamdleService,
         HamdleMediator mediator, 
-        ITwitchIdentityApiService identityApiService)
+        ITwitchIdentityApiService identityApiService,
+        IBotLogClient logClient)
     {
         _wordService = wordService;
         _settings = settings.Value;
@@ -38,6 +41,7 @@ public class TwitchChatService : ITwitchChatService
         _hamdleService = hamdleService;
         _mediator = mediator;
         _identityApiService = identityApiService;
+        _logClient = logClient;
     }
 
     public async Task<ClientWebSocket> CreateWebSocket(CancellationToken token)
@@ -68,6 +72,7 @@ public class TwitchChatService : ITwitchChatService
         return _socket;
     }
 
+    //implement some sort of retry.
     private async Task<ClientCredentialsTokenResponse> Authenticate()
     {
         ClientCredentialsTokenResponse? tokenResponse = null;
@@ -76,6 +81,7 @@ public class TwitchChatService : ITwitchChatService
 
         if (oauthToken != null)
         {
+            await _logClient.LogMessage(new LogMessage("Valid OAuth token found.", DateTime.UtcNow, SeverityLevel.Info));
             return new ClientCredentialsTokenResponse
             {
                 AccessToken = oauthToken!
@@ -84,20 +90,23 @@ public class TwitchChatService : ITwitchChatService
         
         if (oauthToken == null && refreshToken == null)
         {
+            await _logClient.LogMessage(new LogMessage("Valid OAuth token not found.", DateTime.UtcNow, SeverityLevel.Info));
             tokenResponse = await _identityApiService.GetTokenFromCodeFlow();
             await _cache.AddItem("twitchOauthToken", tokenResponse!.AccessToken, TimeSpan.FromSeconds(tokenResponse!.ExpiresIn));
             await _cache.AddItem("twitchRefreshToken", tokenResponse!.RefreshToken, TimeSpan.FromDays(30));
             return tokenResponse;
         }
-        
-        if (refreshToken != null)
+
+        if (refreshToken == null)
         {
-            tokenResponse = await _identityApiService.RefreshToken(refreshToken);
-            await _cache.AddItem("twitchOauthToken", tokenResponse!.AccessToken, TimeSpan.FromSeconds(tokenResponse!.ExpiresIn));
-            await _cache.AddItem("twitchRefreshToken", tokenResponse!.RefreshToken, TimeSpan.FromDays(30));
-            return tokenResponse;
+            throw new Exception("An error occurred while authenticating with Twitch.");
         }
-        throw new Exception("An error occurred while authenticating with Twitch.");
+        await _logClient.LogMessage(new LogMessage("Fetching new twitch OAuthToken.", DateTime.UtcNow, SeverityLevel.Info));
+        tokenResponse = await _identityApiService.RefreshToken(refreshToken);
+        await _cache.AddItem("twitchOauthToken", tokenResponse!.AccessToken, TimeSpan.FromSeconds(tokenResponse!.ExpiresIn));
+        await _cache.AddItem("twitchRefreshToken", tokenResponse!.RefreshToken, TimeSpan.FromDays(30));
+        
+        return tokenResponse;
     }
     
     private async void Handle_Hamdle_Message(object sender, string message)
@@ -171,7 +180,12 @@ public class TwitchChatService : ITwitchChatService
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
+            var message = $"Exception: {e.GetType().Name}: {e.Message}";
+            if (e.InnerException != null)
+            {
+                message += $"\n\rInner Exception: {e.InnerException.GetType().Name}: {e.InnerException.Message}";
+            }
+            await _logClient.LogMessage(new LogMessage(message, DateTime.UtcNow, SeverityLevel.Error));
         }
     }
 

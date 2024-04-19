@@ -1,3 +1,5 @@
+using Hamdlebot.Core.Models.Logging;
+using Hamdlebot.Core.SignalR.Clients.Logging;
 using HamdleBot.Services;
 using HamdleBot.Services.OBS;
 using HamdleBot.Services.Twitch.Interfaces;
@@ -12,18 +14,22 @@ public class HamdlebotWorker : BackgroundService
     private readonly IObsService _obsService;
     private readonly HubConnection _signalr;
     private readonly IHostApplicationLifetime _appLifetime;
+    private readonly IBotLogClient _logClient;
+
     public HamdlebotWorker(
         ITwitchChatService twitchChatService,
         IWordService wordService,
         HubConnection signalr,
         IObsService obsService,
-        IHostApplicationLifetime appLifetime)
+        IHostApplicationLifetime appLifetime,
+        IBotLogClient logClient)
     {
         _twitchChatService = twitchChatService;
         _wordService = wordService;
         _signalr = signalr;
         _obsService = obsService;
         _appLifetime = appLifetime;
+        _logClient = logClient;
     }
     protected override Task ExecuteAsync(CancellationToken cancellationToken)
     {
@@ -41,7 +47,7 @@ public class HamdlebotWorker : BackgroundService
             _obsService.CreateWebSocket(cancellationToken),
             _wordService.InsertWords(),
             _twitchChatService.CreateWebSocket(cancellationToken));
-
+        await _logClient.LogMessage(new LogMessage("Bot connected.", DateTime.UtcNow, SeverityLevel.Info));        
         Task.Run(() => _twitchChatService.HandleMessages());
         Task.Run(() => _obsService.HandleMessages());
     }

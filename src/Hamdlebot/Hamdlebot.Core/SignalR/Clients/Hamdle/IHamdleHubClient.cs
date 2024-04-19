@@ -1,4 +1,4 @@
-namespace Hamdlebot.Core.SignalR.Clients;
+namespace Hamdlebot.Core.SignalR.Clients.Hamdle;
 
 public interface IHamdleHubClient : ISignalrHubClient
 {
