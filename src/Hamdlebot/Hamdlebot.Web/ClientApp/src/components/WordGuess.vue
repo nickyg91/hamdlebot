@@ -22,7 +22,7 @@ const letters = computed(() => {
 </script>
 <template>
   <div>
-    <template v-for="(letter, index) in letters" :key="index">
+    <template v-for="letter in letters" :key="letter">
       <div
         :class="{
           'bg-yellow-300': letter && !letter.isCorrect && letter.isInWord,
