@@ -5,6 +5,8 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Hamdle.Cache;
 using Hamdlebot.Core;
+using Hamdlebot.Core.Models.Logging;
+using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Models.OBS;
 using Hamdlebot.Models.OBS.RequestTypes;
 using Hamdlebot.Models.OBS.ResponseTypes;
@@ -19,11 +21,16 @@ public class ObsService : IObsService
     private ClientWebSocket? _socket;
     private CancellationToken _cancellationToken;
     private ICacheService _cache;
+    private readonly IBotLogClient _logClient;
     private readonly ObsSettings _obsSettings;
 
-    public ObsService(ICacheService cache, IOptions<AppConfigSettings> settings)
+    public ObsService(
+        ICacheService cache, 
+        IOptions<AppConfigSettings> settings,
+        IBotLogClient logClient)
     {
         _cache = cache;
+        _logClient = logClient;
         _obsSettings = settings.Value.ObsSettingsOptions;
     }
 
@@ -34,9 +41,11 @@ public class ObsService : IObsService
             _socket = new ClientWebSocket();
             _cancellationToken = cancellationToken;
             await _socket.ConnectAsync(new Uri(_obsSettings.SocketUrl), _cancellationToken);
+            await _logClient.LogMessage(new LogMessage("Connected to OBS websocket", DateTime.UtcNow, SeverityLevel.Info));
         }
         catch (Exception e)
         {
+            await _logClient.LogMessage(new LogMessage(e.Message, DateTime.UtcNow, SeverityLevel.Error));
             Console.WriteLine(e);
         }
     }
@@ -49,6 +58,7 @@ public class ObsService : IObsService
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         });
         var arrayBuffer = new ArraySegment<byte>(Encoding.UTF8.GetBytes(serializedJson));
+        await _logClient.LogMessage(new LogMessage($"Request sent to OBS for {message.Op}." , DateTime.UtcNow, SeverityLevel.Info));
         await _socket!.SendAsync(arrayBuffer, WebSocketMessageType.Text, WebSocketMessageFlags.EndOfMessage,
             _cancellationToken);
     }

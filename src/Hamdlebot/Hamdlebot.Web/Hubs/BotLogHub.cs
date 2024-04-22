@@ -10,4 +10,9 @@ public class BotLogHub : Hub<IBotLogClient>
     {
         await Clients.All.LogMessage(message);
     }
+    
+    public async Task SendBotStatus(BotStatusType status)
+    {
+        await Clients.All.SendBotStatus(status);
+    }
 }

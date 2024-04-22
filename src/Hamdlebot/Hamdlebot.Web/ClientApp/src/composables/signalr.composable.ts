@@ -4,41 +4,65 @@ import {
   LogLevel,
   type HubConnection
 } from '@microsoft/signalr';
-const signalRConnections: Map<string, HubConnection> = new Map<string, HubConnection>();
+import { computed, ref } from 'vue';
+const signalRConnections = ref(new Map<string, HubConnection>());
+
 export const useSignalR = () => {
-  async function createSignalRConnection(hubName: string): Promise<HubConnection> {
+  const signalRHubStatuses = computed(() => {
+    const statuses = new Map<string, HubConnectionState>();
+    signalRConnections.value.forEach((connection, hubName) => {
+      statuses.set(hubName, connection.state);
+    });
+    return statuses;
+  });
+  const createSignalRConnection = async (hubName: string): Promise<void> => {
     if (
-      signalRConnections.has(hubName) &&
-      signalRConnections.get(hubName)?.state === HubConnectionState.Connected
+      signalRConnections.value.has(hubName) &&
+      signalRConnections.value.get(hubName)?.state === HubConnectionState.Connected
     ) {
-      return signalRConnections.get(hubName)!;
+      return;
     }
     const signalRConnection = new HubConnectionBuilder()
       .withUrl(`/${hubName}`)
       .withAutomaticReconnect()
       .configureLogging(LogLevel.Information)
       .build();
-    signalRConnection.keepAliveIntervalInMilliseconds = 1000;
-    await startSignalRConnection(signalRConnection);
-    signalRConnections.set(hubName, signalRConnection);
-    return signalRConnection;
-  }
 
-  async function startSignalRConnection(connection: HubConnection): Promise<void> {
+    signalRConnection.keepAliveIntervalInMilliseconds = 1000;
+
+    try {
+      await startSignalRConnection(signalRConnection);
+    } catch (error) {
+      console.error('Error starting signalR connection', error);
+    }
+
+    signalRConnections.value.set(hubName, signalRConnection);
+  };
+
+  const startSignalRConnection = async (connection: HubConnection): Promise<void> => {
     if (!connection) {
       throw new Error('No signalR connection found');
     }
     connection.keepAliveIntervalInMilliseconds = 1000;
     await connection.start();
-  }
+  };
 
   const getConnectionByHub = (hubName: string): HubConnection | null => {
-    return signalRConnections.get(hubName) ?? null;
+    return (signalRConnections.value.get(hubName) as HubConnection) ?? null;
+  };
+
+  const reconnect = () => {
+    signalRConnections.value.forEach(async (connection) => {
+      if (connection.state === HubConnectionState.Disconnected) {
+        await startSignalRConnection(connection as HubConnection);
+      }
+    });
   };
 
   return {
     createSignalRConnection,
     getConnectionByHub,
-    signalRConnections
+    reconnect,
+    signalRHubStatuses
   };
 };

@@ -42,6 +42,12 @@ public class HamdlebotWorker : BackgroundService
         async void Start() => await OnStarted(cancellationToken);
     }
     
+    public override Task StopAsync(CancellationToken cancellationToken)
+    {
+        _logClient.SendBotStatus(BotStatusType.Offline);
+        return base.StopAsync(cancellationToken);
+    }
+    
     private async Task OnStarted(CancellationToken cancellationToken)
     {
         // The application has fully started, start the background tasks
@@ -50,6 +56,7 @@ public class HamdlebotWorker : BackgroundService
             _logHub.StartAsync(cancellationToken)
         );
         await _logClient.LogMessage(new LogMessage("Bot connected.", DateTime.UtcNow, SeverityLevel.Info));
+        await _logClient.SendBotStatus(BotStatusType.Online);
         await Task.WhenAll(
             _obsService.CreateWebSocket(cancellationToken),
             _wordService.InsertWords(),
@@ -57,5 +64,16 @@ public class HamdlebotWorker : BackgroundService
         
         Task.Run(() => _twitchChatService.HandleMessages());
         Task.Run(() => _obsService.HandleMessages());
+        var timer = new System.Timers.Timer();
+        timer.Interval = 60000;
+        timer.Elapsed += BotPong;
+        timer.Start();
+
+    }
+
+    private void BotPong(object sender, System.Timers.ElapsedEventArgs e)
+    {
+        _logClient.LogMessage(new LogMessage("PONG.", DateTime.UtcNow, SeverityLevel.Info));
+        _logClient.SendBotStatus(BotStatusType.Online);
     }
 }

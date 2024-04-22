@@ -92,7 +92,9 @@ public partial class HamdleService : IHamdleService
                 _hamdleHubClient, 
                 _hamdleMediator,
                 _hamdleScene!.SceneItemId,
-                _logClient);
+                _logClient, 
+                _obsSettings);
+        _logClient.SendBotStatus(BotStatusType.HamdleInProgress);
         _hamdleContext.SendMessageToChat += SendMessageToChat;
         _hamdleContext.Restarted += Restart_Triggered!;
     }
@@ -120,7 +122,6 @@ public partial class HamdleService : IHamdleService
                 RequestType = ObsRequestStrings.GetSceneItemList,
                 RequestData = new GetSceneItemListRequest
                 {
-                    // make this more flexible
                     SceneName = _obsSettings.SceneName,   
                 }
             },

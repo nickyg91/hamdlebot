@@ -11,11 +11,11 @@ const app = createApp(App);
 
 const { createSignalRConnection } = useSignalR();
 
-await createSignalRConnection('botloghub');
-await createSignalRConnection('hamdlebothub');
-
 app.use(PrimeVue);
 app.use(createPinia());
 app.use(router);
+
+await createSignalRConnection('botloghub');
+await createSignalRConnection('hamdlebothub');
 
 app.mount('#app');

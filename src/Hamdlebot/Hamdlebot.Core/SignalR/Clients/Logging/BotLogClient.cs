@@ -15,4 +15,9 @@ public class BotLogClient : IBotLogClient
     {
         await _hub.InvokeAsync("LogMessage", message);
     }
+
+    public async Task SendBotStatus(BotStatusType status)
+    {
+        await _hub.InvokeAsync("SendBotStatus", status);
+    }
 }

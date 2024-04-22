@@ -1,4 +1,5 @@
 using Hamdle.Cache;
+using Hamdlebot.Core;
 using Hamdlebot.Core.Exceptions;
 using Hamdlebot.Core.Models.Logging;
 using Hamdlebot.Core.SignalR.Clients;
@@ -21,6 +22,7 @@ public class HamdleContext
     private bool _isSceneEnabled;
     private readonly int _hamdleSceneId;
     private readonly IBotLogClient _logClient;
+    private readonly ObsSettings _obsSettings;
     private BaseState<HamdleContext, IHamdleHubClient>? State { get; set; }
     public event EventHandler<string>? SendMessageToChat;
     public event EventHandler? Restarted;
@@ -36,7 +38,8 @@ public class HamdleContext
         IHamdleHubClient hamdleHubClient,
         HamdleMediator mediator,
         int hamdleSceneId,
-        IBotLogClient logClient)
+        IBotLogClient logClient,
+        ObsSettings obsSettings)
     {
         _cache = cache;
         _hamdleHubClient = hamdleHubClient;
@@ -45,6 +48,7 @@ public class HamdleContext
         Guesses = new HashSet<string>();
         _hamdleSceneId = hamdleSceneId;
         _logClient = logClient;
+        _obsSettings = obsSettings;
     }
     
     public void Send(string message)
@@ -102,6 +106,7 @@ public class HamdleContext
         Guesses = [];
         
         await _logClient.LogMessage(new LogMessage($"Stop hamdle context and reset state.", DateTime.UtcNow, SeverityLevel.Info));
+        await _logClient.SendBotStatus(BotStatusType.Online);
         await EnableHamdleScene(false);
         Restarted?.Invoke(this, null!);
     }
@@ -146,8 +151,7 @@ public class HamdleContext
                 RequestType = ObsRequestStrings.SetSceneItemEnabled,
                 RequestData = new SetSceneItemEnabledRequest
                 {
-                    //make this parameterizable through settings in azure.
-                    SceneName = "Desktop Capture",
+                    SceneName = _obsSettings.SceneName,
                     SceneItemEnabled = enabled,
                     SceneItemId = _hamdleSceneId
                 }
