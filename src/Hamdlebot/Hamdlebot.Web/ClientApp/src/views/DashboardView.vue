@@ -11,12 +11,14 @@ import { useTwitchAuthService } from '@/composables/twitch-auth.composable';
 import { useSignalR } from '@/composables/signalr.composable';
 import { HubConnectionState } from '@microsoft/signalr';
 import { storeToRefs } from 'pinia';
+import { useHamdleStore } from '@/stores/hamdle.store';
 
 const store = useDashboardStore();
+const hamdleStore = useHamdleStore();
+const { currentWord, guesses } = storeToRefs(hamdleStore);
 const { botStatus, logMessages } = storeToRefs(store);
 const { reconnect, signalRHubStatuses } = useSignalR();
 const botStatusSeverity = computed(() => {
-  console.log('in computed');
   switch (botStatus.value) {
     case BotStatusType.Online:
       return {
@@ -75,10 +77,10 @@ const hubs = computed(() => {
             <Button severity="help" label="Authenticate" @click="getAuthUrl"></Button>
           </div>
         </div>
+        <hr />
         <div class="mt-2">
           <h3>SignalR Connections</h3>
           <Button label="Reconnect" @click="reconnect"></Button>
-          <hr />
           <div class="mt-2" v-for="hub in hubs" :key="hub.hubName">
             <InlineMessage
               :severity="hub.status === HubConnectionState.Connected ? 'success' : 'error'"
@@ -86,6 +88,15 @@ const hubs = computed(() => {
               {{ hub.hubName }} - {{ hub.status }}
             </InlineMessage>
           </div>
+        </div>
+        <div v-if="botStatus === BotStatusType.HamdleInProgress" class="mt-2">
+          <h3>Hamdle Status</h3>
+          <div>Current word: {{ currentWord }}</div>
+          <ul>
+            <li v-for="guess in guesses" :key="guess">
+              {{ guess }}
+            </li>
+          </ul>
         </div>
       </Panel>
     </div>
