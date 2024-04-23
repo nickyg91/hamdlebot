@@ -1,7 +1,6 @@
 using Hamdle.Cache;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
-using Hamdlebot.Core.SignalR.Clients;
 using Hamdlebot.Core.SignalR.Clients.Hamdle;
 using Hamdlebot.Core.SignalR.Clients.Logging;
 using HamdleBot.Services;
@@ -12,6 +11,8 @@ using HamdleBot.Services.Twitch.Interfaces;
 using Hamdlebot.Web.Hubs;
 using Hamdlebot.Worker;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,7 +51,64 @@ builder.Services.AddSingleton<IHamdleService, HamdleService>();
 builder.Services.AddSingleton<HamdleMediator>();
 builder.Services.AddKeyedSingleton("logHub", botLogHubConnection);
 builder.Services.AddKeyedSingleton("hamdleHub", hamdleBotHubConnection);
-builder.Services.AddHostedService<HamdlebotWorker>();
+//builder.Services.AddHostedService<HamdlebotWorker>();
+
+builder.Services.AddAuthentication().AddJwtBearer(opt =>
+{
+    opt.Authority = "https://id.twitch.tv/oauth2";
+    opt.Configuration = new OpenIdConnectConfiguration
+    {
+        Issuer = "https://id.twitch.tv/oauth2",
+        TokenEndpoint = "https://id.twitch.tv/oauth2/token",
+        JwksUri = "https://id.twitch.tv/oauth2/keys",
+        ClaimsParameterSupported = true,
+        AuthorizationEndpoint = "https://id.twitch.tv/oauth2/authorize",
+        IdTokenEncryptionAlgValuesSupported =
+        {
+            "RS256"
+        },
+        ClaimsSupported =
+        {
+            "email",
+            "email_verified",
+            "picture",
+            "preferred_username",
+            "exp",
+            "iss",
+            "sub",
+            "azp",
+            "aud",
+            "iat",
+            "updated_at"
+        },
+        ResponseTypesSupported =
+        {
+            "id_token",
+            "code",
+            "token",
+            "code id_token",
+            "token id_token"
+        },
+        ScopesSupported =
+        {
+            "openid"
+        },
+        SubjectTypesSupported =
+        {
+            "public"
+        },
+        TokenEndpointAuthMethodsSupported =
+        {
+            "client_secret_post"
+        },
+        UserInfoEndpoint = "https://id.twitch.tv/oauth2/userinfo",
+    };
+});
+builder.Services.AddAuthorization();
+
+
+
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -64,6 +122,8 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",

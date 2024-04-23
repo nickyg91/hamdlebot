@@ -18,14 +18,15 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
         _settings = settings.Value;
     }
 
-    public async Task<ClientCredentialsTokenResponse?> GetToken()
+    public async Task<ClientCredentialsTokenResponse?> GetToken(string code)
     {
         _client.DefaultRequestHeaders.Clear();
         using var content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
         {
             new("client_id", _settings.TwitchConnectionInfo.ClientId),
             new("client_secret", _settings.TwitchConnectionInfo.ClientSecret),
-            new("grant_type", "client_credentials"),
+            new("grant_type", "authorization_code"),
+            new("code", code),
         });
         var response = await _client.PostAsync(new Uri("https://id.twitch.tv/oauth2/token"), content);
         var json = await response.Content.ReadAsStringAsync();
