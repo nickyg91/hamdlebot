@@ -46,7 +46,7 @@ const botStatusSeverity = computed(() => {
 const twitchAuthService = useTwitchAuthService();
 const getAuthUrl = async () => {
   const authUrl = await twitchAuthService.getTwitchAuthUrl();
-  window.location.replace(authUrl);
+  window.open(authUrl, '_blank');
 };
 
 const hubs = computed(() => {
