@@ -53,7 +53,7 @@ namespace Hamdlebot.Web.Controllers
             return token;
         }
 
-        [Authorize("Twitch")]
+        [Authorize]
         [HttpGet("test")]
         public string Test()
         {

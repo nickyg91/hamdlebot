@@ -26,6 +26,7 @@ builder.Configuration.AddEnvironmentVariables();
 builder.Configuration.AddAzureAppConfig(isDevelopment);
 builder.Services.AddSingleton<ICacheService, CacheService>();
 var appSettings = builder.Configuration.GetSection("Settings");
+//do better things here.
 var _settings = appSettings.GetSection("TwitchConnectionInfo")["ClientId"];
 builder.Services.Configure<AppConfigSettings>(appSettings);
 
@@ -59,54 +60,7 @@ builder.Services.AddHostedService<HamdlebotWorker>();
 builder.Services.AddAuthentication().AddJwtBearer(opt =>
 {
     opt.IncludeErrorDetails = true;
-    opt.UseSecurityTokenValidators = true;
-    opt.Configuration = new OpenIdConnectConfiguration
-    {
-        Issuer = "https://id.twitch.tv/oauth2",
-        TokenEndpoint = "https://id.twitch.tv/oauth2/token",
-        JwksUri = "https://id.twitch.tv/oauth2/keys",
-        ClaimsParameterSupported = true,
-        AuthorizationEndpoint = "https://id.twitch.tv/oauth2/authorize",
-        IdTokenEncryptionAlgValuesSupported =
-        {
-            "RS256"
-        },
-        ClaimsSupported =
-        {
-            "email",
-            "email_verified",
-            "picture",
-            "preferred_username",
-            "exp",
-            "iss",
-            "sub",
-            "azp",
-            "aud",
-            "iat",
-            "updated_at"
-        },
-        ResponseTypesSupported =
-        {
-            "id_token",
-            "code",
-            "token",
-            "code id_token",
-            "token id_token"
-        },
-        ScopesSupported =
-        {
-            "openid"
-        },
-        SubjectTypesSupported =
-        {
-            "public"
-        },
-        TokenEndpointAuthMethodsSupported =
-        {
-            "client_secret_post"
-        },
-        UserInfoEndpoint = "https://id.twitch.tv/oauth2/userinfo",
-    };
+    opt.MetadataAddress = "https://id.twitch.tv/oauth2/.well-known/openid-configuration";
     opt.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -115,14 +69,7 @@ builder.Services.AddAuthentication().AddJwtBearer(opt =>
         ValidateAudience = true,
     };
 });
-builder.Services.AddAuthorization(opt =>
-{
-    opt.AddPolicy("Twitch", config =>
-    {
-        config.AuthenticationSchemes = [JwtBearerDefaults.AuthenticationScheme];
-        config.RequireClaim("sub");
-    });
-});
+builder.Services.AddAuthorization();
 
 
 var app = builder.Build();
