@@ -15,7 +15,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
   });
 
   signalRConnection?.on('SendBotStatus', (status: BotStatusType) => {
-    console.log('status', status);
     botStatus.value = status;
   });
 

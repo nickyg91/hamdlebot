@@ -27,6 +27,7 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
             new("client_secret", _settings.TwitchConnectionInfo.ClientSecret),
             new("grant_type", "authorization_code"),
             new("code", code),
+            new("redirect_uri", "https://localhost:5002/authenticate")
         });
         var response = await _client.PostAsync(new Uri("https://id.twitch.tv/oauth2/token"), content);
         var json = await response.Content.ReadAsStringAsync();

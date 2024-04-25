@@ -10,6 +10,8 @@ using HamdleBot.Services.Twitch;
 using HamdleBot.Services.Twitch.Interfaces;
 using Hamdlebot.Web.Hubs;
 using Hamdlebot.Worker;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization.Infrastructure;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
@@ -24,6 +26,7 @@ builder.Configuration.AddEnvironmentVariables();
 builder.Configuration.AddAzureAppConfig(isDevelopment);
 builder.Services.AddSingleton<ICacheService, CacheService>();
 var appSettings = builder.Configuration.GetSection("Settings");
+var _settings = appSettings.GetSection("TwitchConnectionInfo")["ClientId"];
 builder.Services.Configure<AppConfigSettings>(appSettings);
 
 var oauthHandler = new HttpClientHandler();
@@ -51,11 +54,12 @@ builder.Services.AddSingleton<IHamdleService, HamdleService>();
 builder.Services.AddSingleton<HamdleMediator>();
 builder.Services.AddKeyedSingleton("logHub", botLogHubConnection);
 builder.Services.AddKeyedSingleton("hamdleHub", hamdleBotHubConnection);
-//builder.Services.AddHostedService<HamdlebotWorker>();
+builder.Services.AddHostedService<HamdlebotWorker>();
 
 builder.Services.AddAuthentication().AddJwtBearer(opt =>
 {
-    opt.Authority = "https://id.twitch.tv/oauth2";
+    opt.IncludeErrorDetails = true;
+    opt.UseSecurityTokenValidators = true;
     opt.Configuration = new OpenIdConnectConfiguration
     {
         Issuer = "https://id.twitch.tv/oauth2",
@@ -103,10 +107,22 @@ builder.Services.AddAuthentication().AddJwtBearer(opt =>
         },
         UserInfoEndpoint = "https://id.twitch.tv/oauth2/userinfo",
     };
+    opt.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidIssuer = "https://id.twitch.tv/oauth2",
+        ValidAudience = _settings,
+        ValidateAudience = true,
+    };
 });
-builder.Services.AddAuthorization();
-
-
+builder.Services.AddAuthorization(opt =>
+{
+    opt.AddPolicy("Twitch", config =>
+    {
+        config.AuthenticationSchemes = [JwtBearerDefaults.AuthenticationScheme];
+        config.RequireClaim("sub");
+    });
+});
 
 
 var app = builder.Build();
@@ -121,14 +137,9 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
-
 app.UseAuthentication();
 app.UseAuthorization();
-
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller}/{action=Index}/{id?}");
-
+app.MapControllers();
 app.MapHub<HamdlebotHub>("/hamdlebothub");
 app.MapHub<BotLogHub>("/botloghub");
 app.MapFallbackToFile("index.html");

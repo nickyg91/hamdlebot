@@ -2,6 +2,8 @@ using System.Security.Cryptography;
 using Hamdlebot.Core;
 using Hamdlebot.Models;
 using HamdleBot.Services.Twitch.Interfaces;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -21,11 +23,12 @@ namespace Hamdlebot.Web.Controllers
             _appConfigSettings = appConfigSettings;
             _twitchIdentityApiService = twitchIdentityApiService;
         }
-        
+
         [HttpGet]
         public string Get()
         {
-            return $"https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={_appConfigSettings.Value.TwitchConnectionInfo.ClientId}&redirect_uri=http://localhost:3000&scope=chat%3Aread+chat%3Aedit";
+            return
+                $"https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={_appConfigSettings.Value.TwitchConnectionInfo.ClientId}&redirect_uri=http://localhost:3000&scope=chat%3Aread+chat%3Aedit";
         }
 
         [HttpGet("oidc/url")]
@@ -43,11 +46,18 @@ namespace Hamdlebot.Web.Controllers
             return url;
         }
 
-        [HttpPost("token")]
+        [HttpGet("token/{code}")]
         public async Task<ClientCredentialsTokenResponse> GetToken(string code)
         {
             var token = await _twitchIdentityApiService.GetToken(code);
             return token;
+        }
+
+        [Authorize("Twitch")]
+        [HttpGet("test")]
+        public string Test()
+        {
+            return "Test";
         }
     }
 }
