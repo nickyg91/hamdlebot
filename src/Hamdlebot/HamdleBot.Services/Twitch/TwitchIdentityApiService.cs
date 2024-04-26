@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Exceptions;
@@ -18,7 +19,7 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
         _settings = settings.Value;
     }
 
-    public async Task<ClientCredentialsTokenResponse?> GetToken(string code)
+    public async Task<ClientCredentialsTokenResponse> GetToken(string code)
     {
         _client.DefaultRequestHeaders.Clear();
         using var content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
@@ -27,23 +28,26 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
             new("client_secret", _settings.TwitchConnectionInfo.ClientSecret),
             new("grant_type", "authorization_code"),
             new("code", code),
-            new("redirect_uri", "https://localhost:5002/authenticate")
+            new("redirect_uri", _settings.TwitchConnectionInfo.ClientRedirectUrl)
         });
         var response = await _client.PostAsync(new Uri("https://id.twitch.tv/oauth2/token"), content);
         var json = await response.Content.ReadAsStringAsync();
         if (response.IsSuccessStatusCode && !string.IsNullOrEmpty(json))
         {
             var responseObject = JsonSerializer.Deserialize<ClientCredentialsTokenResponse>(json);
+            if (responseObject == null)
+            {
+                throw new TokenGenerationException("An error occurred while generating a twitch token.");
+            }
             return responseObject;
         }
-
         throw new TokenGenerationException(
             $"An error occurred while generating a twitch token: {response.StatusCode}.");
     }
 
-    public async Task<ClientCredentialsTokenResponse?> GetTokenFromCodeFlow()
+    public async Task<ClientCredentialsTokenResponse> GetTokenFromCodeFlow()
     {
-        var code = await ListenForRedirect(_settings.TwitchConnectionInfo.RedirectUrl);
+        var code = await ListenForRedirect(_settings.TwitchConnectionInfo.WorkerRedirectUrl);
         if (code == null)
         {
             throw new Exception("No auth code found");
@@ -56,19 +60,25 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
                 new("client_secret", _settings.TwitchConnectionInfo.ClientSecret),
                 new("code", code),
                 new("grant_type", "authorization_code"),
-                new("redirect_uri", _settings.TwitchConnectionInfo.RedirectUrl)
+                new("redirect_uri", _settings.TwitchConnectionInfo.WorkerRedirectUrl)
             }));
 
         if (!response.IsSuccessStatusCode)
         {
-            return null;
+            var content = await response.Content.ReadAsStringAsync();
+            throw new TokenGenerationException(
+                $"An error occurred while generating a twitch token: {response.StatusCode}.", new Exception(content));
         }
         var json = await response.Content.ReadAsStringAsync();
         var responseObject = JsonSerializer.Deserialize<ClientCredentialsTokenResponse>(json);
+        if (responseObject == null)
+        {
+            throw new TokenGenerationException("An error occurred while generating a twitch token.");
+        }
         return responseObject;
     }
 
-    public async Task<ClientCredentialsTokenResponse?> RefreshToken(string refreshToken)
+    public async Task<ClientCredentialsTokenResponse> RefreshToken(string refreshToken)
     {
         using var content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
         {
@@ -79,25 +89,49 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
         });
         var response = await _client.PostAsync(new Uri("https://id.twitch.tv/oauth2/token"), content);
         var json = await response.Content.ReadAsStringAsync();
-        if (response.IsSuccessStatusCode && !string.IsNullOrEmpty(json))
+        if (!response.IsSuccessStatusCode || string.IsNullOrEmpty(json))
         {
-            var responseObject = JsonSerializer.Deserialize<ClientCredentialsTokenResponse>(json);
-            return responseObject;
-        }
+            throw new TokenGenerationException(
+                $"An error occurred while generating a twitch token: {response.StatusCode}.");
 
-        throw new TokenGenerationException(
-            $"An error occurred while generating a twitch token: {response.StatusCode}.");
+        }
+        var responseObject = JsonSerializer.Deserialize<ClientCredentialsTokenResponse>(json);
+        if (responseObject == null)
+        {
+            throw new TokenGenerationException("An error occurred while generating a twitch token.");
+        }
+        return responseObject;
     }
 
     public async Task<string?> ListenForRedirect(string redirectUrl)
     {
         var listener = new HttpListener();
+        listener.Prefixes.Add(_settings.TwitchConnectionInfo.WorkerRedirectUrl);
         listener.Prefixes.Add("http://localhost:3000/");
-        //listener.Prefixes.Add("https://*:3000/");
         listener.Start();
         var code = await OnRequest(listener);
         listener.Stop();
         return code;
+    }
+
+    public string GetWorkerAuthorizationCodeUrl()
+    {
+        return
+            $"https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={_settings.TwitchConnectionInfo.ClientId}&redirect_uri={_settings.TwitchConnectionInfo.WorkerRedirectUrl}&scope=chat%3Aread+chat%3Aedit";
+    }
+
+    public string GetClientOIDCAuthorizationCodeUrl()
+    {
+        var byteArray = new byte[20];
+        using (var random = RandomNumberGenerator.Create())
+        {
+            random.GetBytes(byteArray);
+        }
+
+        var nonce = Convert.ToBase64String(byteArray);
+        var url =
+            $"https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={_settings.TwitchConnectionInfo.ClientId}&redirect_uri={_settings.TwitchConnectionInfo.ClientRedirectUrl}&scope=channel%3Amanage%3Apolls+channel%3Aread%3Apolls+openid+user%3Aread%3Aemail&claims={{\"id_token\":{{\"email\":null,\"email_verified\":null}},\"userinfo\":{{\"email\":null,\"email_verified\":null,\"picture\":null,\"updated_at\":null}}}}&state={nonce}&nonce={nonce}";
+        return url;
     }
 
     private async Task<string?> OnRequest(HttpListener listener)

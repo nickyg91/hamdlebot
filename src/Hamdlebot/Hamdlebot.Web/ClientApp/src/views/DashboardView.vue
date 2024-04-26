@@ -18,7 +18,7 @@ import { watch } from 'vue';
 const store = useDashboardStore();
 const hamdleStore = useHamdleStore();
 const authStore = useAuthStore();
-
+const { token } = storeToRefs(authStore);
 const { currentWord, guesses } = storeToRefs(hamdleStore);
 const { botStatus, logMessages } = storeToRefs(store);
 const { reconnect, signalRHubStatuses } = useSignalR();
@@ -60,9 +60,11 @@ const hubs = computed(() => {
   });
   return signalRHubs;
 });
-// figure out why it is yelling at me
+
+const isHamdleRunning = computed(() => botStatus.value === BotStatusType.HamdleInProgress);
+
 watch(
-  authStore.token,
+  token,
   () => {
     if (!authStore.token) {
       isLoginDialogOpen.value = true;
@@ -83,69 +85,102 @@ const getTwitchOAuthUrl = async () => {
 </script>
 <template>
   <div>
-    <section class="flex justify-content-between" v-if="authStore.token">
-      <div class="flex-grow-1 p-2">
-        <Panel>
-          <template #header>
-            <h2>
-              Bot Status
-              <InlineMessage class="ml-3" :severity="botStatusSeverity.class">
-                {{ botStatusSeverity.text }}
-              </InlineMessage>
-            </h2>
-          </template>
-          <div>
+    <div v-if="authStore.token">
+      <section class="flex justify-content-between">
+        <div class="flex-grow-1 p-2">
+          <Panel>
+            <template #header>
+              <h2>
+                Bot Status
+                <InlineMessage class="ml-3" :severity="botStatusSeverity.class">
+                  {{ botStatusSeverity.text }}
+                </InlineMessage>
+              </h2>
+            </template>
             <div>
-              <Button severity="help" label="Authenticate" @click="getAuthUrl"></Button>
+              <div>
+                <Button
+                  severity="help"
+                  icon="pi pi-verified"
+                  label="Authenticate Bot"
+                  @click="getAuthUrl"
+                ></Button>
+              </div>
             </div>
-          </div>
-          <hr />
-          <div class="mt-2">
-            <h3>SignalR Connections</h3>
-            <Button label="Reconnect" @click="reconnect"></Button>
-            <div class="mt-2" v-for="hub in hubs" :key="hub.hubName">
-              <InlineMessage
-                :severity="hub.status === HubConnectionState.Connected ? 'success' : 'error'"
-              >
-                {{ hub.hubName }} - {{ hub.status }}
+            <hr />
+            <div class="mt-2">
+              <h3>SignalR Connections</h3>
+              <Button label="Reconnect Hubs" icon="pi pi-wifi" @click="reconnect"></Button>
+              <div class="mt-2" v-for="hub in hubs" :key="hub.hubName">
+                <InlineMessage
+                  :severity="hub.status === HubConnectionState.Connected ? 'success' : 'error'"
+                >
+                  {{ hub.hubName }} - {{ hub.status }}
+                </InlineMessage>
+              </div>
+            </div>
+            <div v-if="botStatus === BotStatusType.HamdleInProgress" class="mt-2">
+              <h3>Hamdle Status</h3>
+              <div>Current word: {{ currentWord }}</div>
+              <ul>
+                <li v-for="guess in guesses" :key="guess">
+                  {{ guess }}
+                </li>
+              </ul>
+            </div>
+          </Panel>
+        </div>
+        <div class="flex-grow-1 p-2">
+          <Panel>
+            <template #header>
+              <h2>Hamdle</h2>
+            </template>
+            <div>
+              <InlineMessage :severity="isHamdleRunning ? 'success' : 'error'">
+                Hamdle {{ isHamdleRunning ? 'is running' : 'is not running' }}
               </InlineMessage>
             </div>
-          </div>
-          <div v-if="botStatus === BotStatusType.HamdleInProgress" class="mt-2">
-            <h3>Hamdle Status</h3>
-            <div>Current word: {{ currentWord }}</div>
-            <ul>
-              <li v-for="guess in guesses" :key="guess">
-                {{ guess }}
-              </li>
-            </ul>
-          </div>
-        </Panel>
-      </div>
-      <div class="flex-grow-1 p-2">
-        <Panel>
-          <template #header>
-            <h2>Bot Log</h2>
-          </template>
-          <ScrollPanel class="scroll-panel">
-            <LogMessage
-              class="p-2"
-              v-for="message in logMessages"
-              :key="message.timestamp"
-              :message="message"
-            />
-          </ScrollPanel>
-        </Panel>
-      </div>
-    </section>
+            <div class="p-2 mt-2" v-if="isHamdleRunning && currentWord">
+              Current word: {{ currentWord }}
+            </div>
+            <div class="p-2 mt-2" v-for="guess in guesses" :key="guess">
+              {{ guess }}
+            </div>
+          </Panel>
+        </div>
+      </section>
+      <section>
+        <div class="flex-grow-1 p-2">
+          <Panel>
+            <template #header>
+              <h2>Bot Log</h2>
+            </template>
+            <ScrollPanel class="scroll-panel">
+              <LogMessage
+                class="p-2"
+                v-for="message in logMessages"
+                :key="message.timestamp"
+                :message="message"
+              />
+            </ScrollPanel>
+          </Panel>
+        </div>
+      </section>
+    </div>
     <Dialog
       v-model:visible="isLoginDialogOpen"
       modal
       header="Log In To Twitch"
+      :closable="false"
       :style="{ width: '25rem' }"
     >
-      <div class="flex align-items-center">
-        <Button label="Log In" icon="pi pi-twitch" @click="getTwitchOAuthUrl"></Button>
+      <div class="flex justify-content-center mt-2">
+        <Button
+          label="Log In"
+          icon="pi pi-twitch"
+          @click="getTwitchOAuthUrl"
+          severity="help"
+        ></Button>
       </div>
     </Dialog>
   </div>

@@ -57,10 +57,13 @@ public class HamdlebotWorker : BackgroundService
         );
         await _logClient.LogMessage(new LogMessage("Bot connected.", DateTime.UtcNow, SeverityLevel.Info));
         await _logClient.SendBotStatus(BotStatusType.Online);
+        var twitchChatSocket = _twitchChatService.CreateWebSocket(cancellationToken);
         await Task.WhenAll(
             _obsService.CreateWebSocket(cancellationToken),
             _wordService.InsertWords(),
-            _twitchChatService.CreateWebSocket(cancellationToken));
+            twitchChatSocket);
+        
+        
         
         Task.Run(() => _twitchChatService.HandleMessages());
         Task.Run(() => _obsService.HandleMessages());

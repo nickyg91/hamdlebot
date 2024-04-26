@@ -1,15 +1,11 @@
 using System.Net.WebSockets;
 using System.Text;
-using System.Text.RegularExpressions;
 using Hamdle.Cache;
-using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
 using Hamdlebot.Core.Models.Logging;
 using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Models;
-using HamdleBot.Services.Mediators;
 using HamdleBot.Services.Twitch.Interfaces;
-using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace HamdleBot.Services.Twitch;
@@ -18,28 +14,22 @@ public class TwitchChatService : ITwitchChatService
 {
     private readonly ICacheService _cache;
     private readonly IWordService _wordService;
-    private readonly AppConfigSettings _settings;
     private readonly IHamdleService _hamdleService;
-    private readonly HamdleMediator _mediator;
     private ClientWebSocket? _socket;
     private CancellationToken _cancellationToken;
     private readonly ITwitchIdentityApiService _identityApiService;
     private readonly IBotLogClient _logClient;
 
     public TwitchChatService(
-        IOptions<AppConfigSettings> settings, 
         IWordService wordService, 
         ICacheService cache,
         IHamdleService hamdleService,
-        HamdleMediator mediator, 
         ITwitchIdentityApiService identityApiService,
         IBotLogClient logClient)
     {
         _wordService = wordService;
-        _settings = settings.Value;
         _cache = cache;
         _hamdleService = hamdleService;
-        _mediator = mediator;
         _identityApiService = identityApiService;
         _logClient = logClient;
     }
@@ -53,6 +43,7 @@ public class TwitchChatService : ITwitchChatService
         await InsertValidCommands();
         if (_socket.State == WebSocketState.Open)
         {
+            await _logClient.LogMessage(new LogMessage("Connecting to Twitch Chat.", DateTime.UtcNow, SeverityLevel.Info));
             var capReq = $"CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands";
             var pass = $"PASS oauth:{tokenResponse!.AccessToken}";
             var nick = "NICK hamdlebot";
@@ -66,6 +57,7 @@ public class TwitchChatService : ITwitchChatService
             await _socket.SendAsync("JOIN #hamhamReborn"u8.ToArray(), WebSocketMessageType.Text,
                 WebSocketMessageFlags.EndOfMessage, token);
             await WriteMessage("hamdlebot has arrived Kappa");
+            await _logClient.LogMessage(new LogMessage("Connection to Twitch Chat Successful.", DateTime.UtcNow, SeverityLevel.Info));
         }
 
         _hamdleService.SendMessageToChat += Handle_Hamdle_Message!;
@@ -145,10 +137,11 @@ public class TwitchChatService : ITwitchChatService
                     var chatMessage = msg.ToTwitchMessage();
                     if (chatMessage.Message.Contains("PING"))
                     {
-                        await _socket.SendAsync("PONG :tmi.twitch.tv"u8.ToArray(), WebSocketMessageType.Text,
-                            WebSocketMessageFlags.EndOfMessage, _cancellationToken);
+                        await _logClient.LogMessage(new LogMessage("PING received from Twitch.", DateTime.UtcNow, SeverityLevel.Info));
+                        await WriteMessage("PONG :tmi.twitch.tv");
+                        await _logClient.LogMessage(new LogMessage("PONG :tmi.twitch.tv sent back to Twitch.", DateTime.UtcNow, SeverityLevel.Info));
                     }
-                    
+
                     if (!IsSelf(chatMessage.DisplayName))
                     {
                         if (_hamdleService.IsHamdleVotingInProgress())
@@ -162,7 +155,7 @@ public class TwitchChatService : ITwitchChatService
                         if (!_hamdleService.IsHamdleVotingInProgress()
                             && _hamdleService.IsHamdleSessionInProgress())
                         {
-                                await _hamdleService.SubmitGuess(chatMessage.User!, chatMessage.Message);
+                            await _hamdleService.SubmitGuess(chatMessage.User!, chatMessage.Message);
                         }
                         else
                         {
@@ -173,9 +166,19 @@ public class TwitchChatService : ITwitchChatService
                         }
                     }
                 }
+
                 ms.Seek(0, SeekOrigin.Begin);
                 ms.Position = 0;
                 ms.SetLength(0);
+            }
+        }
+        catch (WebSocketException wse)
+        {
+            if (wse.Message ==
+                "The remote party closed the WebSocket connection without completing the close handshake.")
+            {
+                await _socket!.ConnectAsync(new Uri("wss://irc-ws.chat.twitch.tv:443"), _cancellationToken);
+                await _logClient.LogMessage(new LogMessage("Attempting reconnect to Twitch Chat.", DateTime.UtcNow, SeverityLevel.Warning));
             }
         }
         catch (Exception e)

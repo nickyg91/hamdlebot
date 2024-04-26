@@ -26,8 +26,6 @@ builder.Configuration.AddEnvironmentVariables();
 builder.Configuration.AddAzureAppConfig(isDevelopment);
 builder.Services.AddSingleton<ICacheService, CacheService>();
 var appSettings = builder.Configuration.GetSection("Settings");
-//do better things here.
-var _settings = appSettings.GetSection("TwitchConnectionInfo")["ClientId"];
 builder.Services.Configure<AppConfigSettings>(appSettings);
 
 var oauthHandler = new HttpClientHandler();
@@ -59,16 +57,18 @@ builder.Services.AddHostedService<HamdlebotWorker>();
 
 builder.Services.AddAuthentication().AddJwtBearer(opt =>
 {
+    var settings = builder.Configuration.GetSection("Settings").Get<AppConfigSettings>();
     opt.IncludeErrorDetails = true;
     opt.MetadataAddress = "https://id.twitch.tv/oauth2/.well-known/openid-configuration";
     opt.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
         ValidIssuer = "https://id.twitch.tv/oauth2",
-        ValidAudience = _settings,
+        ValidAudience = settings?.TwitchConnectionInfo.ClientId,
         ValidateAudience = true,
     };
 });
+
 builder.Services.AddAuthorization();
 
 

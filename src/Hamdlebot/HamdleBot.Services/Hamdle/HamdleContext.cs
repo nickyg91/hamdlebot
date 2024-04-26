@@ -106,7 +106,6 @@ public class HamdleContext
         Guesses = [];
         
         await _logClient.LogMessage(new LogMessage($"Stop hamdle context and reset state.", DateTime.UtcNow, SeverityLevel.Info));
-        await _logClient.SendBotStatus(BotStatusType.Online);
         await EnableHamdleScene(false);
         Restarted?.Invoke(this, null!);
     }

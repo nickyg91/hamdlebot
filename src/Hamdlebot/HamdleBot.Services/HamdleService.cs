@@ -102,6 +102,7 @@ public partial class HamdleService : IHamdleService
     private void Restart_Triggered(object sender, EventArgs e)
     {
         _hamdleContext = null;
+        _logClient.SendBotStatus(BotStatusType.Online);
     }
     
     private void SetHamdleScene(string? json)
