@@ -20,11 +20,6 @@ const isGuessed = (letter: string) => {
   return uniqueLetters.has(letter);
 };
 
-const isInCorrectPosition = (letter: string) => {
-  const index = store.currentWord.indexOf(letter);
-  return index > -1 && store.currentWord.charAt(index) === letter;
-};
-
 const isInGuess = (letter: string) => {
   return store.currentWord.includes(letter);
 };
@@ -35,7 +30,6 @@ const isInGuess = (letter: string) => {
       <GuessedLetter
         :is-guessed="isGuessed(letter)"
         :is-correct="isInGuess(letter)"
-        :is-in-correct-position="isInCorrectPosition(letter)"
         :letter="letter"
       ></GuessedLetter>
     </div>

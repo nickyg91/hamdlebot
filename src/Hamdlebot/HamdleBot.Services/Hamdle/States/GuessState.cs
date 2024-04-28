@@ -29,6 +29,7 @@ public class GuessState : BaseState<HamdleContext, IHamdleHubClient>
     {
         if (Context.CurrentRound == 1)
         {
+            await HubClient!.ResetState();
             var word = await Cache.GetRandomItemFromSet("words");
             if (string.IsNullOrEmpty(word))
             {

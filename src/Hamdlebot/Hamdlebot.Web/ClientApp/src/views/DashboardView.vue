@@ -137,15 +137,17 @@ const getTwitchOAuthUrl = async () => {
             </template>
             <div>
               <InlineMessage :severity="isHamdleRunning ? 'success' : 'error'">
-                Hamdle {{ isHamdleRunning ? 'is running' : 'is not running' }}
+                Hamdle Session {{ isHamdleRunning ? 'is running' : 'is not running' }}
               </InlineMessage>
             </div>
             <div class="p-2 mt-2" v-if="isHamdleRunning && currentWord">
               Current word: {{ currentWord }}
             </div>
-            <div class="p-2 mt-2" v-for="guess in guesses" :key="guess">
-              {{ guess }}
-            </div>
+            <template v-if="isHamdleRunning">
+              <div class="p-2 mt-2" v-for="guess in guesses" :key="guess">
+                {{ guess }}
+              </div>
+            </template>
           </Panel>
         </div>
       </section>
