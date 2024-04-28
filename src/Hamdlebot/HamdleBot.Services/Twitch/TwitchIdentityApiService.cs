@@ -45,9 +45,8 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
             $"An error occurred while generating a twitch token: {response.StatusCode}.");
     }
 
-    public async Task<ClientCredentialsTokenResponse> GetTokenFromCodeFlow()
+    public async Task<ClientCredentialsTokenResponse> GetTokenForBot(string code)
     {
-        var code = await ListenForRedirect(_settings.TwitchConnectionInfo.WorkerRedirectUrl);
         if (code == null)
         {
             throw new Exception("No auth code found");

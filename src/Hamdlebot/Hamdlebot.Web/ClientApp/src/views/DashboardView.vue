@@ -75,7 +75,7 @@ watch(
 
 const getAuthUrl = async () => {
   const authUrl = await authStore.getTwitchAuthUrl();
-  window.open(authUrl, 'newwin', 'height=200px,width=200px');
+  window.open(authUrl, 'newwin', 'height=450px,width=450px');
 };
 
 const getTwitchOAuthUrl = async () => {

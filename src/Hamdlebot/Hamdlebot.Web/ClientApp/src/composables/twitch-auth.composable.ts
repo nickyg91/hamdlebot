@@ -15,14 +15,14 @@ export const useTwitchAuthService = () => {
     return (await httpClient.get(`/twitch/auth/token/${code}`)).data;
   };
 
-  const testAuth = async (): Promise<string> => {
-    return (await httpClient.get('/twitch/auth/test')).data;
+  const getTwitchBotOAuthToken = async (code: string): Promise<ITwitchOAuthToken> => {
+    return (await httpClient.get(`/twitch/auth/token/bot/${code}`)).data;
   };
 
   return {
     getTwitchAuthUrl,
     getTwitchOAuthToken,
     getTwitchTokenAuthUrl,
-    testAuth
+    getTwitchBotOAuthToken
   };
 };

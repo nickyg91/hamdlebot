@@ -19,10 +19,15 @@ export const useAuthStore = defineStore('auth', () => {
     return await twitchAuthService.getTwitchTokenAuthUrl();
   };
 
+  const getTwitchBotOAuthToken = async (code: string): Promise<ITwitchOAuthToken> => {
+    return await twitchAuthService.getTwitchBotOAuthToken(code);
+  };
+
   return {
     token,
     getTwitchAuthUrl,
     getTwitchOAuthToken,
-    getTwitchOIDCUrl
+    getTwitchOIDCUrl,
+    getTwitchBotOAuthToken
   };
 });
