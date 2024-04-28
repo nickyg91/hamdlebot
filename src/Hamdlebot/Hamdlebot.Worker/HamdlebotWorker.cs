@@ -1,3 +1,4 @@
+using Hamdle.Cache;
 using Hamdlebot.Core.Models.Logging;
 using Hamdlebot.Core.SignalR.Clients.Logging;
 using HamdleBot.Services;
@@ -16,7 +17,8 @@ public class HamdlebotWorker : BackgroundService
     private readonly HubConnection _logHub;
     private readonly IHostApplicationLifetime _appLifetime;
     private readonly IBotLogClient _logClient;
-
+    private readonly ICacheService _cacheService;
+    private readonly ITwitchIdentityApiService _identityApiService;
     public HamdlebotWorker(
         ITwitchChatService twitchChatService,
         IWordService wordService,
@@ -24,7 +26,9 @@ public class HamdlebotWorker : BackgroundService
         [FromKeyedServices("logHub")] HubConnection logHub,
         IObsService obsService,
         IHostApplicationLifetime appLifetime,
-        IBotLogClient logClient)
+        IBotLogClient logClient,
+        ICacheService cacheService,
+        ITwitchIdentityApiService identityApiService)
     {
         _twitchChatService = twitchChatService;
         _wordService = wordService;
@@ -33,6 +37,8 @@ public class HamdlebotWorker : BackgroundService
         _obsService = obsService;
         _appLifetime = appLifetime;
         _logClient = logClient;
+        _cacheService = cacheService;
+        _identityApiService = identityApiService;
     }
     protected override Task ExecuteAsync(CancellationToken cancellationToken)
     {
@@ -62,14 +68,41 @@ public class HamdlebotWorker : BackgroundService
             _obsService.CreateWebSocket(cancellationToken),
             _wordService.InsertWords(),
             twitchChatSocket);
-        
-        
-        
-        Task.Run(() => _twitchChatService.HandleMessages());
+
+        Task.Run(() => _twitchChatService.CreateWebSocket(cancellationToken));
         Task.Run(() => _obsService.HandleMessages());
+        Task.Run(async () =>
+        {
+            var ms = TimeSpan.FromHours(3.5);
+            while (true)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                var token = await _cacheService.GetItem("twitchRefreshToken");
+                try
+                {
+                    if (token == null)
+                    {
+                        return;
+                    }
+                    var newToken = await _identityApiService.RefreshToken(token);
+                    await _cacheService.AddItem("twitchRefreshToken", newToken.RefreshToken);
+                    await _cacheService.AddItem("twitchAccessToken", newToken.AccessToken);
+                }
+                catch (Exception e)
+                {
+                    await _logClient.LogMessage(new LogMessage($"Unable to refresh token: {e.Message}.", DateTime.UtcNow, SeverityLevel.Error));
+                }
+                
+                Thread.Sleep(ms);
+            }
+        });
         var timer = new System.Timers.Timer();
         timer.Interval = 60000;
-        timer.Elapsed += BotPong;
+        timer.Elapsed += BotPong!;
         timer.Start();
 
     }
@@ -79,4 +112,6 @@ public class HamdlebotWorker : BackgroundService
         _logClient.LogMessage(new LogMessage("PONG.", DateTime.UtcNow, SeverityLevel.Info));
         _logClient.SendBotStatus(BotStatusType.Online);
     }
+    
+    
 }

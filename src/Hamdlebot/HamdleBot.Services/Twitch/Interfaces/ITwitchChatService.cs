@@ -4,7 +4,5 @@ namespace HamdleBot.Services.Twitch.Interfaces;
 
 public interface ITwitchChatService
 {
-    Task<ClientWebSocket> CreateWebSocket(CancellationToken token);
-    Task HandleMessages();
-    Task WriteMessage(string message);
+    Task CreateWebSocket(CancellationToken token);
 }
