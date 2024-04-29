@@ -16,14 +16,17 @@ export const useHamdleStore = defineStore('hamdle', () => {
   const showBetweenRoundMs = computed(() => betweenRoundMs.value > 0);
 
   signalRConnection?.on('SendSelectedWord', (word: string) => {
+    console.log('SendSelectedWord', word);
     currentWord.value = word;
   });
 
   signalRConnection?.on('SendGuess', (guess: string) => {
+    console.log('SendGuess', guess);
     guesses.value.push(guess);
   });
 
   signalRConnection?.on('ResetState', () => {
+    console.log('ResetState');
     guesses.value = [];
     currentWord.value = '';
   });

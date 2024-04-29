@@ -71,7 +71,11 @@ public class HamdleContext
             await EnableHamdleScene(true);
         }
         await Task.Delay(WaitBeforeSceneSet);
-        var guessState = new GuessState(this, _cache, _hamdleHubClient);
+        var guessState = new GuessState(this, _cache, _hamdleHubClient, _logClient);
+        await _logClient.LogMessage(new LogMessage(
+            $"Starting guesses: round {CurrentRound}",
+            DateTime.UtcNow, 
+            SeverityLevel.Info));
         guessState.StartVoting += StartVoting!;
         State = guessState;
         await State.Start();
