@@ -107,7 +107,6 @@ public class HamdlebotWorker : BackgroundService
     private void BotPong(object sender, System.Timers.ElapsedEventArgs e)
     {
         _logClient.LogMessage(new LogMessage("PONG.", DateTime.UtcNow, SeverityLevel.Info));
-        _logClient.SendBotStatus(BotStatusType.Online);
     }
     
     
