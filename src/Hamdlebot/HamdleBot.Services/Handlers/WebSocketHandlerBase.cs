@@ -1,31 +1,27 @@
 using System.Net.WebSockets;
 using System.Text;
-using Hamdlebot.Core.Extensions;
-using Hamdlebot.Core.Models;
-using Hamdlebot.Core.Models.Logging;
-using Hamdlebot.Core.SignalR.Clients.Logging;
 
 namespace HamdleBot.Services.Handlers;
 
-public class TwitchChatWebSocketHandler
+public abstract class WebSocketHandlerBase
 {
     private ClientWebSocket _socket;
     private CancellationToken _cancellationToken;
     private string _url;
-    private string _channelName;
-    public event Action<TwitchMessage>? MessageReceived;
-    public event Action? ReconnectStarted;
-    public event Func<Task>? Connected;
-    public bool IsConnected => _socket.State == WebSocketState.Open;
-    public TwitchChatWebSocketHandler(string url, CancellationToken cancellationToken, string channelName)
+
+    protected event Func<Task> Connected;
+    protected event Action? ReconnectStarted;
+    public event Action<string>? MessageReceived;
+    protected bool IsConnected => _socket.State == WebSocketState.Open;
+    
+    protected WebSocketHandlerBase(string url, CancellationToken cancellationToken)
     {
         _socket = new ClientWebSocket();
         _cancellationToken = cancellationToken;
-        _channelName = channelName;
         _url = url;
     }
-    
-    public async Task Connect()
+
+    protected async Task Connect()
     {
         var retryCount = 0;
         while(_socket.State != WebSocketState.Open && retryCount < 5)
@@ -47,31 +43,18 @@ public class TwitchChatWebSocketHandler
         Connected?.Invoke();
     }
 
-    public async Task Disconnect()
+    protected async Task Disconnect()
     {
         if (_socket.State == WebSocketState.Open)
         {
             await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", _cancellationToken);
         }
     }
-
-    private async Task SendMessage(string message)
+    protected async Task SendMessage(string message)
     {
         var bytes = Encoding.UTF8.GetBytes(message);
         await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, _cancellationToken);
     }
-    
-    public async Task SendMessageToChat(string message)
-    {
-        var ircMessage = $"PRIVMSG #{_channelName} :{message}";
-        await SendMessage(ircMessage);
-    }
-    
-    public async Task SendNonChatMessage(string message)
-    {
-        await SendMessage(message);
-    }
-    
     private async Task StartListening()
     {
         try
@@ -93,8 +76,7 @@ public class TwitchChatWebSocketHandler
                     return;
                 }
                 var message = Encoding.UTF8.GetString(ms.ToArray());
-                var twitchChatMessage = message.ToTwitchMessage();
-                MessageReceived?.Invoke(twitchChatMessage);
+                MessageReceived?.Invoke(message);
                 ms.Seek(0, SeekOrigin.Begin);
                 ms.Position = 0;
                 ms.SetLength(0);
