@@ -20,14 +20,13 @@ onMounted(async () => {
   const code = router.currentRoute.value.query.code as string;
   if (code) {
     await authStore.getTwitchBotOAuthToken(code);
-    router.push('/');
   }
 });
 </script>
 <template>
   <div>
     <Suspense>
-      <div class="flex justify-content-center">
+      <div class="p-5 flex justify-content-center">
         <div class="flex-column">
           <div>
             <h1 v-if="isLoading">Please wait while we authenticate to Twitch.</h1>
