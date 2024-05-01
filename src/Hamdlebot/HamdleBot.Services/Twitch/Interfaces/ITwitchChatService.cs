@@ -2,7 +2,6 @@ using System.Net.WebSockets;
 
 namespace HamdleBot.Services.Twitch.Interfaces;
 
-public interface ITwitchChatService
+public interface ITwitchChatService : IWebSocketEnabledService
 {
-    Task CreateWebSocket(CancellationToken token);
 }

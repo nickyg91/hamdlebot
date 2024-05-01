@@ -3,7 +3,6 @@ using System.Text.RegularExpressions;
 using Hamdle.Cache;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Models.Logging;
-using Hamdlebot.Core.SignalR.Clients;
 using Hamdlebot.Core.SignalR.Clients.Hamdle;
 using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Models.OBS;
@@ -38,7 +37,7 @@ public partial class HamdleService : IHamdleService
         _hamdleHubClient = hamdleHubClient;
         _hamdleMediator = hamdleMediator;
         _logClient = logClient;
-        _obsSettings = settings.Value.ObsSettingsOptions;
+        _obsSettings = settings.Value.ObsSettingsOptions!;
 
         _cache.Subscriber
             .Subscribe(new RedisChannel("onSceneRetrieved", RedisChannel.PatternMode.Auto)).OnMessage(async channelMessage =>
@@ -123,7 +122,7 @@ public partial class HamdleService : IHamdleService
                 RequestType = ObsRequestStrings.GetSceneItemList,
                 RequestData = new GetSceneItemListRequest
                 {
-                    SceneName = _obsSettings.SceneName,   
+                    SceneName = _obsSettings.SceneName!,   
                 }
             },
             Op = OpCodeType.Request

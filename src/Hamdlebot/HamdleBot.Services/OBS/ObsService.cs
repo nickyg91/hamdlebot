@@ -1,5 +1,3 @@
-using System.Net.WebSockets;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
@@ -10,7 +8,7 @@ using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Models.OBS;
 using Hamdlebot.Models.OBS.RequestTypes;
 using Hamdlebot.Models.OBS.ResponseTypes;
-using HamdleBot.Services.Mediators;
+using HamdleBot.Services.Handlers;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
@@ -18,12 +16,17 @@ namespace HamdleBot.Services.OBS;
 
 public class ObsService : IObsService
 {
-    private ClientWebSocket? _socket;
-    private CancellationToken _cancellationToken;
-    private ICacheService _cache;
+    private ObsWebSocketHandler? _socket;
+    private CancellationToken? _cancellationToken;
+    private readonly ICacheService _cache;
     private readonly IBotLogClient _logClient;
     private readonly ObsSettings _obsSettings;
-
+    private readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+    
+    
     public ObsService(
         ICacheService cache, 
         IOptions<AppConfigSettings> settings,
@@ -31,23 +34,47 @@ public class ObsService : IObsService
     {
         _cache = cache;
         _logClient = logClient;
-        _obsSettings = settings.Value.ObsSettingsOptions;
+        _obsSettings = settings.Value.ObsSettingsOptions!;
     }
 
     public async Task CreateWebSocket(CancellationToken cancellationToken)
     {
-        try
+        _cancellationToken ??= cancellationToken;
+        _socket ??= new ObsWebSocketHandler(_obsSettings.SocketUrl!, _cancellationToken.Value);
+        
+        _socket.Connected += async () =>
         {
-            _socket = new ClientWebSocket();
-            _cancellationToken = cancellationToken;
-            await _socket.ConnectAsync(new Uri(_obsSettings.SocketUrl), _cancellationToken);
             await _logClient.LogMessage(new LogMessage("Connected to OBS websocket", DateTime.UtcNow, SeverityLevel.Info));
-        }
-        catch (Exception e)
+        };
+        _socket.ReconnectStarted += async () =>
         {
-            await _logClient.LogMessage(new LogMessage(e.Message, DateTime.UtcNow, SeverityLevel.Error));
-            Console.WriteLine(e);
-        }
+            await _logClient.LogMessage(new LogMessage("Reconnecting to OBS websocket", DateTime.UtcNow, SeverityLevel.Info));
+        };
+        _socket.MessageReceived += async message =>
+        {
+            if (string.IsNullOrEmpty(message))
+            {
+                return;
+            }
+            var obj = JsonNode.Parse(message)?.AsObject();
+            var opCode = obj?["op"]?.ToString();
+            if (opCode is "0" or "3")
+            {
+                await SendIdentifyRequest();
+            }
+
+            if (obj?["d"]?["requestType"]?.ToString().ToLower() != "getsceneitemlist")
+            {
+                return;
+            }
+                
+            var response = ProcessMessage<GetSceneItemListResponse>(message);
+            if (response != null)
+            {
+                await GetHamdleScene(response.Response.ResponseData);
+            }
+        };
+        await _socket.Connect();
     }
 
     public async Task SendRequest<T>(ObsRequest<T> message) where T : class
@@ -57,18 +84,13 @@ public class ObsService : IObsService
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         });
-        var arrayBuffer = new ArraySegment<byte>(Encoding.UTF8.GetBytes(serializedJson));
-        await _logClient.LogMessage(new LogMessage($"Request sent to OBS for {message.Op}." , DateTime.UtcNow, SeverityLevel.Info));
-        await _socket!.SendAsync(arrayBuffer, WebSocketMessageType.Text, WebSocketMessageFlags.EndOfMessage,
-            _cancellationToken);
+        await _logClient.LogMessage(new LogMessage($"Request sent to OBS for {message.RequestData?.RequestType ?? "scene"}." , DateTime.UtcNow, SeverityLevel.Info));
+        await _socket!.SendMessage(serializedJson);
     }
 
-    public ObsResponse<T>? ProcessMessage<T>(string message) where T : class
+    private ObsResponse<T>? ProcessMessage<T>(string message) where T : class
     {
-        return !string.IsNullOrEmpty(message) ? JsonSerializer.Deserialize<ObsResponse<T>>(message, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        }) : null;
+        return !string.IsNullOrEmpty(message) ? JsonSerializer.Deserialize<ObsResponse<T>>(message, _jsonOptions) : null;
     }
 
     private async Task SendIdentifyRequest()
@@ -84,59 +106,9 @@ public class ObsService : IObsService
         await SendRequest(req);
     }
 
-    public async Task HandleMessages()
-    {
-        try
-        {
-            while (_socket!.State == WebSocketState.Open)
-            {
-                using var ms = new MemoryStream();
-                WebSocketReceiveResult result;
-                var messageBuffer = WebSocket.CreateClientBuffer(2048, 1024);
-                do
-                {
-                    result = await _socket.ReceiveAsync(messageBuffer, _cancellationToken);
-                    await ms.WriteAsync(messageBuffer.Array.AsMemory(messageBuffer.Offset, result.Count),
-                        _cancellationToken);
-                } while (_socket.State == WebSocketState.Open && !result.EndOfMessage);
-
-                if (result.MessageType == WebSocketMessageType.Text)
-                {
-                    var msg = Encoding.UTF8.GetString(ms.ToArray());
-
-                    if (!string.IsNullOrEmpty(msg))
-                    {
-                        var obj = JsonNode.Parse(msg)?.AsObject();
-                        var opCode = obj?["op"]?.ToString();
-                        if (opCode is "0" or "3")
-                        {
-                            await SendIdentifyRequest();
-                        }
-
-                        if (obj?["d"]?["requestType"]?.ToString()?.ToLower() == "getsceneitemlist")
-                        {
-                            var response = ProcessMessage<GetSceneItemListResponse>(msg);
-                            if (response != null)
-                            {
-                                await GetHamdleScene(response.Response.ResponseData);
-                            }
-                        }
-                    }
-                }
-
-                ms.Seek(0, SeekOrigin.Begin);
-                ms.Position = 0;
-            }
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e);
-        }
-    }
-
     private async Task GetHamdleScene(GetSceneItemListResponse scenes)
     {
-        var scene = scenes.SceneItems.FirstOrDefault(x => x.SourceName?.ToLower() == _obsSettings.HamdleSourceName.ToLower());
+        var scene = scenes.SceneItems.FirstOrDefault(x => x.SourceName.ToLower().Equals(_obsSettings.HamdleSourceName, StringComparison.CurrentCultureIgnoreCase));
         if (scene == null)
         {
             throw new KeyNotFoundException("Hamdle not found within set of scene items.");

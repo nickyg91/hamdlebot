@@ -64,7 +64,7 @@ builder.Services.AddAuthentication().AddJwtBearer(opt =>
     {
         ValidateIssuer = true,
         ValidIssuer = "https://id.twitch.tv/oauth2",
-        ValidAudience = settings?.TwitchConnectionInfo.ClientId,
+        ValidAudience = settings?.TwitchConnectionInfo?.ClientId,
         ValidateAudience = true,
     };
 });

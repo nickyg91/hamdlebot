@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Hamdle.Cache;
+using Hamdlebot.Core.Extensions;
 using Hamdlebot.Core.Models.Logging;
 using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Models;
@@ -45,13 +46,12 @@ public class TwitchChatService : ITwitchChatService
             });
     }
 
-    public async Task CreateWebSocket(CancellationToken token)
+    public async Task CreateWebSocket(CancellationToken cancellationToken)
     {
-        _cancellationToken ??= token;
+        _cancellationToken ??= cancellationToken;
         
         await InsertValidCommands();
-        _webSocketHandler ??= new TwitchChatWebSocketHandler("wss://irc-ws.chat.twitch.tv:443", _cancellationToken.Value,
-            _logClient, "hamhamreborn");
+        _webSocketHandler ??= new TwitchChatWebSocketHandler("wss://irc-ws.chat.twitch.tv:443", _cancellationToken.Value, "hamhamreborn");
         
         var tokenResponse = await Authenticate();
 
@@ -63,36 +63,37 @@ public class TwitchChatService : ITwitchChatService
         
         _webSocketHandler.MessageReceived += async message =>
         {
-            if (message.Message.Contains("PING"))
+            var ircMessage = message.ToTwitchMessage();
+            if (ircMessage.Message!.Contains("PING"))
             {
                 await _logClient.LogMessage(new LogMessage("PING received from Twitch.", DateTime.UtcNow, SeverityLevel.Info));
-                await _webSocketHandler.SendNonChatMessage("PONG :tmi.twitch.tv");
+                await _webSocketHandler.SendMessageToChat("PONG :tmi.twitch.tv");
                 await _logClient.LogMessage(new LogMessage("PONG :tmi.twitch.tv sent back to Twitch.", DateTime.UtcNow, SeverityLevel.Info));
             }
 
-            if (IsSelf(message.DisplayName))
+            if (IsSelf(ircMessage.DisplayName!))
             {
                 return;
             }
             
             if (_hamdleService.IsHamdleVotingInProgress())
             {
-                if (int.TryParse(message.Message, out var vote))
+                if (int.TryParse(ircMessage.Message, out var vote))
                 {
-                    _hamdleService.SubmitVoteForGuess(message.DisplayName, vote);
+                    _hamdleService.SubmitVoteForGuess(ircMessage.DisplayName!, vote);
                 }
             }
 
             if (!_hamdleService.IsHamdleVotingInProgress()
                 && _hamdleService.IsHamdleSessionInProgress())
             {
-                await _hamdleService.SubmitGuess(message.User, message.Message);
+                await _hamdleService.SubmitGuess(ircMessage.User!, ircMessage.Message);
             }
             else
             {
-                if (message.Message.Contains("!#") && ShouldProcess(message.Message))
+                if (ircMessage.Message.Contains("!#") && ShouldProcess(ircMessage.Message))
                 {
-                    await ProcessCommand(message.Message);
+                    await ProcessCommand(ircMessage.Message);
                 }
             }
         };
@@ -100,6 +101,11 @@ public class TwitchChatService : ITwitchChatService
         _webSocketHandler.Connected += async () =>
         {
             await OnConnected(tokenResponse.AccessToken);
+        };
+        
+        _webSocketHandler.ReconnectStarted += async () =>
+        {
+            await _logClient.LogMessage(new LogMessage("Reconnecting to Twitch Chat.", DateTime.UtcNow, SeverityLevel.Info));
         };
         
         await _webSocketHandler.Connect();
@@ -114,11 +120,11 @@ public class TwitchChatService : ITwitchChatService
         var capReq = $"CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands";
         var pass = $"PASS oauth:{accessToken}";
         var nick = "NICK hamdlebot";
-        await _webSocketHandler!.SendNonChatMessage(pass);
-        await _webSocketHandler.SendNonChatMessage(nick);
-        await _webSocketHandler.SendNonChatMessage(capReq);
+        await _webSocketHandler!.SendMessage(pass);
+        await _webSocketHandler.SendMessage(nick);
+        await _webSocketHandler.SendMessage(capReq);
         await Task.Delay(3000);
-        await _webSocketHandler.SendNonChatMessage("JOIN #hamhamReborn");
+        await _webSocketHandler.JoinChannel();
         await _webSocketHandler.SendMessageToChat("hamdlebot has arrived Kappa");
     }
     

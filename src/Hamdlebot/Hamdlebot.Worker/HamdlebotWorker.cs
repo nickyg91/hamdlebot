@@ -67,9 +67,9 @@ public class HamdlebotWorker : BackgroundService
             _obsService.CreateWebSocket(cancellationToken),
             _wordService.InsertWords());
 
-        Task.Run(() => _twitchChatService.CreateWebSocket(cancellationToken));
-        Task.Run(() => _obsService.HandleMessages());
-        Task.Run(async () =>
+        _ = Task.Run(() => _twitchChatService.CreateWebSocket(cancellationToken), cancellationToken);
+        _ = Task.Run(() => _obsService.CreateWebSocket(cancellationToken), cancellationToken);
+        _ = Task.Run(async () =>
         {
             var ms = TimeSpan.FromHours(3.5);
             while (true)
@@ -95,9 +95,9 @@ public class HamdlebotWorker : BackgroundService
                     await _logClient.LogMessage(new LogMessage($"Unable to refresh token: {e.Message}.", DateTime.UtcNow, SeverityLevel.Error));
                 }
                 
-                Thread.Sleep(ms);
+                await Task.Delay(ms, cancellationToken);
             }
-        });
+        }, cancellationToken);
         var timer = new System.Timers.Timer();
         timer.Interval = 60000;
         timer.Elapsed += BotPong!;

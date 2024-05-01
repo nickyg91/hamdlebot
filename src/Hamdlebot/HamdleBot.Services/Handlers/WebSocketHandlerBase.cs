@@ -3,58 +3,49 @@ using System.Text;
 
 namespace HamdleBot.Services.Handlers;
 
-public abstract class WebSocketHandlerBase
+public abstract class WebSocketHandlerBase(string url, CancellationToken cancellationToken)
 {
-    private ClientWebSocket _socket;
-    private CancellationToken _cancellationToken;
-    private string _url;
+    private readonly ClientWebSocket _socket = new();
 
-    protected event Func<Task> Connected;
-    protected event Action? ReconnectStarted;
+    public event Func<Task>? Connected;
+    public event Action? ReconnectStarted;
     public event Action<string>? MessageReceived;
-    protected bool IsConnected => _socket.State == WebSocketState.Open;
-    
-    protected WebSocketHandlerBase(string url, CancellationToken cancellationToken)
-    {
-        _socket = new ClientWebSocket();
-        _cancellationToken = cancellationToken;
-        _url = url;
-    }
 
-    protected async Task Connect()
+    public async Task Connect()
     {
         var retryCount = 0;
         while(_socket.State != WebSocketState.Open && retryCount < 5)
         {
             try
             {
-                await _socket.ConnectAsync(new Uri(_url), _cancellationToken);
+                await _socket.ConnectAsync(new Uri(url), cancellationToken);
                 retryCount = 0;
             }
             catch (WebSocketException)
             {
                 retryCount++;
                 var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount));
-                await Task.Delay(delay, _cancellationToken);
+                await Task.Delay(delay, cancellationToken);
                 ReconnectStarted?.Invoke();
             }
         }
-        Task.Run(StartListening, _cancellationToken);
+        _ = Task.Run(StartListening, cancellationToken);
         Connected?.Invoke();
     }
 
-    protected async Task Disconnect()
+    public async Task Disconnect()
     {
         if (_socket.State == WebSocketState.Open)
         {
-            await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", _cancellationToken);
+            await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", cancellationToken);
         }
     }
-    protected async Task SendMessage(string message)
+    public async Task SendMessage(string message)
     {
         var bytes = Encoding.UTF8.GetBytes(message);
-        await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, _cancellationToken);
+        await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cancellationToken);
     }
+    
     private async Task StartListening()
     {
         try
@@ -66,9 +57,9 @@ public abstract class WebSocketHandlerBase
                 WebSocketReceiveResult result;
                 do
                 {
-                    result = await _socket.ReceiveAsync(messageBuffer, _cancellationToken);
+                    result = await _socket.ReceiveAsync(messageBuffer, cancellationToken);
                     await ms.WriteAsync(messageBuffer.Array.AsMemory(messageBuffer.Offset, result.Count),
-                        _cancellationToken);
+                        cancellationToken);
                 } while (_socket.State == WebSocketState.Open && !result.EndOfMessage);
             
                 if (result is not { MessageType: WebSocketMessageType.Text })

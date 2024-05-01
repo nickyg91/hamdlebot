@@ -154,7 +154,7 @@ public class HamdleContext
                 RequestType = ObsRequestStrings.SetSceneItemEnabled,
                 RequestData = new SetSceneItemEnabledRequest
                 {
-                    SceneName = _obsSettings.SceneName,
+                    SceneName = _obsSettings.SceneName!,
                     SceneItemEnabled = enabled,
                     SceneItemId = _hamdleSceneId
                 }
