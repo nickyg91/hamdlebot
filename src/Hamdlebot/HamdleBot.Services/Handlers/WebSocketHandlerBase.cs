@@ -51,23 +51,23 @@ public abstract class WebSocketHandlerBase(string url, CancellationToken cancell
         try
         {
             using var ms = new MemoryStream();
-            var messageBuffer = WebSocket.CreateClientBuffer(2048, 1024);
             while (_socket.State == WebSocketState.Open)
             {
+                
                 WebSocketReceiveResult result;
                 do
                 {
+                    var messageBuffer = WebSocket.CreateClientBuffer(1024, 16);
                     result = await _socket.ReceiveAsync(messageBuffer, cancellationToken);
                     await ms.WriteAsync(messageBuffer.Array.AsMemory(messageBuffer.Offset, result.Count),
                         cancellationToken);
-                } while (_socket.State == WebSocketState.Open && !result.EndOfMessage);
+                } while (!result.EndOfMessage);
             
-                if (result is not { MessageType: WebSocketMessageType.Text })
+                if (result is { MessageType: WebSocketMessageType.Text })
                 {
-                    return;
+                    var message = Encoding.UTF8.GetString(ms.ToArray());
+                    MessageReceived?.Invoke(message);
                 }
-                var message = Encoding.UTF8.GetString(ms.ToArray());
-                MessageReceived?.Invoke(message);
                 ms.Seek(0, SeekOrigin.Begin);
                 ms.Position = 0;
                 ms.SetLength(0);

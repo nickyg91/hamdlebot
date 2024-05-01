@@ -24,8 +24,9 @@ public class ObsService : IObsService
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
-    private readonly RedisChannel _sceneRetreivedChannel;
+    private readonly RedisChannel _sceneReceivedChannel;
     
     
     public ObsService(
@@ -36,7 +37,7 @@ public class ObsService : IObsService
         _cache = cache;
         _logClient = logClient;
         _obsSettings = settings.Value.ObsSettingsOptions!;
-        _sceneRetreivedChannel = new RedisChannel(RedisChannelType.OnSceneReceived, RedisChannel.PatternMode.Auto);
+        _sceneReceivedChannel = new RedisChannel(RedisChannelType.OnSceneReceived, RedisChannel.PatternMode.Auto);
     }
 
     public async Task CreateWebSocket(CancellationToken cancellationToken)
@@ -81,11 +82,7 @@ public class ObsService : IObsService
 
     public async Task SendRequest<T>(ObsRequest<T> message) where T : class
     {
-        var serializedJson = JsonSerializer.Serialize(message, new JsonSerializerOptions
-        {
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
+        var serializedJson = JsonSerializer.Serialize(message, _jsonOptions);
         await _logClient.LogMessage(new LogMessage($"Request sent to OBS for {message.RequestData?.RequestType ?? "scene"}." , DateTime.UtcNow, SeverityLevel.Info));
         await _socket!.SendMessage(serializedJson);
     }
@@ -117,6 +114,6 @@ public class ObsService : IObsService
         }
 
         var jsonString = JsonSerializer.Serialize(scene);
-        await _cache.Subscriber.PublishAsync(_sceneRetreivedChannel, jsonString);
+        await _cache.Subscriber.PublishAsync(_sceneReceivedChannel, jsonString);
     }
 }
