@@ -79,7 +79,7 @@ public class HamdlebotWorker : BackgroundService
                     break;
                 }
 
-                var token = await _cacheService.GetItem("twitchRefreshToken");
+                var token = await _cacheService.GetItem(CacheKeyType.TwitchRefreshToken);
                 try
                 {
                     if (token == null)
@@ -87,8 +87,8 @@ public class HamdlebotWorker : BackgroundService
                         return;
                     }
                     var newToken = await _identityApiService.RefreshToken(token);
-                    await _cacheService.AddItem("twitchRefreshToken", newToken.RefreshToken);
-                    await _cacheService.AddItem("twitchAccessToken", newToken.AccessToken);
+                    await _cacheService.AddItem(CacheKeyType.TwitchRefreshToken, newToken.RefreshToken);
+                    await _cacheService.AddItem(CacheKeyType.TwitchAccessToken, newToken.AccessToken);
                 }
                 catch (Exception e)
                 {
@@ -108,6 +108,4 @@ public class HamdlebotWorker : BackgroundService
     {
         _logClient.LogMessage(new LogMessage("PONG.", DateTime.UtcNow, SeverityLevel.Info));
     }
-    
-    
 }

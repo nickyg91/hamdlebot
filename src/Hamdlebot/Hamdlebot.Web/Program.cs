@@ -10,10 +10,7 @@ using HamdleBot.Services.Twitch;
 using HamdleBot.Services.Twitch.Interfaces;
 using Hamdlebot.Web.Hubs;
 using Hamdlebot.Worker;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization.Infrastructure;
 using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);

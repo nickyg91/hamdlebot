@@ -19,7 +19,8 @@ public class TwitchChatService : ITwitchChatService
     private readonly ITwitchIdentityApiService _identityApiService;
     private readonly IBotLogClient _logClient;
     private CancellationToken? _cancellationToken;
-
+    private readonly RedisChannel _botTokenChannel;
+    private readonly RedisChannel _startHamdleSceneChannel;
     public TwitchChatService(
         IWordService wordService, 
         ICacheService cache,
@@ -32,18 +33,9 @@ public class TwitchChatService : ITwitchChatService
         _hamdleService = hamdleService;
         _identityApiService = identityApiService;
         _logClient = logClient;
-        _cache.Subscriber.Subscribe(new RedisChannel("bot:twitch:token", RedisChannel.PatternMode.Auto)).OnMessage(
-            async message =>
-            {
-                var token = JsonSerializer.Deserialize<ClientCredentialsTokenResponse>(message.Message!);
-                await _cache.AddItem("twitchOauthToken", token!.AccessToken, TimeSpan.FromSeconds(token.ExpiresIn));
-                await _cache.AddItem("twitchRefreshToken", token.RefreshToken, TimeSpan.FromDays(30));
-                if (_webSocketHandler != null)
-                {
-                    await _webSocketHandler.Disconnect();
-                }
-                await CreateWebSocket(_cancellationToken!.Value);
-            });
+        _botTokenChannel = new RedisChannel(RedisChannelType.BotTwitchToken, RedisChannel.PatternMode.Auto);
+        _startHamdleSceneChannel = new RedisChannel(RedisChannelType.StartHamdleScene, RedisChannel.PatternMode.Auto);
+        SetupSubscriptions();
     }
 
     public async Task CreateWebSocket(CancellationToken cancellationToken)
@@ -117,6 +109,7 @@ public class TwitchChatService : ITwitchChatService
     {
         await _logClient.LogMessage(new LogMessage("Connecting to Twitch Chat.", DateTime.UtcNow, SeverityLevel.Info));
         await _logClient.LogMessage(new LogMessage("Connection to Twitch Chat Successful.", DateTime.UtcNow, SeverityLevel.Info));
+        await _logClient.SendBotStatus(BotStatusType.Online);
         var capReq = $"CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands";
         var pass = $"PASS oauth:{accessToken}";
         var nick = "NICK hamdlebot";
@@ -131,8 +124,8 @@ public class TwitchChatService : ITwitchChatService
     private async Task<ClientCredentialsTokenResponse?> Authenticate()
     {
         ClientCredentialsTokenResponse tokenResponse;
-        var oauthToken = await _cache.GetItem("twitchOauthToken");
-        var refreshToken = await _cache.GetItem("twitchRefreshToken");
+        var oauthToken = await _cache.GetItem(CacheKeyType.TwitchOauthToken);
+        var refreshToken = await _cache.GetItem(CacheKeyType.TwitchRefreshToken);
 
         if (oauthToken != null && refreshToken != null)
         {
@@ -152,10 +145,26 @@ public class TwitchChatService : ITwitchChatService
 
         await _logClient.LogMessage(new LogMessage("Fetching new twitch OAuthToken.", DateTime.UtcNow, SeverityLevel.Info));
         tokenResponse = await _identityApiService.RefreshToken(refreshToken);
-        await _cache.AddItem("twitchOauthToken", tokenResponse.AccessToken, TimeSpan.FromSeconds(tokenResponse.ExpiresIn));
-        await _cache.AddItem("twitchRefreshToken", tokenResponse.RefreshToken, TimeSpan.FromDays(30));
+        await _cache.AddItem(CacheKeyType.TwitchOauthToken, tokenResponse.AccessToken, TimeSpan.FromSeconds(tokenResponse.ExpiresIn));
+        await _cache.AddItem(CacheKeyType.TwitchRefreshToken, tokenResponse.RefreshToken, TimeSpan.FromDays(30));
         
         return tokenResponse;
+    }
+
+    private void SetupSubscriptions()
+    {
+        _cache.Subscriber.Subscribe(_botTokenChannel).OnMessage(
+            async message =>
+            {
+                var token = JsonSerializer.Deserialize<ClientCredentialsTokenResponse>(message.Message!);
+                await _cache.AddItem(CacheKeyType.TwitchOauthToken, token!.AccessToken, TimeSpan.FromSeconds(token.ExpiresIn));
+                await _cache.AddItem(CacheKeyType.TwitchRefreshToken, token.RefreshToken, TimeSpan.FromDays(30));
+                if (_webSocketHandler != null)
+                {
+                    await _webSocketHandler.Disconnect();
+                }
+                await CreateWebSocket(_cancellationToken!.Value);
+            });
     }
     
     private async void Handle_Hamdle_Message(object sender, string message)
@@ -211,7 +220,7 @@ public class TwitchChatService : ITwitchChatService
                 await _webSocketHandler!.SendMessageToChat(word ?? "nooooo!");
                 break;
             case "!#hamdle":
-                await _cache.Subscriber.PublishAsync(new RedisChannel("startHamdleScene", RedisChannel.PatternMode.Auto), "start");
+                await _cache.Subscriber.PublishAsync(_startHamdleSceneChannel, "start");
                 break;
         }
     }

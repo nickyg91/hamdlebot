@@ -25,6 +25,7 @@ public class ObsService : IObsService
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
+    private readonly RedisChannel _sceneRetreivedChannel;
     
     
     public ObsService(
@@ -35,6 +36,7 @@ public class ObsService : IObsService
         _cache = cache;
         _logClient = logClient;
         _obsSettings = settings.Value.ObsSettingsOptions!;
+        _sceneRetreivedChannel = new RedisChannel(RedisChannelType.OnSceneReceived, RedisChannel.PatternMode.Auto);
     }
 
     public async Task CreateWebSocket(CancellationToken cancellationToken)
@@ -115,7 +117,6 @@ public class ObsService : IObsService
         }
 
         var jsonString = JsonSerializer.Serialize(scene);
-        await _cache.Subscriber.PublishAsync(
-            new RedisChannel("onSceneRetrieved", RedisChannel.PatternMode.Auto), jsonString);
+        await _cache.Subscriber.PublishAsync(_sceneRetreivedChannel, jsonString);
     }
 }

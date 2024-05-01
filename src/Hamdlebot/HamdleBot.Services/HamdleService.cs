@@ -25,6 +25,8 @@ public partial class HamdleService : IHamdleService
     private readonly ObsSettings _obsSettings;
     private HamdleContext? _hamdleContext;
     private SceneItem? _hamdleScene;
+    private readonly RedisChannel _sceneRetreivedChannel;
+    private readonly RedisChannel _startHamdleSceneChannel;
     public event EventHandler<string>? SendMessageToChat;
     public HamdleService(
         ICacheService cache, 
@@ -38,24 +40,9 @@ public partial class HamdleService : IHamdleService
         _hamdleMediator = hamdleMediator;
         _logClient = logClient;
         _obsSettings = settings.Value.ObsSettingsOptions!;
-
-        _cache.Subscriber
-            .Subscribe(new RedisChannel("onSceneRetrieved", RedisChannel.PatternMode.Auto)).OnMessage(async channelMessage =>
-        {
-            SetHamdleScene(channelMessage.Message);
-            CreateHamdleContext();
-            await _hamdleContext!.StartGuesses();
-        });
-        
-        _cache.Subscriber.Subscribe(new RedisChannel("startHamdleScene", RedisChannel.PatternMode.Auto))
-            .OnMessage(async _ =>
-            {
-                if (_hamdleContext is null)
-                {
-                    await _logClient.LogMessage(new LogMessage("Starting Hamdle Scene", DateTime.UtcNow, SeverityLevel.Info));
-                    await SendObsSceneRequest();
-                }
-            });
+        _sceneRetreivedChannel = new RedisChannel(RedisChannelType.OnSceneReceived, RedisChannel.PatternMode.Auto);
+        _startHamdleSceneChannel = new RedisChannel(RedisChannelType.StartHamdleScene, RedisChannel.PatternMode.Auto);
+        SetupSubscriptions();
     }
     
     public bool IsHamdleSessionInProgress()
@@ -129,6 +116,27 @@ public partial class HamdleService : IHamdleService
         });
     }
 
+    private void SetupSubscriptions()
+    {
+        _cache.Subscriber
+            .Subscribe(_sceneRetreivedChannel).OnMessage(async channelMessage =>
+            {
+                SetHamdleScene(channelMessage.Message);
+                CreateHamdleContext();
+                await _hamdleContext!.StartGuesses();
+            });
+        
+        _cache.Subscriber.Subscribe(_startHamdleSceneChannel)
+            .OnMessage(async _ =>
+            {
+                if (_hamdleContext is null)
+                {
+                    await _logClient.LogMessage(new LogMessage("Starting Hamdle Scene", DateTime.UtcNow, SeverityLevel.Info));
+                    await SendObsSceneRequest();
+                }
+            });
+    }
+    
     [GeneratedRegex("^[a-zA-Z]+$")]
     private static partial Regex OnlyLetters();
 }

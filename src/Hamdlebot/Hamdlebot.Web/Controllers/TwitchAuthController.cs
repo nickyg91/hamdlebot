@@ -3,6 +3,7 @@ using Hamdle.Cache;
 using Hamdlebot.Core.Exceptions;
 using Hamdlebot.Models;
 using HamdleBot.Services.Twitch.Interfaces;
+using Hamdlebot.Web.Security.Attributes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StackExchange.Redis;
@@ -22,7 +23,7 @@ namespace Hamdlebot.Web.Controllers
             _cacheService = cacheService;
         }
 
-        [HttpGet, Authorize]
+        [HttpGet, AuthorizedTwitchUser]
         public string Get()
         {
             return _twitchIdentityApiService.GetWorkerAuthorizationCodeUrl();
@@ -45,7 +46,7 @@ namespace Hamdlebot.Web.Controllers
             await _cacheService
                 .Subscriber
                 .PublishAsync(
-                    new RedisChannel("bot:twitch:token", RedisChannel.PatternMode.Auto),
+                    new RedisChannel(RedisChannelType.BotTwitchToken, RedisChannel.PatternMode.Auto),
                     JsonSerializer.Serialize(token));
             return token;
         }
