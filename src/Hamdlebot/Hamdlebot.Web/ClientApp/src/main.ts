@@ -10,12 +10,8 @@ import 'primeicons/primeicons.css';
 import { useSignalR } from './composables/signalr.composable';
 const app = createApp(App);
 
-const { createSignalRConnection } = useSignalR();
-
 app.use(PrimeVue, { ripple: true });
 app.use(createPinia());
 app.use(router);
-await createSignalRConnection('botloghub');
-await createSignalRConnection('hamdlebothub');
 
 app.mount('#app');

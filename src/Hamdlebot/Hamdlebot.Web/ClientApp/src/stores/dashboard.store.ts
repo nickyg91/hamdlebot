@@ -15,7 +15,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
   });
 
   signalRConnection?.on('SendBotStatus', (status: BotStatusType) => {
-    botStatus.value = status;
+    if (botStatus.value !== BotStatusType.HamdleInProgress) {
+      botStatus.value = status;
+    }
   });
 
   return {
