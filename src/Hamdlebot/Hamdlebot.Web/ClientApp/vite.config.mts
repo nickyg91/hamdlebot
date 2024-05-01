@@ -47,6 +47,9 @@ export default defineConfig(({ command }) => {
         alias: {
           '@': fileURLToPath(new URL('./src', import.meta.url))
         }
+      },
+      build: {
+        target: 'esnext'
       }
     };
   } else {
