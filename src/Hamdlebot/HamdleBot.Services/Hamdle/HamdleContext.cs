@@ -2,13 +2,12 @@ using Hamdle.Cache;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Exceptions;
 using Hamdlebot.Core.Models.Logging;
-using Hamdlebot.Core.SignalR.Clients;
 using Hamdlebot.Core.SignalR.Clients.Hamdle;
 using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Models.OBS;
 using Hamdlebot.Models.OBS.RequestTypes;
 using HamdleBot.Services.Hamdle.States;
-using HamdleBot.Services.Mediators;
+using HamdleBot.Services.OBS;
 
 namespace HamdleBot.Services.Hamdle;
 
@@ -18,11 +17,11 @@ public class HamdleContext
     private const int WaitBeforeSceneSet = 1000;
     private readonly ICacheService _cache;
     private readonly IHamdleHubClient _hamdleHubClient;
-    private readonly HamdleMediator _mediator;
     private bool _isSceneEnabled;
     private readonly int _hamdleSceneId;
     private readonly IBotLogClient _logClient;
     private readonly ObsSettings _obsSettings;
+    private readonly IObsService _obsService;
     private BaseState<HamdleContext, IHamdleHubClient>? State { get; set; }
     public event EventHandler<string>? SendMessageToChat;
     public event EventHandler? Restarted;
@@ -36,19 +35,19 @@ public class HamdleContext
     public HamdleContext(
         ICacheService cache, 
         IHamdleHubClient hamdleHubClient,
-        HamdleMediator mediator,
         int hamdleSceneId,
         IBotLogClient logClient,
-        ObsSettings obsSettings)
+        ObsSettings obsSettings,
+        IObsService obsService)
     {
         _cache = cache;
         _hamdleHubClient = hamdleHubClient;
-        _mediator = mediator;
         CurrentWord = string.Empty;
         Guesses = new HashSet<string>();
         _hamdleSceneId = hamdleSceneId;
         _logClient = logClient;
         _obsSettings = obsSettings;
+        _obsService = obsService;
     }
     
     public void Send(string message)
@@ -145,7 +144,7 @@ public class HamdleContext
     private async Task EnableHamdleScene(bool enabled)
     {
         _isSceneEnabled = enabled;
-        await _mediator.SendObsRequest(new ObsRequest<SetSceneItemEnabledRequest>
+        await _obsService.SendRequest(new ObsRequest<SetSceneItemEnabledRequest>
         {
             Op = OpCodeType.Request,
             RequestData = new RequestWrapper<SetSceneItemEnabledRequest>

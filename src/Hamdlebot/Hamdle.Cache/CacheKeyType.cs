@@ -5,4 +5,5 @@ public static class CacheKeyType
     public static string TwitchOauthToken => "twitchOauthToken";
     public static string TwitchRefreshToken => "twitchRefreshToken";
     public static string TwitchAccessToken => "twitchAccessToken";
+    public static string BotCommands => "commands";
 }

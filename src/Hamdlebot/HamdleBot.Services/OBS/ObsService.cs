@@ -14,7 +14,7 @@ using StackExchange.Redis;
 
 namespace HamdleBot.Services.OBS;
 
-public class ObsService : IObsService
+public class ObsService : IObsService, IProcessCacheMessage
 {
     private ObsWebSocketHandler? _socket;
     private CancellationToken? _cancellationToken;
@@ -27,7 +27,6 @@ public class ObsService : IObsService
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
     private readonly RedisChannel _sceneReceivedChannel;
-    
     
     public ObsService(
         ICacheService cache, 
@@ -115,5 +114,10 @@ public class ObsService : IObsService
 
         var jsonString = JsonSerializer.Serialize(scene);
         await _cache.Subscriber.PublishAsync(_sceneReceivedChannel, jsonString);
+    }
+
+    public void SetupSubscriptions()
+    {
+        throw new NotImplementedException();
     }
 }

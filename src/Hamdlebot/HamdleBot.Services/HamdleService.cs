@@ -9,19 +9,19 @@ using Hamdlebot.Models.OBS;
 using Hamdlebot.Models.OBS.RequestTypes;
 using Hamdlebot.Models.OBS.ResponseTypes;
 using HamdleBot.Services.Hamdle;
-using HamdleBot.Services.Mediators;
+using HamdleBot.Services.OBS;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace HamdleBot.Services;
 
-public partial class HamdleService : IHamdleService
+public partial class HamdleService : IHamdleService, IProcessCacheMessage
 {
     private Regex _onlyLetters = OnlyLetters();
     private readonly ICacheService _cache;
     private readonly IHamdleHubClient _hamdleHubClient;
-    private readonly HamdleMediator _hamdleMediator;
     private readonly IBotLogClient _logClient;
+    private readonly IObsService _obsService;
     private readonly ObsSettings _obsSettings;
     private HamdleContext? _hamdleContext;
     private SceneItem? _hamdleScene;
@@ -31,14 +31,14 @@ public partial class HamdleService : IHamdleService
     public HamdleService(
         ICacheService cache, 
         IHamdleHubClient hamdleHubClient, 
-        HamdleMediator hamdleMediator,
         IOptions<AppConfigSettings> settings,
-        IBotLogClient logClient)
+        IBotLogClient logClient,
+        IObsService obsService)
     {
         _cache = cache;
         _hamdleHubClient = hamdleHubClient;
-        _hamdleMediator = hamdleMediator;
         _logClient = logClient;
+        _obsService = obsService;
         _obsSettings = settings.Value.ObsSettingsOptions!;
         _sceneRetreivedChannel = new RedisChannel(RedisChannelType.OnSceneReceived, RedisChannel.PatternMode.Auto);
         _startHamdleSceneChannel = new RedisChannel(RedisChannelType.StartHamdleScene, RedisChannel.PatternMode.Auto);
@@ -76,10 +76,10 @@ public partial class HamdleService : IHamdleService
             new HamdleContext(
                 _cache, 
                 _hamdleHubClient, 
-                _hamdleMediator,
                 _hamdleScene!.SceneItemId,
                 _logClient, 
-                _obsSettings);
+                _obsSettings,
+                _obsService);
         _logClient.SendBotStatus(BotStatusType.HamdleInProgress);
         _hamdleContext.SendMessageToChat += SendMessageToChat;
         _hamdleContext.Restarted += Restart_Triggered!;
@@ -101,7 +101,7 @@ public partial class HamdleService : IHamdleService
 
     private async Task SendObsSceneRequest()
     {
-        await _hamdleMediator.SendObsRequest(new ObsRequest<GetSceneItemListRequest>
+        await _obsService.SendRequest(new ObsRequest<GetSceneItemListRequest>
         {
             RequestData = new RequestWrapper<GetSceneItemListRequest>()
             {
@@ -109,14 +109,14 @@ public partial class HamdleService : IHamdleService
                 RequestType = ObsRequestStrings.GetSceneItemList,
                 RequestData = new GetSceneItemListRequest
                 {
-                    SceneName = _obsSettings.SceneName!,   
+                    SceneName = _obsSettings.SceneName!,
                 }
             },
             Op = OpCodeType.Request
         });
     }
 
-    private void SetupSubscriptions()
+    public void SetupSubscriptions()
     {
         _cache.Subscriber
             .Subscribe(_sceneRetreivedChannel).OnMessage(async channelMessage =>

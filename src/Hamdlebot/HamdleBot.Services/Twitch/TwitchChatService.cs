@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Hamdle.Cache;
 using Hamdlebot.Core.Extensions;
+using Hamdlebot.Core.Models;
 using Hamdlebot.Core.Models.Logging;
 using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Models;
@@ -21,6 +22,12 @@ public class TwitchChatService : ITwitchChatService
     private CancellationToken? _cancellationToken;
     private readonly RedisChannel _botTokenChannel;
     private readonly RedisChannel _startHamdleSceneChannel;
+    private readonly List<string> _validCommands =
+    [
+        "!#commands",
+        "!#random",
+        "!#hamdle"
+    ];
     public TwitchChatService(
         IWordService wordService, 
         ICacheService cache,
@@ -56,37 +63,33 @@ public class TwitchChatService : ITwitchChatService
         _webSocketHandler.MessageReceived += async message =>
         {
             var ircMessage = message.ToTwitchMessage();
-            if (ircMessage.Message!.Contains("PING"))
+            if (ircMessage.IsPingMessage())
             {
                 await _logClient.LogMessage(new LogMessage("PING received from Twitch.", DateTime.UtcNow, SeverityLevel.Info));
-                await _webSocketHandler.SendMessageToChat("PONG :tmi.twitch.tv");
+                await _webSocketHandler.SendMessage("PONG :tmi.twitch.tv");
                 await _logClient.LogMessage(new LogMessage("PONG :tmi.twitch.tv sent back to Twitch.", DateTime.UtcNow, SeverityLevel.Info));
             }
 
-            if (IsSelf(ircMessage.DisplayName!))
+            if (ircMessage.IsBot())
             {
                 return;
             }
             
-            if (_hamdleService.IsHamdleVotingInProgress())
+            if (_hamdleService.IsHamdleVotingInProgress() && int.TryParse(ircMessage.Message, out var vote))
             {
-                if (int.TryParse(ircMessage.Message, out var vote))
-                {
-                    _hamdleService.SubmitVoteForGuess(ircMessage.DisplayName!, vote);
-                }
+                _hamdleService.SubmitVoteForGuess(ircMessage.DisplayName!, vote);
             }
 
+            if (ircMessage.IsCommand)
+            {
+                await ProcessCommand(ircMessage);
+            }
+            
             if (!_hamdleService.IsHamdleVotingInProgress()
-                && _hamdleService.IsHamdleSessionInProgress())
+                && _hamdleService.IsHamdleSessionInProgress()
+                && ircMessage.Message is not null)
             {
                 await _hamdleService.SubmitGuess(ircMessage.User!, ircMessage.Message);
-            }
-            else
-            {
-                if (ircMessage.Message.Contains("!#") && ShouldProcess(ircMessage.Message))
-                {
-                    await ProcessCommand(ircMessage.Message);
-                }
             }
         };
         
@@ -101,7 +104,6 @@ public class TwitchChatService : ITwitchChatService
         };
         
         await _webSocketHandler.Connect();
-
         _hamdleService.SendMessageToChat += Handle_Hamdle_Message!;
     }
 
@@ -171,46 +173,23 @@ public class TwitchChatService : ITwitchChatService
     {
         await _webSocketHandler!.SendMessageToChat(message);
     }
-
-    private static bool ShouldProcess(string command)
-    {
-        return command.StartsWith("!#");
-    }
-
-    private bool IsSelf(string message)
-    {
-        var parsed = string.Join("", message.TakeWhile(x => x != '!')).Replace(":", "");
-        return parsed == "hamdlebot" || parsed == "nightbot";
-    }
     
     private async Task InsertValidCommands()
     {
-        var validCommands = new List<string>
+        foreach (var command in _validCommands)
         {
-            "!#commands",
-            "!#random",
-            "!#hamdle"
-        };
-        foreach (var command in validCommands)
-        {
-            await _cache.AddToSet("commands", command);
+            await _cache.AddToSet(CacheKeyType.BotCommands, command);
         }
     }
 
-    private async Task<bool> IsValidCommand(string command)
+    private async Task ProcessCommand(TwitchMessage message)
     {
-        return await _cache.ContainsMember("commands", command);
-    }
-
-    private async Task ProcessCommand(string command)
-    {
-        var isValidCommand = await IsValidCommand(command);
-        if (!isValidCommand)
+        if (!message.IsValidCommand(_validCommands))
         {
             await _webSocketHandler!.SendMessageToChat("Invalid command! SirSad");
         }
 
-        switch (command)
+        switch (message.Message)
         {
             case "!#commands":
                 await _webSocketHandler!.SendMessageToChat("Commands: !#<command> commands, random, hamdle");
@@ -220,7 +199,14 @@ public class TwitchChatService : ITwitchChatService
                 await _webSocketHandler!.SendMessageToChat(word ?? "nooooo!");
                 break;
             case "!#hamdle":
-                await _cache.Subscriber.PublishAsync(_startHamdleSceneChannel, "start");
+                if (!_hamdleService.IsHamdleSessionInProgress())
+                {
+                    await _cache.Subscriber.PublishAsync(_startHamdleSceneChannel, "start");    
+                }
+                else
+                {
+                    await _webSocketHandler!.SendMessageToChat("Hamdle is already in progress. Can't start another!");
+                }
                 break;
         }
     }
