@@ -5,6 +5,11 @@ namespace Hamdlebot.Core.Extensions;
 
 public static partial class TwitchIrcExtensions
 {
+    public static bool IsPingMessage(this string ircMessage)
+    {
+        return ircMessage.Contains("PING :tmi.twitch.tv");
+    }
+    
     public static TwitchMessage ToTwitchMessage(this string ircMessage)
     {
         var userHandle = UsernameRegex().Match(ircMessage);

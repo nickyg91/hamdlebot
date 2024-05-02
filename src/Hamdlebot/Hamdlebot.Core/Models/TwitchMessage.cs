@@ -30,6 +30,4 @@ public record TwitchMessage
         }
         return commands.Contains(Message ?? "");
     }
-
-    public bool IsPingMessage() => Message?.Contains("PING") ?? false;
 }

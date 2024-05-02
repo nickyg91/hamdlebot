@@ -6,6 +6,8 @@ import ScrollPanel from 'primevue/scrollpanel';
 import Panel from 'primevue/panel';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
+import Sidebar from 'primevue/sidebar';
+import ObsSettings from '@/components/ObsSettings.vue';
 import { BotStatusType } from '@/models/bot-status-type.enum';
 import { computed, ref } from 'vue';
 import { useSignalR } from '@/composables/signalr.composable';
@@ -24,6 +26,7 @@ const { botStatus, logMessages } = storeToRefs(store);
 const { reconnect, signalRHubStatuses } = useSignalR();
 
 const isLoginDialogOpen = ref(false);
+const isObsSettingsSliderOpen = ref(false);
 
 const botStatusSeverity = computed(() => {
   switch (botStatus.value) {
@@ -88,6 +91,13 @@ const getTwitchOAuthUrl = async () => {
     <div v-if="authStore.token">
       <section class="flex justify-content-between">
         <div class="flex-grow-1 p-2">
+          <Sidebar
+            v-model:visible="isObsSettingsSliderOpen"
+            header="OBS Settings"
+            class="w-full md:w-20rem lg:w-30rem"
+          >
+            <ObsSettings></ObsSettings>
+          </Sidebar>
           <Panel>
             <template #header>
               <h2>
@@ -105,6 +115,14 @@ const getTwitchOAuthUrl = async () => {
                   label="Authenticate Bot"
                   @click="getAuthUrl"
                 ></Button>
+                <Button
+                  class="ml-3"
+                  severity="info"
+                  label="Obs Settings"
+                  icon="pi pi-cog"
+                  @click="isObsSettingsSliderOpen = true"
+                >
+                </Button>
               </div>
             </div>
             <hr />

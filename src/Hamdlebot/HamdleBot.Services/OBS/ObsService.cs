@@ -20,13 +20,14 @@ public class ObsService : IObsService, IProcessCacheMessage
     private CancellationToken? _cancellationToken;
     private readonly ICacheService _cache;
     private readonly IBotLogClient _logClient;
-    private readonly ObsSettings _obsSettings;
+    private ObsSettings _obsSettings;
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
     private readonly RedisChannel _sceneReceivedChannel;
+    private readonly RedisChannel _obsSettingsChangedChannel;
     
     public ObsService(
         ICacheService cache, 
@@ -36,6 +37,7 @@ public class ObsService : IObsService, IProcessCacheMessage
         _cache = cache;
         _logClient = logClient;
         _obsSettings = settings.Value.ObsSettingsOptions!;
+        _obsSettingsChangedChannel = new RedisChannel(RedisChannelType.ObsSettingsChanged, RedisChannel.PatternMode.Auto);
         _sceneReceivedChannel = new RedisChannel(RedisChannelType.OnSceneReceived, RedisChannel.PatternMode.Auto);
     }
 
@@ -118,6 +120,24 @@ public class ObsService : IObsService, IProcessCacheMessage
 
     public void SetupSubscriptions()
     {
-        throw new NotImplementedException();
+        _cache.Subscriber.Subscribe(_obsSettingsChangedChannel, (channel, message) =>
+        {
+            if (message.IsNullOrEmpty)
+            {
+                return;
+            }
+            var settings = JsonSerializer.Deserialize<ObsSettings>(message!, _jsonOptions);
+            if (settings == null)
+            {
+                return;
+            }
+            _obsSettings = settings;
+            Task.Run(async () =>
+            {
+                await _socket!.Disconnect();
+                await _logClient.LogMessage(new LogMessage("Obs settings updated.", DateTime.UtcNow, SeverityLevel.Info));
+                await _socket.Connect();
+            });
+        });
     }
 }

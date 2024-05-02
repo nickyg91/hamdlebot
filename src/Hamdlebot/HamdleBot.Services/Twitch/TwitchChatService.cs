@@ -62,14 +62,14 @@ public class TwitchChatService : ITwitchChatService
         
         _webSocketHandler.MessageReceived += async message =>
         {
-            var ircMessage = message.ToTwitchMessage();
-            if (ircMessage.IsPingMessage())
+            if (message.IsPingMessage())
             {
                 await _logClient.LogMessage(new LogMessage("PING received from Twitch.", DateTime.UtcNow, SeverityLevel.Info));
                 await _webSocketHandler.SendMessage("PONG :tmi.twitch.tv");
                 await _logClient.LogMessage(new LogMessage("PONG :tmi.twitch.tv sent back to Twitch.", DateTime.UtcNow, SeverityLevel.Info));
             }
 
+            var ircMessage = message.ToTwitchMessage();
             if (ircMessage.IsBot())
             {
                 return;

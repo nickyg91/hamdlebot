@@ -53,7 +53,6 @@ public abstract class WebSocketHandlerBase(string url, CancellationToken cancell
             using var ms = new MemoryStream();
             while (_socket.State == WebSocketState.Open)
             {
-                
                 WebSocketReceiveResult result;
                 do
                 {
