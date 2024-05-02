@@ -121,6 +121,11 @@ public partial class HamdleService : IHamdleService, IProcessCacheMessage
         _cache.Subscriber
             .Subscribe(_sceneRetreivedChannel).OnMessage(async channelMessage =>
             {
+                if (_hamdleContext is not null)
+                {
+                    return;
+                }
+                
                 SetHamdleScene(channelMessage.Message);
                 CreateHamdleContext();
                 await _hamdleContext!.StartGuesses();
