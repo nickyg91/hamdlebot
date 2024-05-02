@@ -137,15 +137,6 @@ const getTwitchOAuthUrl = async () => {
                 </InlineMessage>
               </div>
             </div>
-            <div v-if="botStatus === BotStatusType.HamdleInProgress" class="mt-2">
-              <h3>Hamdle Status</h3>
-              <div>Current word: {{ currentWord }}</div>
-              <ul>
-                <li v-for="guess in guesses" :key="guess">
-                  {{ guess }}
-                </li>
-              </ul>
-            </div>
           </Panel>
         </div>
         <div class="flex-grow-1 p-2">
