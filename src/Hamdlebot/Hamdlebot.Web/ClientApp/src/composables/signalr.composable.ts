@@ -4,11 +4,9 @@ import {
   LogLevel,
   type HubConnection
 } from '@microsoft/signalr';
-import { useToast } from 'primevue/usetoast';
 import { computed, ref } from 'vue';
 const signalRConnections = ref(new Map<string, HubConnection>());
 export const useSignalR = () => {
-  const toast = useToast();
   const signalRHubStatuses = computed(() => {
     const statuses = new Map<string, HubConnectionState>();
     signalRConnections.value.forEach((connection, hubName) => {
