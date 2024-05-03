@@ -12,13 +12,17 @@ const httpClient = useAxios();
 const authStore = useAuthStore();
 onMounted(async () => {
   if (router.currentRoute.value.query.code) {
-    const token = await getTwitchOAuthToken(router.currentRoute.value.query.code as string);
-    if (token) {
-      httpClient.addTokenInterceptor(token.id_token);
-      router.push({ name: 'dashboard' });
-      authStore.token = token;
-    } else {
-      console.error('Failed to get Twitch OAuth token');
+    try {
+      const token = await getTwitchOAuthToken(router.currentRoute.value.query.code as string);
+      if (token) {
+        httpClient.addTokenInterceptor(token.id_token);
+        router.push({ name: 'dashboard' });
+        authStore.token = token;
+      } else {
+        console.error('Failed to get Twitch OAuth token');
+      }
+    } catch (error) {
+      console.log(error);
     }
   }
 });

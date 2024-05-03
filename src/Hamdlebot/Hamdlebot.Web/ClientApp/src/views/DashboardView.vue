@@ -68,22 +68,32 @@ const isHamdleRunning = computed(() => botStatus.value === BotStatusType.HamdleI
 
 watch(
   token,
-  () => {
+  async () => {
     if (!authStore.token) {
       isLoginDialogOpen.value = true;
+    } else {
+      await store.startDashboardSignalRConnection();
     }
   },
   { immediate: true }
 );
 
 const getAuthUrl = async () => {
-  const authUrl = await authStore.getTwitchAuthUrl();
-  window.open(authUrl, 'newwin', 'height=450px,width=450px');
+  try {
+    const authUrl = await authStore.getTwitchAuthUrl();
+    window.open(authUrl, 'newwin', 'height=450px,width=450px');
+  } catch (error) {
+    console.error(error);
+  }
 };
 
 const getTwitchOAuthUrl = async () => {
-  const authUrl = await authStore.getTwitchOIDCUrl();
-  window.open(authUrl, '_self');
+  try {
+    const authUrl = await authStore.getTwitchOIDCUrl();
+    window.open(authUrl, '_self');
+  } catch (error) {
+    console.error(error);
+  }
 };
 </script>
 <template>
@@ -96,7 +106,7 @@ const getTwitchOAuthUrl = async () => {
             header="OBS Settings"
             class="w-full md:w-20rem lg:w-30rem"
           >
-            <ObsSettings></ObsSettings>
+            <ObsSettings @on-update-suceeded="isObsSettingsSliderOpen = false"></ObsSettings>
           </Sidebar>
           <Panel>
             <template #header>

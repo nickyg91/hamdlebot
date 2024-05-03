@@ -33,14 +33,13 @@ const schema = toTypedSchema(
       .min(1)
   })
 );
-
-const { errors, defineField, handleSubmit } = useForm({
+const { errors, defineField, handleSubmit, meta } = useForm({
   validationSchema: schema,
   initialValues: props.obsSettings
 });
 
 const onSubmit = handleSubmit((values) => {
-  if (errors.value) {
+  if (!meta.value.valid) {
     return;
   }
   emits('update:obsSettings', values as ObsSettings);
@@ -58,7 +57,10 @@ const [obsAuthentication] = defineField('obsAuthentication');
         <label for="socketUrl">Socket URL</label>
         <div>
           <Password
+            :feedback="false"
             toggleMask
+            pt:root:class="w-full"
+            pt:input:root:class="w-full"
             v-model="socketUrl"
             :class="{ 'p-invalid': errors.socketUrl }"
             id="socketUrl"
@@ -69,6 +71,7 @@ const [obsAuthentication] = defineField('obsAuthentication');
         <label for="hamdleSourceName">Hamdle Source Name</label>
         <div>
           <InputText
+            pt:root:class="w-full"
             v-model="hamdleSourceName"
             id="hamdleSourceName"
             :class="{ 'p-invalid': errors.hamdleSourceName }"
@@ -77,19 +80,37 @@ const [obsAuthentication] = defineField('obsAuthentication');
       </div>
       <div class="field">
         <label for="sceneName">OBS Scene Name (should contain the Hamdle Source Name)</label>
-        <InputText v-model="sceneName" id="sceneName" :class="{ 'p-invalid': errors.sceneName }" />
+        <div>
+          <InputText
+            pt:root:class="w-full"
+            v-model="sceneName"
+            id="sceneName"
+            :class="{ 'p-invalid': errors.sceneName }"
+          />
+        </div>
       </div>
       <div class="field">
         <label for="obsAuthentication">OBS Websocket Password</label>
-        <Password
-          toggleMask
-          v-model="obsAuthentication"
-          id="obsAuthentication"
-          :class="{ 'p-invalid': errors.obsAuthentication }"
-        />
+        <div>
+          <Password
+            pt:root:class="w-full"
+            pt:input:root:class="w-full"
+            toggleMask
+            v-model="obsAuthentication"
+            id="obsAuthentication"
+            :class="{ 'p-invalid': errors.obsAuthentication }"
+          />
+        </div>
       </div>
       <div class="mt-3">
-        <Button class="w-full" label="Save" icon="pi pi-save" severity="success" @click="onSubmit">
+        <Button
+          :disabled="!meta.valid"
+          class="w-full"
+          label="Save"
+          icon="pi pi-save"
+          severity="success"
+          @click="onSubmit"
+        >
         </Button>
       </div>
     </form>

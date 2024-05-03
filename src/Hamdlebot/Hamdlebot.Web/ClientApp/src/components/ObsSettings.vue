@@ -10,15 +10,25 @@ const obsSettings = ref<ObsSettings | null>(null);
 const isLoading = ref(false);
 onMounted(async () => {
   isLoading.value = true;
-  obsSettings.value = await getObsSettings();
-  isLoading.value = false;
+  try {
+    obsSettings.value = await getObsSettings();
+  } catch (error) {
+    console.error(error);
+  } finally {
+    isLoading.value = false;
+  }
 });
 
 const onUpdateObsSettings = async (obsSettings: ObsSettings) => {
   isLoading.value = true;
-  await updateObsSettings(obsSettings);
-  isLoading.value = false;
-  emits('onUpdateSuceeded');
+  try {
+    await updateObsSettings(obsSettings);
+    emits('onUpdateSuceeded');
+  } catch (error) {
+    console.error(error);
+  } finally {
+    isLoading.value = false;
+  }
 };
 </script>
 

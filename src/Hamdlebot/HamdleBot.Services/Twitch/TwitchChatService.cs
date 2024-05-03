@@ -164,6 +164,7 @@ public class TwitchChatService : ITwitchChatService
                 if (_webSocketHandler != null)
                 {
                     await _webSocketHandler.Disconnect();
+                    _webSocketHandler = null;
                 }
                 await CreateWebSocket(_cancellationToken!.Value);
             });

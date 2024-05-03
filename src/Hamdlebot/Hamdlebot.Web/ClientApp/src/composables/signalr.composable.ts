@@ -4,10 +4,11 @@ import {
   LogLevel,
   type HubConnection
 } from '@microsoft/signalr';
+import { useToast } from 'primevue/usetoast';
 import { computed, ref } from 'vue';
 const signalRConnections = ref(new Map<string, HubConnection>());
-
 export const useSignalR = () => {
+  const toast = useToast();
   const signalRHubStatuses = computed(() => {
     const statuses = new Map<string, HubConnectionState>();
     signalRConnections.value.forEach((connection, hubName) => {
@@ -15,12 +16,14 @@ export const useSignalR = () => {
     });
     return statuses;
   });
-  const createSignalRConnection = async (hubName: string): Promise<void> => {
+
+  const createSignalRConnection = async (hubName: string): Promise<HubConnection> => {
+    const existingConnection = signalRConnections.value.get(hubName);
     if (
       signalRConnections.value.has(hubName) &&
-      signalRConnections.value.get(hubName)?.state === HubConnectionState.Connected
+      existingConnection?.state === HubConnectionState.Connected
     ) {
-      return;
+      return existingConnection as HubConnection;
     }
     const signalRConnection = new HubConnectionBuilder()
       .withUrl(`/${hubName}`)
@@ -32,18 +35,34 @@ export const useSignalR = () => {
 
     try {
       await startSignalRConnection(signalRConnection);
+      toast.add({
+        closable: true,
+        life: 5000,
+        severity: 'success',
+        summary: `SignalR Hub ${hubName} Connected!`,
+        detail: `An error occurred while connecting to the signalR hub ${signalRConnection.baseUrl}.`,
+        group: 'signalr'
+      });
     } catch (error) {
+      toast.add({
+        closable: true,
+        life: 5000,
+        severity: 'error',
+        summary: 'SignalR Connection Failure',
+        detail: `An error occurred while connecting to the signalR hub ${signalRConnection.baseUrl}.`,
+        group: 'signalr'
+      });
       console.error('Error starting signalR connection', error);
     }
 
     signalRConnections.value.set(hubName, signalRConnection);
+    return signalRConnection;
   };
 
   const startSignalRConnection = async (connection: HubConnection): Promise<void> => {
     if (!connection) {
       throw new Error('No signalR connection found');
     }
-    connection.keepAliveIntervalInMilliseconds = 1000;
     await connection.start();
   };
 

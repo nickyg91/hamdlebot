@@ -3,9 +3,13 @@ import GuessedLetters from '@/components/GuessedLetters.vue';
 import HamdleTimer from '@/components/HamdleTimer.vue';
 import WordGuess from '@/components/WordGuess.vue';
 import { useHamdleStore } from '@/stores/hamdle.store';
-import { computed } from 'vue';
-
+import { computed, onMounted } from 'vue';
+import ProgressSpinner from 'primevue/progressspinner';
 const store = useHamdleStore();
+
+onMounted(async () => {
+  await store.startSignalRConnection();
+});
 
 const guesses = computed(() => {
   const guesses = [];
@@ -20,19 +24,26 @@ const guesses = computed(() => {
 });
 </script>
 <template>
-  <div>
-    <div class="flex flex-column align-items-center">
-      <HamdleTimer class="flex p-3 mb-1 justify-content-center"></HamdleTimer>
-      <WordGuess
-        class="flex p-3 mb-2"
-        v-for="(guess, index) in guesses"
-        :key="index"
-        :guess="guess"
-        :current-word="store.currentWord"
-      ></WordGuess>
-      <GuessedLetters> </GuessedLetters>
-    </div>
-  </div>
+  <Suspense>
+    <template #default>
+      <div>
+        <div class="flex flex-column align-items-center">
+          <HamdleTimer class="flex p-3 mb-1 justify-content-center"></HamdleTimer>
+          <WordGuess
+            class="flex p-3 mb-2"
+            v-for="(guess, index) in guesses"
+            :key="index"
+            :guess="guess"
+            :current-word="store.currentWord"
+          ></WordGuess>
+          <GuessedLetters> </GuessedLetters>
+        </div>
+      </div>
+    </template>
+    <template #fallback>
+      <ProgressSpinner />
+    </template>
+  </Suspense>
 </template>
 
 <style scoped></style>

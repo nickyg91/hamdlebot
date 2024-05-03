@@ -18,8 +18,12 @@ watch(
 );
 onMounted(async () => {
   const code = router.currentRoute.value.query.code as string;
-  if (code) {
-    await authStore.getTwitchBotOAuthToken(code);
+  try {
+    if (code) {
+      await authStore.getTwitchBotOAuthToken(code);
+    }
+  } catch (error) {
+    console.error(error);
   }
 });
 </script>

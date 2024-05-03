@@ -3,8 +3,36 @@ import { computed, ref } from 'vue';
 import { useSignalR } from '@/composables/signalr.composable';
 
 export const useHamdleStore = defineStore('hamdle', () => {
-  const { getConnectionByHub } = useSignalR();
-  const signalRConnection = getConnectionByHub('hamdlebothub');
+  const { createSignalRConnection } = useSignalR();
+  const startSignalRConnection = async () => {
+    createSignalRConnection('hamdlebothub').then((signalRConnection) => {
+      signalRConnection?.on('SendSelectedWord', (word: string) => {
+        currentWord.value = word;
+      });
+
+      signalRConnection?.on('SendGuess', (guess: string) => {
+        guesses.value.push(guess);
+      });
+
+      signalRConnection?.on('ResetState', () => {
+        guesses.value = [];
+        currentWord.value = '';
+      });
+
+      signalRConnection?.on('StartGuessTimer', (ms) => {
+        guessMs.value = ms;
+      });
+
+      signalRConnection?.on('StartVoteTimer', (ms) => {
+        votingMs.value = ms;
+      });
+
+      signalRConnection?.on('StartBetweenRoundTimer', (ms) => {
+        betweenRoundMs.value = ms;
+      });
+    });
+  };
+
   const currentWord = ref('');
   const guesses = ref<string[]>([]);
   const guessMs = ref(0);
@@ -15,41 +43,13 @@ export const useHamdleStore = defineStore('hamdle', () => {
   const showVotingTimer = computed(() => votingMs.value > 0);
   const showBetweenRoundMs = computed(() => betweenRoundMs.value > 0);
 
-  signalRConnection?.on('SendSelectedWord', (word: string) => {
-    console.log('SendSelectedWord', word);
-    currentWord.value = word;
-  });
-
-  signalRConnection?.on('SendGuess', (guess: string) => {
-    console.log('SendGuess', guess);
-    guesses.value.push(guess);
-  });
-
-  signalRConnection?.on('ResetState', () => {
-    console.log('ResetState');
-    guesses.value = [];
-    currentWord.value = '';
-  });
-
-  signalRConnection?.on('StartGuessTimer', (ms) => {
-    guessMs.value = ms;
-  });
-
-  signalRConnection?.on('StartVoteTimer', (ms) => {
-    votingMs.value = ms;
-  });
-
-  signalRConnection?.on('StartBetweenRoundTimer', (ms) => {
-    betweenRoundMs.value = ms;
-  });
-
-  function resetGuessTimer(): void {
+  const resetGuessTimer = (): void => {
     guessMs.value = 0;
-  }
+  };
 
-  function resetVotingTimer(): void {
+  const resetVotingTimer = (): void => {
     votingMs.value = 0;
-  }
+  };
 
   function resetBetweenGuessTimer(): void {
     betweenRoundMs.value = 0;
@@ -66,6 +66,7 @@ export const useHamdleStore = defineStore('hamdle', () => {
     betweenRoundMs,
     resetGuessTimer,
     resetVotingTimer,
-    resetBetweenGuessTimer
+    resetBetweenGuessTimer,
+    startSignalRConnection
   };
 });

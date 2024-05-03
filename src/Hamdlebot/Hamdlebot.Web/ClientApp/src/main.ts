@@ -1,20 +1,14 @@
 import './assets/main.css';
-
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import App from './App.vue';
 import router from './router';
 import PrimeVue from 'primevue/config';
+import ToastService from 'primevue/toastservice';
 import 'primeicons/primeicons.css';
-import { useSignalR } from './composables/signalr.composable';
 const app = createApp(App);
-const { createSignalRConnection } = useSignalR();
-Promise.all([createSignalRConnection('botloghub'), createSignalRConnection('hamdlebothub')]).then(
-  () => {
-    app.use(PrimeVue, { ripple: true });
-    app.use(createPinia());
-    app.use(router);
-
-    app.mount('#app');
-  }
-);
+app.use(PrimeVue, { ripple: true });
+app.use(ToastService);
+app.use(router);
+app.use(createPinia());
+app.mount('#app');
