@@ -35,23 +35,7 @@ export const useSignalR = () => {
 
     try {
       await startSignalRConnection(signalRConnection);
-      toast.add({
-        closable: true,
-        life: 5000,
-        severity: 'success',
-        summary: `SignalR Hub ${hubName} Connected!`,
-        detail: `An error occurred while connecting to the signalR hub ${signalRConnection.baseUrl}.`,
-        group: 'signalr'
-      });
     } catch (error) {
-      toast.add({
-        closable: true,
-        life: 5000,
-        severity: 'error',
-        summary: 'SignalR Connection Failure',
-        detail: `An error occurred while connecting to the signalR hub ${signalRConnection.baseUrl}.`,
-        group: 'signalr'
-      });
       console.error('Error starting signalR connection', error);
     }
 

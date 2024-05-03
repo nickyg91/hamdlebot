@@ -3,12 +3,19 @@ import GuessedLetters from '@/components/GuessedLetters.vue';
 import HamdleTimer from '@/components/HamdleTimer.vue';
 import WordGuess from '@/components/WordGuess.vue';
 import { useHamdleStore } from '@/stores/hamdle.store';
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, watchEffect } from 'vue';
 import ProgressSpinner from 'primevue/progressspinner';
+import { useConfetti } from '@/composables/confetti.composable';
 const store = useHamdleStore();
-
+const confetti = useConfetti();
 onMounted(async () => {
   await store.startSignalRConnection();
+});
+
+watchEffect(() => {
+  if (store.showConfetti) {
+    confetti.startConfetti();
+  }
 });
 
 const guesses = computed(() => {

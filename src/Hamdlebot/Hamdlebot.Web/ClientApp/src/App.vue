@@ -13,7 +13,7 @@ onMounted(() => {
   <section>
     <RouterView />
     <Toast />
-    <Toast group="signalr" position="top-center" />
+    <Toast group="signalr" />
   </section>
 </template>
 

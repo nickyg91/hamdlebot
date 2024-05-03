@@ -42,6 +42,7 @@ export const useHamdleStore = defineStore('hamdle', () => {
   const showGuessTimer = computed(() => guessMs.value > 0);
   const showVotingTimer = computed(() => votingMs.value > 0);
   const showBetweenRoundMs = computed(() => betweenRoundMs.value > 0);
+  const showConfetti = computed(() => guesses.value.some((x) => x === currentWord.value));
 
   const resetGuessTimer = (): void => {
     guessMs.value = 0;
@@ -64,6 +65,7 @@ export const useHamdleStore = defineStore('hamdle', () => {
     guessMs,
     votingMs,
     betweenRoundMs,
+    showConfetti,
     resetGuessTimer,
     resetVotingTimer,
     resetBetweenGuessTimer,

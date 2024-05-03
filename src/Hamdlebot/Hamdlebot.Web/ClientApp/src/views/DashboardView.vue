@@ -16,6 +16,8 @@ import { storeToRefs } from 'pinia';
 import { useHamdleStore } from '@/stores/hamdle.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { watch } from 'vue';
+import { useConfirm } from 'primevue/useconfirm';
+import ConfirmDialog from 'primevue/confirmdialog';
 
 const store = useDashboardStore();
 const hamdleStore = useHamdleStore();
@@ -24,10 +26,9 @@ const { token } = storeToRefs(authStore);
 const { currentWord, guesses } = storeToRefs(hamdleStore);
 const { botStatus, logMessages } = storeToRefs(store);
 const { reconnect, signalRHubStatuses } = useSignalR();
-
+const confirm = useConfirm();
 const isLoginDialogOpen = ref(false);
 const isObsSettingsSliderOpen = ref(false);
-
 const botStatusSeverity = computed(() => {
   switch (botStatus.value) {
     case BotStatusType.Online:
@@ -73,6 +74,7 @@ watch(
       isLoginDialogOpen.value = true;
     } else {
       await store.startDashboardSignalRConnection();
+      await hamdleStore.startSignalRConnection();
     }
   },
   { immediate: true }
@@ -94,6 +96,21 @@ const getTwitchOAuthUrl = async () => {
   } catch (error) {
     console.error(error);
   }
+};
+
+const showWarningModal = () => {
+  confirm.require({
+    message:
+      'There may be sensitive information in this form. Make sure you are not showing this on stream!',
+    header: 'Warning! Sensitive Information!',
+    icon: 'pi pi-exclamation-triangle',
+    rejectClass: 'p-button-secondary p-button-outlined',
+    rejectLabel: 'Cancel',
+    acceptLabel: 'Ok',
+    accept: () => {
+      isObsSettingsSliderOpen.value = true;
+    }
+  });
 };
 </script>
 <template>
@@ -130,7 +147,7 @@ const getTwitchOAuthUrl = async () => {
                   severity="info"
                   label="Obs Settings"
                   icon="pi pi-cog"
-                  @click="isObsSettingsSliderOpen = true"
+                  @click="showWarningModal()"
                 >
                 </Button>
               </div>
@@ -204,6 +221,7 @@ const getTwitchOAuthUrl = async () => {
         ></Button>
       </div>
     </Dialog>
+    <ConfirmDialog></ConfirmDialog>
   </div>
 </template>
 <style scoped>

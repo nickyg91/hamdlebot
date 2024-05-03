@@ -22,14 +22,16 @@ public class TwitchChatService : ITwitchChatService
     private CancellationToken? _cancellationToken;
     private readonly RedisChannel _botTokenChannel;
     private readonly RedisChannel _startHamdleSceneChannel;
+
     private readonly List<string> _validCommands =
     [
         "!#commands",
         "!#random",
         "!#hamdle"
     ];
+
     public TwitchChatService(
-        IWordService wordService, 
+        IWordService wordService,
         ICacheService cache,
         IHamdleService hamdleService,
         ITwitchIdentityApiService identityApiService,
@@ -47,26 +49,29 @@ public class TwitchChatService : ITwitchChatService
 
     public async Task CreateWebSocket(CancellationToken cancellationToken)
     {
-        _cancellationToken ??= cancellationToken;
-        
         await InsertValidCommands();
-        _webSocketHandler ??= new TwitchChatWebSocketHandler("wss://irc-ws.chat.twitch.tv:443", _cancellationToken.Value, "hamhamreborn");
-        
+        _cancellationToken ??= cancellationToken;
+        _webSocketHandler ??= new TwitchChatWebSocketHandler("wss://irc-ws.chat.twitch.tv:443",
+            _cancellationToken.Value, "hamhamreborn");
+
         var tokenResponse = await Authenticate();
 
         if (tokenResponse == null)
         {
-            await _logClient.LogMessage(new LogMessage("Failed to authenticate with Twitch. No valid token found.", DateTime.UtcNow, SeverityLevel.Error));
+            await _logClient.LogMessage(new LogMessage("Failed to authenticate with Twitch. No valid token found.",
+                DateTime.UtcNow, SeverityLevel.Error));
             return;
         }
-        
+
         _webSocketHandler.MessageReceived += async message =>
         {
             if (message.IsPingMessage())
             {
-                await _logClient.LogMessage(new LogMessage("PING received from Twitch.", DateTime.UtcNow, SeverityLevel.Info));
+                await _logClient.LogMessage(new LogMessage("PING received from Twitch.", DateTime.UtcNow,
+                    SeverityLevel.Info));
                 await _webSocketHandler.SendMessage("PONG :tmi.twitch.tv");
-                await _logClient.LogMessage(new LogMessage("PONG :tmi.twitch.tv sent back to Twitch.", DateTime.UtcNow, SeverityLevel.Info));
+                await _logClient.LogMessage(new LogMessage("PONG :tmi.twitch.tv sent back to Twitch.", DateTime.UtcNow,
+                    SeverityLevel.Info));
             }
 
             var ircMessage = message.ToTwitchMessage();
@@ -74,7 +79,7 @@ public class TwitchChatService : ITwitchChatService
             {
                 return;
             }
-            
+
             if (_hamdleService.IsHamdleVotingInProgress() && int.TryParse(ircMessage.Message, out var vote))
             {
                 _hamdleService.SubmitVoteForGuess(ircMessage.DisplayName!, vote);
@@ -84,7 +89,7 @@ public class TwitchChatService : ITwitchChatService
             {
                 await ProcessCommand(ircMessage);
             }
-            
+
             if (!_hamdleService.IsHamdleVotingInProgress()
                 && _hamdleService.IsHamdleSessionInProgress()
                 && ircMessage.Message is not null)
@@ -92,25 +97,25 @@ public class TwitchChatService : ITwitchChatService
                 await _hamdleService.SubmitGuess(ircMessage.User!, ircMessage.Message);
             }
         };
-        
-        _webSocketHandler.Connected += async () =>
-        {
-            await OnConnected(tokenResponse.AccessToken);
-        };
-        
+
+        _webSocketHandler.Connected += async () => { await OnConnected(tokenResponse.AccessToken); };
+
         _webSocketHandler.ReconnectStarted += async () =>
         {
-            await _logClient.LogMessage(new LogMessage("Reconnecting to Twitch Chat.", DateTime.UtcNow, SeverityLevel.Info));
+            await _logClient.LogMessage(new LogMessage("Reconnecting to Twitch Chat.", DateTime.UtcNow,
+                SeverityLevel.Info));
         };
-        
+
         await _webSocketHandler.Connect();
+        _hamdleService.SendMessageToChat -= Handle_Hamdle_Message!;
         _hamdleService.SendMessageToChat += Handle_Hamdle_Message!;
     }
 
     private async Task OnConnected(string accessToken)
     {
         await _logClient.LogMessage(new LogMessage("Connecting to Twitch Chat.", DateTime.UtcNow, SeverityLevel.Info));
-        await _logClient.LogMessage(new LogMessage("Connection to Twitch Chat Successful.", DateTime.UtcNow, SeverityLevel.Info));
+        await _logClient.LogMessage(new LogMessage("Connection to Twitch Chat Successful.", DateTime.UtcNow,
+            SeverityLevel.Info));
         await _logClient.SendBotStatus(BotStatusType.Online);
         var capReq = $"CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands";
         var pass = $"PASS oauth:{accessToken}";
@@ -122,7 +127,7 @@ public class TwitchChatService : ITwitchChatService
         await _webSocketHandler.JoinChannel();
         await _webSocketHandler.SendMessageToChat("hamdlebot has arrived Kappa");
     }
-    
+
     private async Task<ClientCredentialsTokenResponse?> Authenticate()
     {
         ClientCredentialsTokenResponse tokenResponse;
@@ -131,25 +136,29 @@ public class TwitchChatService : ITwitchChatService
 
         if (oauthToken != null && refreshToken != null)
         {
-            await _logClient.LogMessage(new LogMessage("Valid OAuth token found.", DateTime.UtcNow, SeverityLevel.Info));
+            await _logClient.LogMessage(new LogMessage("Valid OAuth token found.", DateTime.UtcNow,
+                SeverityLevel.Info));
             return new ClientCredentialsTokenResponse
             {
                 AccessToken = oauthToken,
                 RefreshToken = refreshToken
             };
         }
-        
+
         if (oauthToken == null || refreshToken == null)
         {
-            await _logClient.LogMessage(new LogMessage("Valid OAuth token not found.", DateTime.UtcNow, SeverityLevel.Info));
+            await _logClient.LogMessage(new LogMessage("Valid OAuth token not found.", DateTime.UtcNow,
+                SeverityLevel.Info));
             return null;
         }
 
-        await _logClient.LogMessage(new LogMessage("Fetching new twitch OAuthToken.", DateTime.UtcNow, SeverityLevel.Info));
+        await _logClient.LogMessage(new LogMessage("Fetching new twitch OAuthToken.", DateTime.UtcNow,
+            SeverityLevel.Info));
         tokenResponse = await _identityApiService.RefreshToken(refreshToken);
-        await _cache.AddItem(CacheKeyType.TwitchOauthToken, tokenResponse.AccessToken, TimeSpan.FromSeconds(tokenResponse.ExpiresIn));
+        await _cache.AddItem(CacheKeyType.TwitchOauthToken, tokenResponse.AccessToken,
+            TimeSpan.FromSeconds(tokenResponse.ExpiresIn));
         await _cache.AddItem(CacheKeyType.TwitchRefreshToken, tokenResponse.RefreshToken, TimeSpan.FromDays(30));
-        
+
         return tokenResponse;
     }
 
@@ -159,22 +168,24 @@ public class TwitchChatService : ITwitchChatService
             async message =>
             {
                 var token = JsonSerializer.Deserialize<ClientCredentialsTokenResponse>(message.Message!);
-                await _cache.AddItem(CacheKeyType.TwitchOauthToken, token!.AccessToken, TimeSpan.FromSeconds(token.ExpiresIn));
+                await _cache.AddItem(CacheKeyType.TwitchOauthToken, token!.AccessToken,
+                    TimeSpan.FromSeconds(token.ExpiresIn));
                 await _cache.AddItem(CacheKeyType.TwitchRefreshToken, token.RefreshToken, TimeSpan.FromDays(30));
                 if (_webSocketHandler != null)
                 {
                     await _webSocketHandler.Disconnect();
                     _webSocketHandler = null;
                 }
+
                 await CreateWebSocket(_cancellationToken!.Value);
             });
     }
-    
+
     private async void Handle_Hamdle_Message(object sender, string message)
     {
         await _webSocketHandler!.SendMessageToChat(message);
     }
-    
+
     private async Task InsertValidCommands()
     {
         foreach (var command in _validCommands)
@@ -202,12 +213,13 @@ public class TwitchChatService : ITwitchChatService
             case "!#hamdle":
                 if (!_hamdleService.IsHamdleSessionInProgress())
                 {
-                    await _cache.Subscriber.PublishAsync(_startHamdleSceneChannel, "start");    
+                    await _cache.Subscriber.PublishAsync(_startHamdleSceneChannel, "start");
                 }
                 else
                 {
                     await _webSocketHandler!.SendMessageToChat("Hamdle is already in progress. Can't start another!");
                 }
+
                 break;
         }
     }
