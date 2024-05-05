@@ -66,4 +66,5 @@ jobs:
             cp docker-compose.yml ~/docker-env && cd ~/docker-env
             docker-compose down
             docker-compose pull
+            docker-compose up -d
             rm -rf docker-compose.yml
