@@ -13,7 +13,7 @@ services:
     env_file:
       - ~/docker-env/.hamdlebot-env
     ports:
-      - 8086:80
+      - 8086:8080
     depends_on: 
       redis:
         condition: service_started
