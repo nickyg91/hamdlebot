@@ -27,13 +27,16 @@ builder.Services.Configure<AppConfigSettings>(appSettings);
 var oauthHandler = new HttpClientHandler();
 var oauthHttpClient = new HttpClient(oauthHandler);
 
+var hamdlebotHubUrl = isDevelopment ? "https://localhost:7256/hamdlebothub" : "https://hamdlebot.nickganter.dev/hamdlebothub";
+var botLogHubUrl = isDevelopment ? "https://localhost:7256/botloghub" : "https://hamdlebot.nickganter.dev/botloghub";
+
 var hamdleBotHubConnection = new HubConnectionBuilder()
-    .WithUrl("https://localhost:7256/hamdlebothub")
+    .WithUrl(hamdlebotHubUrl)
     .WithAutomaticReconnect()
     .Build();
 
 var botLogHubConnection = new HubConnectionBuilder()
-    .WithUrl("https://localhost:7256/botloghub")
+    .WithUrl(botLogHubUrl)
     .WithAutomaticReconnect()
     .Build();
 
@@ -49,7 +52,7 @@ builder.Services.AddSingleton<IHamdleService, HamdleService>();
 builder.Services.AddKeyedSingleton("logHub", botLogHubConnection);
 builder.Services.AddKeyedSingleton("hamdleHub", hamdleBotHubConnection);
 builder.Services.AddHostedService<HamdlebotWorker>();
-
+ws://135.131.254.97:4455
 builder.Services.AddAuthentication().AddJwtBearer(opt =>
 {
     var settings = builder.Configuration.GetSection("Settings").Get<AppConfigSettings>();
