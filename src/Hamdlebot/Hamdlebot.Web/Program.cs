@@ -27,8 +27,8 @@ builder.Services.Configure<AppConfigSettings>(appSettings);
 var oauthHandler = new HttpClientHandler();
 var oauthHttpClient = new HttpClient(oauthHandler);
 
-var hamdlebotHubUrl = isDevelopment ? "https://localhost:7256/hamdlebothub" : "http://localhost:80/hamdlebothub";
-var botLogHubUrl = isDevelopment ? "https://localhost:7256/botloghub" : "http://localhost:80/botloghub";
+var hamdlebotHubUrl = isDevelopment ? "https://localhost:7256/hamdlebothub" : "http://localhost:8080/hamdlebothub";
+var botLogHubUrl = isDevelopment ? "https://localhost:7256/botloghub" : "http://localhost:8080/botloghub";
 
 var hamdleBotHubConnection = new HubConnectionBuilder()
     .WithUrl(hamdlebotHubUrl)
