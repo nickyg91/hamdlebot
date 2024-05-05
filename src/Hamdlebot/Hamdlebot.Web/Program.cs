@@ -52,7 +52,6 @@ builder.Services.AddSingleton<IHamdleService, HamdleService>();
 builder.Services.AddKeyedSingleton("logHub", botLogHubConnection);
 builder.Services.AddKeyedSingleton("hamdleHub", hamdleBotHubConnection);
 builder.Services.AddHostedService<HamdlebotWorker>();
-ws://135.131.254.97:4455
 builder.Services.AddAuthentication().AddJwtBearer(opt =>
 {
     var settings = builder.Configuration.GetSection("Settings").Get<AppConfigSettings>();
