@@ -9,14 +9,10 @@ services:
     container_name: "hamdlebot-web"
     restart: unless-stopped
     image: ghcr.io/nickyg91/hamdlebot-web:1.0.0
-    environment:
-      - Settings__ObsSettingsOptions__SocketUrl
-      - Settings__ObsSettingsOptions__HamdleSourceName
-      - Settings__ObsSettingsOptions__SceneName
-      - Settings__ObsSettingsOptions__ObsAuthentication
+    env_file:
+      - ~/docker-env/.hamdlebot-env
     ports:
-      - 7256:8080
-      - 5141:80
+      - 8086:8080
     depends_on: 
       redis:
         condition: service_started
