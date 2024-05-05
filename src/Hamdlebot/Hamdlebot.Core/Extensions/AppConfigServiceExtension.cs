@@ -12,7 +12,7 @@ public static class AppConfigServiceExtensions
         // DO NOT SHOW VALUES ON STREAM.
         var appConfigConnectionString = isDev ? root["ConnectionStrings:AppConfig"] : Environment.GetEnvironmentVariable("ConnectionStrings__AppConfig");
         var tenantId = isDev ? root["Hyperion:ManagedIdentity:TenantId"] : Environment.GetEnvironmentVariable("Hyperion__ManagedIdentity__TenantId");
-        var managedIdentityClientId = isDev ? root["Hyperion:ManagedIdentity:ClientId"] : Environment.GetEnvironmentVariable("Hyperion__ManagedIdentity__TenantId");
+        var managedIdentityClientId = isDev ? root["Hyperion:ManagedIdentity:ClientId"] : Environment.GetEnvironmentVariable("Hyperion__ManagedIdentity__ClientId");
         Console.WriteLine(appConfigConnectionString);
         Console.WriteLine(tenantId);
         Console.WriteLine(managedIdentityClientId);
@@ -40,7 +40,7 @@ public static class AppConfigServiceExtensions
         // DO NOT SHOW VALUES ON STREAM.
         var appConfigConnectionString = isDev ? configuration["ConnectionStrings:AppConfig"] : Environment.GetEnvironmentVariable("ConnectionStrings__AppConfig");
         var tenantId = isDev ? configuration["Hyperion:ManagedIdentity:TenantId"] : Environment.GetEnvironmentVariable("Hyperion__ManagedIdentity__TenantId");
-        var managedIdentityClientId = isDev ? configuration["Hyperion:ManagedIdentity:ClientId"] : Environment.GetEnvironmentVariable("Hyperion__ManagedIdentity__TenantId");
+        var managedIdentityClientId = isDev ? configuration["Hyperion:ManagedIdentity:ClientId"] : Environment.GetEnvironmentVariable("Hyperion__ManagedIdentity__ClientId");
         Console.WriteLine(appConfigConnectionString);
         Console.WriteLine(tenantId);
         Console.WriteLine(managedIdentityClientId);
