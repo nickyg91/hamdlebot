@@ -22,11 +22,12 @@ public partial class HamdleService : IHamdleService, IProcessCacheMessage
     private readonly IHamdleHubClient _hamdleHubClient;
     private readonly IBotLogClient _logClient;
     private readonly IObsService _obsService;
-    private readonly ObsSettings _obsSettings;
+    private ObsSettings _obsSettings;
     private HamdleContext? _hamdleContext;
     private SceneItem? _hamdleScene;
     private readonly RedisChannel _sceneRetreivedChannel;
     private readonly RedisChannel _startHamdleSceneChannel;
+    private readonly RedisChannel _obsSettingsChannel;
     public event EventHandler<string>? SendMessageToChat;
     public HamdleService(
         ICacheService cache, 
@@ -42,6 +43,7 @@ public partial class HamdleService : IHamdleService, IProcessCacheMessage
         _obsSettings = settings.Value.ObsSettingsOptions!;
         _sceneRetreivedChannel = new RedisChannel(RedisChannelType.OnSceneReceived, RedisChannel.PatternMode.Auto);
         _startHamdleSceneChannel = new RedisChannel(RedisChannelType.StartHamdleScene, RedisChannel.PatternMode.Auto);
+        _obsSettingsChannel = new RedisChannel(RedisChannelType.ObsSettingsChanged, RedisChannel.PatternMode.Auto);
         SetupSubscriptions();
     }
     
@@ -138,6 +140,15 @@ public partial class HamdleService : IHamdleService, IProcessCacheMessage
                 {
                     await _logClient.LogMessage(new LogMessage("Starting Hamdle Scene", DateTime.UtcNow, SeverityLevel.Info));
                     await SendObsSceneRequest();
+                }
+            });
+        _cache.Subscriber.Subscribe(_obsSettingsChannel)
+            .OnMessage((json) =>
+            {
+                var obsSettings = JsonSerializer.Deserialize<ObsSettings>(json.Message!);
+                if (obsSettings is not null)
+                {
+                    _obsSettings = obsSettings;
                 }
             });
     }

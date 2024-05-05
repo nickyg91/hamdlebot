@@ -19,10 +19,10 @@ onMounted(async () => {
   }
 });
 
-const onUpdateObsSettings = async (obsSettings: ObsSettings) => {
+const onUpdateObsSettings = async (updatedObsSettings: ObsSettings) => {
   isLoading.value = true;
   try {
-    await updateObsSettings(obsSettings);
+    await updateObsSettings(updatedObsSettings);
     emits('onUpdateSuceeded');
   } catch (error) {
     console.error(error);

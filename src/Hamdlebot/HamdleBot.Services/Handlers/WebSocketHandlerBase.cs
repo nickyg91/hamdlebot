@@ -27,7 +27,7 @@ public abstract class WebSocketHandlerBase
                 await _socket.ConnectAsync(new Uri(_url), _cancellationToken);
                 retryCount = 0;
             }
-            catch (WebSocketException)
+            catch (WebSocketException e)
             {
                 retryCount++;
                 var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount));
