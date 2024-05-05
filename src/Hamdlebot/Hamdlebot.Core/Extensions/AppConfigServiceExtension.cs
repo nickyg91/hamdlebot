@@ -13,7 +13,9 @@ public static class AppConfigServiceExtensions
         var appConfigConnectionString = isDev ? root["ConnectionStrings:AppConfig"] : Environment.GetEnvironmentVariable("ConnectionStrings__AppConfig");
         var tenantId = isDev ? root["Hyperion:ManagedIdentity:TenantId"] : Environment.GetEnvironmentVariable("Hyperion__ManagedIdentity__TenantId");
         var managedIdentityClientId = isDev ? root["Hyperion:ManagedIdentity:ClientId"] : Environment.GetEnvironmentVariable("Hyperion__ManagedIdentity__TenantId");
-
+        Console.WriteLine(appConfigConnectionString);
+        Console.WriteLine(tenantId);
+        Console.WriteLine(managedIdentityClientId);
         var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
         {
             ManagedIdentityClientId = managedIdentityClientId,
@@ -39,7 +41,9 @@ public static class AppConfigServiceExtensions
         var appConfigConnectionString = isDev ? configuration["ConnectionStrings:AppConfig"] : Environment.GetEnvironmentVariable("ConnectionStrings__AppConfig");
         var tenantId = isDev ? configuration["Hyperion:ManagedIdentity:TenantId"] : Environment.GetEnvironmentVariable("Hyperion__ManagedIdentity__TenantId");
         var managedIdentityClientId = isDev ? configuration["Hyperion:ManagedIdentity:ClientId"] : Environment.GetEnvironmentVariable("Hyperion__ManagedIdentity__TenantId");
-
+        Console.WriteLine(appConfigConnectionString);
+        Console.WriteLine(tenantId);
+        Console.WriteLine(managedIdentityClientId);
         var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
         {
             ManagedIdentityClientId = managedIdentityClientId,
