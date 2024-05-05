@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Hamdlebot.Core;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
@@ -14,6 +15,7 @@ public class CacheService : ICacheService
 
     public CacheService(IOptions<AppConfigSettings> settings)
     {
+        Console.WriteLine(JsonSerializer.Serialize(settings.Value));
         _connectionString = settings.Value.RedisSettingsOptions!.ConnectionString!;
         _maxRetries = settings.Value.RedisSettingsOptions.MaxRetries;
         if (_redisConnection?.Value == null)
