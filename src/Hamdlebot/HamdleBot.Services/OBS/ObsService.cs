@@ -134,7 +134,8 @@ public class ObsService : IObsService, IProcessCacheMessage
             _obsSettings = settings;
             await _socket!.Disconnect();
             await _logClient.LogMessage(new LogMessage("Obs settings updated.", DateTime.UtcNow, SeverityLevel.Info));
-            await _socket.Connect();
+            _socket = null;
+            await CreateWebSocket(_cancellationToken!.Value);
         });
     }
 }
