@@ -1,3 +1,4 @@
+using Azure.Core;
 using Azure.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.AzureAppConfiguration;
@@ -18,6 +19,12 @@ public static class AppConfigServiceExtensions
         {
             ManagedIdentityClientId = managedIdentityClientId,
             TenantId = tenantId,
+            Retry =
+            {
+                Delay = TimeSpan.FromSeconds(5),
+                MaxRetries = 3,
+                Mode = RetryMode.Fixed
+            }
         });
 
         // AGAIN DONT SHOW THESE WHEN DEBUGGING!
@@ -44,6 +51,12 @@ public static class AppConfigServiceExtensions
         {
             ManagedIdentityClientId = managedIdentityClientId,
             TenantId = tenantId,
+            Retry =
+            {
+                Delay = TimeSpan.FromSeconds(5),
+                MaxRetries = 3,
+                Mode = RetryMode.Fixed
+            }
         });
 
         // AGAIN DONT SHOW THESE WHEN DEBUGGING!
