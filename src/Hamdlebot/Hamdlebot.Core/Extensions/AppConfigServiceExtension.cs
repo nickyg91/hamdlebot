@@ -67,6 +67,7 @@ public static class AppConfigServiceExtensions
                 .Connect(appConfigConnectionString)
                 .ConfigureRefresh((config) =>
                 {
+                    config.Register("ConnectionStrings:AppConfig");
                     config.SetCacheExpiration(TimeSpan.FromDays(1));  
                 })
                 .ConfigureKeyVault(kv => { kv.SetCredential(credential); })
