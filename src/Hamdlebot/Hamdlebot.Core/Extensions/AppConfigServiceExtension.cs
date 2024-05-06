@@ -58,12 +58,17 @@ public static class AppConfigServiceExtensions
                 Mode = RetryMode.Fixed
             }
         });
+        
 
         // AGAIN DONT SHOW THESE WHEN DEBUGGING!
         configuration.AddAzureAppConfiguration(options =>
         {
             options
                 .Connect(appConfigConnectionString)
+                .ConfigureRefresh((config) =>
+                {
+                    config.SetCacheExpiration(TimeSpan.FromDays(1));  
+                })
                 .ConfigureKeyVault(kv => { kv.SetCredential(credential); })
                 .Select(KeyFilter.Any)
                 .Select(KeyFilter.Any, env);
