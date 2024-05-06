@@ -120,7 +120,7 @@ public class ObsService : IObsService, IProcessCacheMessage
 
     public void SetupSubscriptions()
     {
-        _cache.Subscriber.Subscribe(_obsSettingsChangedChannel, (channel, message) =>
+        _cache.Subscriber.Subscribe(_obsSettingsChangedChannel, async (channel, message) =>
         {
             if (message.IsNullOrEmpty)
             {
@@ -132,12 +132,9 @@ public class ObsService : IObsService, IProcessCacheMessage
                 return;
             }
             _obsSettings = settings;
-            Task.Run(async () =>
-            {
-                await _socket!.Disconnect();
-                await _logClient.LogMessage(new LogMessage("Obs settings updated.", DateTime.UtcNow, SeverityLevel.Info));
-                await _socket.Connect();
-            });
+            await _socket!.Disconnect();
+            await _logClient.LogMessage(new LogMessage("Obs settings updated.", DateTime.UtcNow, SeverityLevel.Info));
+            await _socket.Connect();
         });
     }
 }
