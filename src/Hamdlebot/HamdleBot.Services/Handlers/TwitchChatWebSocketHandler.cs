@@ -7,8 +7,8 @@ using Hamdlebot.Core.SignalR.Clients.Logging;
 
 namespace HamdleBot.Services.Handlers;
 
-public class TwitchChatWebSocketHandler(string url, CancellationToken cancellationToken, string channelName)
-    : WebSocketHandlerBase(url, cancellationToken)
+public class TwitchChatWebSocketHandler(string url, CancellationToken cancellationToken, string channelName, byte maxReconnectAttempts)
+    : WebSocketHandlerBase(url, cancellationToken, maxReconnectAttempts)
 {
     public async Task JoinChannel()
     {

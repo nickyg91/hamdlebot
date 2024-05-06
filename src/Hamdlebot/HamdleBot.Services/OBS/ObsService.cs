@@ -44,7 +44,7 @@ public class ObsService : IObsService, IProcessCacheMessage
     public async Task CreateWebSocket(CancellationToken cancellationToken)
     {
         _cancellationToken ??= cancellationToken;
-        _socket = new ObsWebSocketHandler(_obsSettings.SocketUrl!, _cancellationToken.Value);
+        _socket = new ObsWebSocketHandler(_obsSettings.SocketUrl!, _cancellationToken.Value, 2);
         
         _socket.Connected += async () =>
         {
@@ -120,7 +120,7 @@ public class ObsService : IObsService, IProcessCacheMessage
 
     public void SetupSubscriptions()
     {
-        _cache.Subscriber.Subscribe(_obsSettingsChangedChannel, async (channel, message) =>
+        _cache.Subscriber.Subscribe(_obsSettingsChangedChannel, (channel, message) =>
         {
             if (message.IsNullOrEmpty)
             {
@@ -132,15 +132,18 @@ public class ObsService : IObsService, IProcessCacheMessage
                 return;
             }
             _obsSettings = settings;
-            await _socket!.Disconnect();
-            await _logClient.LogMessage(new LogMessage("Obs settings updated.", DateTime.UtcNow, SeverityLevel.Info));
-
-            if (_socket != null)
+            Task.Run(async () =>
             {
-                await _socket.Disconnect();
-                _socket = null;
-            }
-            await CreateWebSocket(_cancellationToken!.Value);
+                await _socket!.Disconnect();
+                await _logClient.LogMessage(new LogMessage("Obs settings updated.", DateTime.UtcNow, SeverityLevel.Info));
+
+                if (_socket != null)
+                {
+                    await _socket.Disconnect();
+                    _socket = null;
+                }
+                await CreateWebSocket(_cancellationToken!.Value);
+            });
         });
     }
 }

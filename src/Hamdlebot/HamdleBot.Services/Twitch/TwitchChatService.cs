@@ -52,7 +52,7 @@ public class TwitchChatService : ITwitchChatService
         await InsertValidCommands();
         _cancellationToken ??= cancellationToken;
         _webSocketHandler ??= new TwitchChatWebSocketHandler("wss://irc-ws.chat.twitch.tv:443",
-            _cancellationToken.Value, "hamhamreborn");
+            _cancellationToken.Value, "hamhamreborn", 3);
 
         var tokenResponse = await Authenticate();
 
