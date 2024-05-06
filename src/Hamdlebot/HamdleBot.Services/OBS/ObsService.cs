@@ -44,7 +44,7 @@ public class ObsService : IObsService, IProcessCacheMessage
     public async Task CreateWebSocket(CancellationToken cancellationToken)
     {
         _cancellationToken ??= cancellationToken;
-        _socket ??= new ObsWebSocketHandler(_obsSettings.SocketUrl!, _cancellationToken.Value);
+        _socket = new ObsWebSocketHandler(_obsSettings.SocketUrl!, _cancellationToken.Value);
         
         _socket.Connected += async () =>
         {
@@ -134,7 +134,12 @@ public class ObsService : IObsService, IProcessCacheMessage
             _obsSettings = settings;
             await _socket!.Disconnect();
             await _logClient.LogMessage(new LogMessage("Obs settings updated.", DateTime.UtcNow, SeverityLevel.Info));
-            _socket = null;
+
+            if (_socket != null)
+            {
+                await _socket.Disconnect();
+                _socket = null;
+            }
             await CreateWebSocket(_cancellationToken!.Value);
         });
     }
