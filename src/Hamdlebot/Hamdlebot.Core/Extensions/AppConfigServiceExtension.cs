@@ -55,7 +55,7 @@ public static class AppConfigServiceExtensions
             {
                 Delay = TimeSpan.FromSeconds(5),
                 MaxRetries = 3,
-                Mode = RetryMode.Fixed
+                Mode = RetryMode.Fixed,
             }
         });
         
@@ -67,8 +67,8 @@ public static class AppConfigServiceExtensions
                 .Connect(appConfigConnectionString)
                 .ConfigureRefresh((config) =>
                 {
-                    config.Register("ConnectionStrings:AppConfig");
-                    config.SetCacheExpiration(TimeSpan.FromDays(1));  
+                    config.Register("Settings:TwitchConnectionInfo:ClientId", refreshAll: true);
+                    config.SetCacheExpiration(TimeSpan.FromDays(30));  
                 })
                 .ConfigureKeyVault(kv => { kv.SetCredential(credential); })
                 .Select(KeyFilter.Any)
