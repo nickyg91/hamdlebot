@@ -2,19 +2,21 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Hamdle.Cache;
+using Hamdle.Cache.Channels;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Models.Logging;
 using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Models.OBS;
 using Hamdlebot.Models.OBS.RequestTypes;
 using Hamdlebot.Models.OBS.ResponseTypes;
+using HamdleBot.Services.Factories;
 using HamdleBot.Services.Handlers;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace HamdleBot.Services.OBS;
 
-public class ObsService : IObsService, IProcessCacheMessage
+public class ObsService : IObsService, IProcessCacheMessage, IDisposable
 {
     private ObsWebSocketHandler? _socket;
     private CancellationToken? _cancellationToken;
@@ -27,8 +29,8 @@ public class ObsService : IObsService, IProcessCacheMessage
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
     private readonly RedisChannel _sceneReceivedChannel;
-    private readonly RedisChannel _obsSettingsChangedChannel;
-    
+    private readonly ChannelSubscription<ObsSettings> _obsSettingsStream;
+    private readonly CancellationTokenSource _subscriptionCancellationToken;
     public ObsService(
         ICacheService cache, 
         IOptions<AppConfigSettings> settings,
@@ -37,8 +39,11 @@ public class ObsService : IObsService, IProcessCacheMessage
         _cache = cache;
         _logClient = logClient;
         _obsSettings = settings.Value.ObsSettingsOptions!;
-        _obsSettingsChangedChannel = new RedisChannel(RedisChannelType.ObsSettingsChanged, RedisChannel.PatternMode.Auto);
+        var obsSettingsChangedChannel = new RedisChannel(RedisChannelType.ObsSettingsChanged, RedisChannel.PatternMode.Auto);
         _sceneReceivedChannel = new RedisChannel(RedisChannelType.OnSceneReceived, RedisChannel.PatternMode.Auto);
+        _obsSettingsStream = ChannelSubscriptionFactory.CreateSubscription<ObsSettings>(_cache, obsSettingsChangedChannel);
+        _subscriptionCancellationToken = new CancellationTokenSource();
+        Task.Run(SetupStreamSubscriptions);
     }
 
     public async Task CreateWebSocket(CancellationToken cancellationToken)
@@ -88,6 +93,8 @@ public class ObsService : IObsService, IProcessCacheMessage
         await _socket!.SendMessage(serializedJson);
     }
 
+    public ObsSettings GetCurrentSettings() => _obsSettings;
+
     private ObsResponse<T>? ProcessMessage<T>(string message) where T : class
     {
         return !string.IsNullOrEmpty(message) ? JsonSerializer.Deserialize<ObsResponse<T>>(message, _jsonOptions) : null;
@@ -118,32 +125,27 @@ public class ObsService : IObsService, IProcessCacheMessage
         await _cache.Subscriber.PublishAsync(_sceneReceivedChannel, jsonString);
     }
 
-    public void SetupSubscriptions()
+    public async Task SetupStreamSubscriptions()
     {
-        _cache.Subscriber.Subscribe(_obsSettingsChangedChannel, (channel, message) =>
+        await Task.Run(async () =>
         {
-            if (message.IsNullOrEmpty)
+            await foreach (var item in _obsSettingsStream.Subscribe(_subscriptionCancellationToken.Token))
             {
-                return;
-            }
-            var settings = JsonSerializer.Deserialize<ObsSettings>(message!, _jsonOptions);
-            if (settings == null)
-            {
-                return;
-            }
-            _obsSettings = settings;
-            Task.Run(async () =>
-            {
-                await _socket!.Disconnect();
+                _obsSettings = item;
                 await _logClient.LogMessage(new LogMessage("Obs settings updated.", DateTime.UtcNow, SeverityLevel.Info));
-
                 if (_socket != null)
                 {
                     await _socket.Disconnect();
                     _socket = null;
                 }
                 await CreateWebSocket(_cancellationToken!.Value);
-            });
+            }
         });
+    }
+
+    public void Dispose()
+    {
+        _subscriptionCancellationToken.Cancel();
+        _subscriptionCancellationToken.Dispose();
     }
 }

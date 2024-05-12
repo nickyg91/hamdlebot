@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Hamdle.Cache;
 using Hamdlebot.Core;
+using HamdleBot.Services.OBS;
 using Hamdlebot.Web.Security.Attributes;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -13,12 +14,14 @@ namespace Hamdlebot.Web.Controllers
     public class ObsSettingsController : ControllerBase
     {
         private readonly ICacheService _cacheService;
+        private readonly IObsService _obsService;
         private readonly AppConfigSettings _appConfigSettings;
         private readonly RedisChannel _obsSettingsChannel = new (RedisChannelType.ObsSettingsChanged, RedisChannel.PatternMode.Auto);
 
-        public ObsSettingsController(ICacheService cacheService, IOptions<AppConfigSettings> appConfigSettings)
+        public ObsSettingsController(ICacheService cacheService, IOptions<AppConfigSettings> appConfigSettings, IObsService obsService)
         {
             _cacheService = cacheService;
+            _obsService = obsService;
             _appConfigSettings = appConfigSettings.Value;
         }
         
@@ -31,7 +34,7 @@ namespace Hamdlebot.Web.Controllers
         [HttpGet]
         public ObsSettings? GetObsSettings()
         {
-            return _appConfigSettings.ObsSettingsOptions;
+            return _obsService.GetCurrentSettings();
         }
     }
 }

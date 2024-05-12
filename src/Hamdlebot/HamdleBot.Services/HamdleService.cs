@@ -1,6 +1,6 @@
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using Hamdle.Cache;
+using Hamdle.Cache.Channels;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Models.Logging;
 using Hamdlebot.Core.SignalR.Clients.Hamdle;
@@ -8,6 +8,7 @@ using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Models.OBS;
 using Hamdlebot.Models.OBS.RequestTypes;
 using Hamdlebot.Models.OBS.ResponseTypes;
+using HamdleBot.Services.Factories;
 using HamdleBot.Services.Hamdle;
 using HamdleBot.Services.OBS;
 using Microsoft.Extensions.Options;
@@ -15,7 +16,7 @@ using StackExchange.Redis;
 
 namespace HamdleBot.Services;
 
-public partial class HamdleService : IHamdleService, IProcessCacheMessage
+public partial class HamdleService : IHamdleService, IProcessCacheMessage, IDisposable
 {
     private Regex _onlyLetters = OnlyLetters();
     private readonly ICacheService _cache;
@@ -25,9 +26,10 @@ public partial class HamdleService : IHamdleService, IProcessCacheMessage
     private ObsSettings _obsSettings;
     private HamdleContext? _hamdleContext;
     private SceneItem? _hamdleScene;
-    private readonly RedisChannel _sceneRetreivedChannel;
-    private readonly RedisChannel _startHamdleSceneChannel;
-    private readonly RedisChannel _obsSettingsChannel;
+    private readonly CancellationTokenSource _cancellationToken;
+    private readonly ChannelSubscription<ObsSettings> _obsSettingsStream;
+    private readonly ChannelSubscription<SceneItem> _sceneRetrievedStream;
+    private readonly ChannelSubscription<string> _startHamdleSceneStream;
     public event EventHandler<string>? SendMessageToChat;
     public HamdleService(
         ICacheService cache, 
@@ -41,10 +43,15 @@ public partial class HamdleService : IHamdleService, IProcessCacheMessage
         _logClient = logClient;
         _obsService = obsService;
         _obsSettings = settings.Value.ObsSettingsOptions!;
-        _sceneRetreivedChannel = new RedisChannel(RedisChannelType.OnSceneReceived, RedisChannel.PatternMode.Auto);
-        _startHamdleSceneChannel = new RedisChannel(RedisChannelType.StartHamdleScene, RedisChannel.PatternMode.Auto);
-        _obsSettingsChannel = new RedisChannel(RedisChannelType.ObsSettingsChanged, RedisChannel.PatternMode.Auto);
-        SetupSubscriptions();
+        var sceneRetreivedChannel = new RedisChannel(RedisChannelType.OnSceneReceived, RedisChannel.PatternMode.Auto);
+        var startHamdleSceneChannel = new RedisChannel(RedisChannelType.StartHamdleScene, RedisChannel.PatternMode.Auto);
+        var obsSettingsChannel = new RedisChannel(RedisChannelType.ObsSettingsChanged, RedisChannel.PatternMode.Auto);
+        _cancellationToken = new CancellationTokenSource();
+        
+        _obsSettingsStream = ChannelSubscriptionFactory.CreateSubscription<ObsSettings>(_cache, obsSettingsChannel);
+        _sceneRetrievedStream = ChannelSubscriptionFactory.CreateSubscription<SceneItem>(_cache, sceneRetreivedChannel);
+        _startHamdleSceneStream = ChannelSubscriptionFactory.CreateSubscription<string>(_cache, startHamdleSceneChannel);
+        Task.Run(SetupStreamSubscriptions);
     }
     
     public bool IsHamdleSessionInProgress()
@@ -93,12 +100,9 @@ public partial class HamdleService : IHamdleService, IProcessCacheMessage
         _logClient.SendBotStatus(BotStatusType.Online);
     }
     
-    private void SetHamdleScene(string? json)
+    private void SetHamdleScene(SceneItem? sceneItem)
     {
-        if (!string.IsNullOrEmpty(json))
-        {
-            _hamdleScene = JsonSerializer.Deserialize<SceneItem>(json);
-        }
+        _hamdleScene = sceneItem;
     }
 
     private async Task SendObsSceneRequest()
@@ -118,41 +122,54 @@ public partial class HamdleService : IHamdleService, IProcessCacheMessage
         });
     }
 
-    public void SetupSubscriptions()
+    public async Task SetupStreamSubscriptions()
     {
-        _cache.Subscriber
-            .Subscribe(_sceneRetreivedChannel).OnMessage(async channelMessage =>
+        
+        var hamdleSceneStreamTask = Task.Run(async () =>
+        {
+            await foreach (var item in _startHamdleSceneStream.Subscribe(_cancellationToken.Token))
             {
                 if (_hamdleContext is not null)
                 {
-                    return;
+                    continue;
                 }
-                
-                SetHamdleScene(channelMessage.Message);
+                await _logClient.LogMessage(new LogMessage("Starting Hamdle Scene", DateTime.UtcNow, SeverityLevel.Info));
+                await SendObsSceneRequest();
+            }
+        });
+
+        var obsSettingsStreamTask = Task.Run(async () =>
+        {
+            await foreach (var item in _obsSettingsStream.Subscribe(_cancellationToken.Token))
+            {
+                _obsSettings = item;
+            }
+        });
+
+        var sceneRetrievedStreamTask = Task.Run(async () =>
+        {
+            await foreach (var item in _sceneRetrievedStream.Subscribe(_cancellationToken.Token))
+            {
+                if (_hamdleContext is not null)
+                {
+                    continue;
+                }
+
+                SetHamdleScene(item);
                 CreateHamdleContext();
                 await _hamdleContext!.StartGuesses();
-            });
-        
-        _cache.Subscriber.Subscribe(_startHamdleSceneChannel)
-            .OnMessage(async _ =>
-            {
-                if (_hamdleContext is null)
-                {
-                    await _logClient.LogMessage(new LogMessage("Starting Hamdle Scene", DateTime.UtcNow, SeverityLevel.Info));
-                    await SendObsSceneRequest();
-                }
-            });
-        _cache.Subscriber.Subscribe(_obsSettingsChannel)
-            .OnMessage((json) =>
-            {
-                var obsSettings = JsonSerializer.Deserialize<ObsSettings>(json.Message!);
-                if (obsSettings is not null)
-                {
-                    _obsSettings = obsSettings;
-                }
-            });
+            }
+        });
+
+        await Task.WhenAll(sceneRetrievedStreamTask, obsSettingsStreamTask, hamdleSceneStreamTask);
     }
-    
+
     [GeneratedRegex("^[a-zA-Z]+$")]
     private static partial Regex OnlyLetters();
+
+    public void Dispose()
+    {
+        _cancellationToken.Cancel();
+        _cancellationToken.Dispose();
+    }
 }

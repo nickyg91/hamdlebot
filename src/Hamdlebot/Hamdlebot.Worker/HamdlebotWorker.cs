@@ -71,7 +71,7 @@ public class HamdlebotWorker : BackgroundService
         }
         catch (Exception e)
         {
-            await _logClient.LogMessage(new LogMessage("Connection to OBS failed.", DateTime.UtcNow, SeverityLevel.Error));
+            await _logClient.LogMessage(new LogMessage($"Connection to OBS failed: {e.Message}", DateTime.UtcNow, SeverityLevel.Error));
         }
         await _twitchChatService.CreateWebSocket(cancellationToken);
         _ = Task.Run(async () =>

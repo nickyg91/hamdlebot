@@ -1,4 +1,5 @@
 using Hamdle.Cache;
+using Hamdle.Cache.Channels;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
 using Hamdlebot.Core.SignalR.Clients.Hamdle;
