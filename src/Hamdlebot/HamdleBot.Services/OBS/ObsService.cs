@@ -65,6 +65,7 @@ public class ObsService : IObsService, IProcessCacheMessage, IDisposable
             {
                 return;
             }
+            await _logClient.LogMessage(new LogMessage($"OBS message received: {message}", DateTime.UtcNow, SeverityLevel.Info));
             var obj = JsonNode.Parse(message)?.AsObject();
             var opCode = obj?["op"]?.ToString();
             if (opCode is "0" or "3")
