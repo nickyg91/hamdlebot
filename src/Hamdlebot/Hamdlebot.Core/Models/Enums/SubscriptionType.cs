@@ -8,5 +8,17 @@ public enum SubscriptionType
     ChannelPollEnd,
     ChannelPollProgress,
     ChannelRaid,
-    ChannelFollow
+    ChannelFollow,
+    ChannelChatMessage,
+    ChannelSubscribe,
+    ChannelSubscriptionEnd,
+    ChannelCheer,
+    ChannelBan,
+    ChannelUpdate,
+    ChannelPredictionBegin,
+    ChannelPredictionLocked,
+    ChannelPredictionEnd,
+    ChannelVipAdd,
+    ChannelVipRemove,
+    NotSupported,
 }
