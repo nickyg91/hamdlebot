@@ -5,7 +5,7 @@ namespace Hamdlebot.Core.Models.EventSub.Messages;
 public class EventMessage
 {
     [JsonPropertyName("metadata")]
-    public Metadata Metadata { get; set; }
+    public Metadata Metadata { get; }
     [JsonPropertyName("payload")]
-    public Payload? Payload { get; set; }
+    public Payload? Payload { get; }
 }

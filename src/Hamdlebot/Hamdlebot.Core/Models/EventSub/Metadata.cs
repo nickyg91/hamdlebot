@@ -7,9 +7,9 @@ namespace Hamdlebot.Core.Models.EventSub;
 public class Metadata
 {
     [JsonPropertyName("message_id")]
-    public string MessageId { get; set; }
+    public string MessageId { get; }
     [JsonPropertyName("message_type"), JsonConverter(typeof(MessageTypeEnumConverter))]
-    public MessageType MessageType { get; set; }
+    public MessageType MessageType { get; }
     [JsonPropertyName("message_timestamp")]
-    public DateTime MessageTimestamp { get; set; }
+    public DateTime MessageTimestamp { get; }
 }
