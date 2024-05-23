@@ -7,13 +7,13 @@ namespace Hamdlebot.Core.Models.EventSub;
 public class Subscription
 {
     [JsonPropertyName("id")]
-    public Guid Id { get; set; }
+    public string Id { get; set; }
     [JsonPropertyName("status"), JsonConverter(typeof(SubscriptionStatusTypeEnumConverter))]
     public SubscriptionStatusType Status { get; set; }
     [JsonPropertyName("type"), JsonConverter(typeof(SubscriptionTypeEnumConverter))]
     public SubscriptionType Type { get; set; }
     [JsonPropertyName("version")]
-    public byte Version { get; set; }
+    public string Version { get; set; }
     [JsonPropertyName("cost")]
     public byte Cost { get; set; }
     [JsonPropertyName("condition")]

@@ -1,12 +1,15 @@
 using System.Text.Json;
 using Hamdle.Cache;
+using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
 using Hamdlebot.Core.Models;
 using Hamdlebot.Core.Models.Logging;
 using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Models;
+using HamdleBot.Services.Factories;
 using HamdleBot.Services.Handlers;
 using HamdleBot.Services.Twitch.Interfaces;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace HamdleBot.Services.Twitch;
@@ -62,7 +65,7 @@ public class TwitchChatService : ITwitchChatService
                 DateTime.UtcNow, SeverityLevel.Error));
             return;
         }
-
+        
         _webSocketHandler.MessageReceived += async message =>
         {
             if (message.IsPingMessage())
@@ -219,7 +222,6 @@ public class TwitchChatService : ITwitchChatService
                 {
                     await _webSocketHandler!.SendMessageToChat("Hamdle is already in progress. Can't start another!");
                 }
-
                 break;
         }
     }

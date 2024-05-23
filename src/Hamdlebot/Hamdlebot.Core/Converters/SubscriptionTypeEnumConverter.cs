@@ -40,6 +40,33 @@ public class SubscriptionTypeEnumConverter : JsonConverter<SubscriptionType>
 
     public override void Write(Utf8JsonWriter writer, SubscriptionType value, JsonSerializerOptions options)
     {
-        throw new NotImplementedException();
+        var mappedValue = value switch
+        {
+            SubscriptionType.ChannelFollow => "channel.follow",
+            SubscriptionType.StreamOnline => "stream.online",
+            SubscriptionType.StreamOffline => "stream.offline",
+            SubscriptionType.ChannelUpdate => "channel.update",
+            SubscriptionType.ChannelRaid => "channel.raid",
+            SubscriptionType.ChannelPollBegin => "channel.poll.begin",
+            SubscriptionType.ChannelPollProgress => "channel.poll.progress",
+            SubscriptionType.ChannelPollEnd => "channel.poll.end",
+            SubscriptionType.ChannelPredictionBegin => "channel.prediction.begin",
+            SubscriptionType.ChannelPredictionLocked => "channel.prediction.locked",
+            SubscriptionType.ChannelPredictionEnd => "channel.prediction.end",
+            SubscriptionType.ChannelCheer => "channel.cheer",
+            SubscriptionType.ChannelChatMessage => "channel.chat.message",
+            SubscriptionType.ChannelSubscribe => "channel.subscribe",
+            SubscriptionType.ChannelSubscriptionEnd => "channel.subscription.end",
+            SubscriptionType.ChannelBan => "channel.ban",
+            SubscriptionType.ChannelVipAdd => "channel.vip.add",
+            SubscriptionType.ChannelVipRemove => "channel.vip.remove",
+            SubscriptionType.NotSupported => "",
+            // custom exception here at some point
+            _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+        };
+        if (writer.CurrentDepth.Equals(1))
+        {
+            writer.WriteStringValue(mappedValue);    
+        }
     }
 }

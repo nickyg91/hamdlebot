@@ -19,6 +19,8 @@ public class HamdlebotWorker : BackgroundService
     private readonly IBotLogClient _logClient;
     private readonly ICacheService _cacheService;
     private readonly ITwitchIdentityApiService _identityApiService;
+    private readonly ITwitchEventSubService _twitchEventSubService;
+
     public HamdlebotWorker(
         ITwitchChatService twitchChatService,
         IWordService wordService,
@@ -28,7 +30,8 @@ public class HamdlebotWorker : BackgroundService
         IHostApplicationLifetime appLifetime,
         IBotLogClient logClient,
         ICacheService cacheService,
-        ITwitchIdentityApiService identityApiService)
+        ITwitchIdentityApiService identityApiService,
+        ITwitchEventSubService twitchEventSubService)
     {
         _twitchChatService = twitchChatService;
         _wordService = wordService;
@@ -39,6 +42,7 @@ public class HamdlebotWorker : BackgroundService
         _logClient = logClient;
         _cacheService = cacheService;
         _identityApiService = identityApiService;
+        _twitchEventSubService = twitchEventSubService;
     }
     protected override Task ExecuteAsync(CancellationToken cancellationToken)
     {
@@ -74,6 +78,8 @@ public class HamdlebotWorker : BackgroundService
             await _logClient.LogMessage(new LogMessage($"Connection to OBS failed: {e.Message}", DateTime.UtcNow, SeverityLevel.Error));
         }
         await _twitchChatService.CreateWebSocket(cancellationToken);
+        // change where this is done.
+        await _twitchEventSubService.StartSubscriptions("hamhamreborn", cancellationToken);
         _ = Task.Run(async () =>
         {
             var ms = TimeSpan.FromHours(3.5);

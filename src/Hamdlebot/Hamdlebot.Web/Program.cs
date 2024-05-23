@@ -29,6 +29,8 @@ builder.Services.Configure<AppConfigSettings>(appSettings);
 var oauthHandler = new HttpClientHandler();
 var oauthHttpClient = new HttpClient(oauthHandler);
 
+var twitchApiHttpClient = new HttpClient();
+
 var hamdlebotHubUrl = isDevelopment ? "https://localhost:7256/hamdlebothub" : "http://localhost:8080/hamdlebothub";
 var botLogHubUrl = isDevelopment ? "https://localhost:7256/botloghub" : "http://localhost:8080/botloghub";
 
@@ -43,7 +45,9 @@ var botLogHubConnection = new HubConnectionBuilder()
     .Build();
 
 builder.Services.AddSingleton(oauthHttpClient);
+builder.Services.AddKeyedSingleton("twitchApiHttpClient", twitchApiHttpClient);
 builder.Services.AddSingleton<ITwitchChatService, TwitchChatService>();
+builder.Services.AddSingleton<ITwitchEventSubService, TwitchEventSubService>();
 builder.Services.AddSingleton<ITwitchIdentityApiService, TwitchIdentityApiService>();
 builder.Services.AddSingleton<ICacheService, CacheService>();
 builder.Services.AddSingleton<IWordService, WordService>();
@@ -69,7 +73,6 @@ builder.Services.AddAuthentication().AddJwtBearer(opt =>
 });
 
 builder.Services.AddAuthorization();
-
 
 var app = builder.Build();
 
