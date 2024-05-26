@@ -42,6 +42,7 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
     public Action<EventMessage>? OnChannelUpdate { get; set; }
     public Action<EventMessage>? OnKeepaliveMessage { get; set; }
     public Action<EventMessage>? OnWelcomeMessage { get; set; }
+    //TODO at some point we need to implement a way to unsubscribe/subscribe to events dynamically
     public TwitchEventSubWebSocketHandler(
         string url,
         string broadcasterId,
