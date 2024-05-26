@@ -1,13 +1,16 @@
 using System.Text.Json;
 using Hamdle.Cache;
+using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
 using Hamdlebot.Core.Models;
 using Hamdlebot.Core.Models.Logging;
 using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Models;
+using HamdleBot.Services.Factories;
 using HamdleBot.Services.Handlers;
 using HamdleBot.Services.Twitch.Interfaces;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace HamdleBot.Services.Twitch;
@@ -67,7 +70,7 @@ public class TwitchChatService : ITwitchChatService
             _logger.LogError("Failed to authenticate with Twitch. No valid token found.");
             return;
         }
-
+        
         _webSocketHandler.MessageReceived += async message =>
         {
             if (message.IsPingMessage())
@@ -175,18 +178,13 @@ public class TwitchChatService : ITwitchChatService
     private void SetupSubscriptions()
     {
         _cache.Subscriber.Subscribe(_botTokenChannel).OnMessage(
-            async message =>
+            async _ =>
             {
-                var token = JsonSerializer.Deserialize<ClientCredentialsTokenResponse>(message.Message!);
-                await _cache.AddItem(CacheKeyType.TwitchOauthToken, token!.AccessToken,
-                    TimeSpan.FromSeconds(token.ExpiresIn));
-                await _cache.AddItem(CacheKeyType.TwitchRefreshToken, token.RefreshToken, TimeSpan.FromDays(30));
                 if (_webSocketHandler != null)
                 {
                     await _webSocketHandler.Disconnect();
                     _webSocketHandler = null;
                 }
-
                 await CreateWebSocket(_cancellationToken!.Value);
             });
     }
@@ -229,7 +227,6 @@ public class TwitchChatService : ITwitchChatService
                 {
                     await _webSocketHandler!.SendMessageToChat("Hamdle is already in progress. Can't start another!");
                 }
-
                 break;
         }
     }

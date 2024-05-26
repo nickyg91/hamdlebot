@@ -12,6 +12,7 @@ public abstract class WebSocketHandlerBase
     public event Func<Task>? Connected;
     public event Action? ReconnectStarted;
     public event Action<string>? MessageReceived;
+    public CancellationToken CancellationToken => _cancellationToken;
     protected WebSocketHandlerBase(string url, CancellationToken cancellationToken, byte maxReconnectAttempts)
     {
         _url = url;
@@ -49,7 +50,7 @@ public abstract class WebSocketHandlerBase
     {
         if (_socket.State == WebSocketState.Open)
         {
-            await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", _cancellationToken);
+            await _socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "Closing", _cancellationToken);
         }
     }
     public async Task SendMessage(string message)

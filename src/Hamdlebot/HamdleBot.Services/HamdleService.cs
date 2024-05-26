@@ -83,20 +83,29 @@ public partial class HamdleService : IHamdleService, IProcessCacheMessage, IDisp
         _hamdleContext!.SubmitVoteForGuess(username, submission);
     }
 
-    private void CreateHamdleContext()
+    private async Task CreateHamdleContext()
     {
-        _hamdleContext = 
-            new HamdleContext(
-                _cache, 
-                _hamdleHubClient, 
-                _hamdleScene!.SceneItemId,
-                _logClient, 
-                _obsSettings,
-                _obsService,
-                _logger);
-        _logClient.SendBotStatus(BotStatusType.HamdleInProgress);
-        _hamdleContext.SendMessageToChat += SendMessageToChat;
-        _hamdleContext.Restarted += Restart_Triggered!;
+        var isOnlineValue = (await _cache.GetItem(CacheKeyType.IsStreamOnline));
+        if (!bool.TryParse(isOnlineValue, out var isOnline))
+        {
+            return;
+        }
+        
+        if (isOnline)
+        {
+            _hamdleContext = 
+                new HamdleContext(
+                    _cache, 
+                    _hamdleHubClient, 
+                    _hamdleScene!.SceneItemId,
+                    _logClient, 
+                    _obsSettings,
+                    _obsService,
+                    _logger);
+            await _logClient.SendBotStatus(BotStatusType.HamdleInProgress);
+            _hamdleContext.SendMessageToChat += SendMessageToChat;
+            _hamdleContext.Restarted += Restart_Triggered!;
+        }
     }
 
     private void Restart_Triggered(object sender, EventArgs e)
@@ -162,7 +171,7 @@ public partial class HamdleService : IHamdleService, IProcessCacheMessage, IDisp
                 }
 
                 SetHamdleScene(item);
-                CreateHamdleContext();
+                await CreateHamdleContext();
                 await _hamdleContext!.StartGuesses();
             }
         });

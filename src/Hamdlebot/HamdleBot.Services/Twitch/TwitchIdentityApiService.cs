@@ -5,6 +5,7 @@ using Hamdlebot.Core.Exceptions;
 using Hamdlebot.Models;
 using HamdleBot.Services.Twitch.Interfaces;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace HamdleBot.Services.Twitch;
@@ -14,6 +15,7 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
     private readonly HttpClient _client;
     private readonly ILogger<TwitchIdentityApiService> _logger;
     private readonly AppConfigSettings _settings;
+    
     public TwitchIdentityApiService(HttpClient client, IOptions<AppConfigSettings> settings, ILogger<TwitchIdentityApiService> logger)
     {
         _client = client;
@@ -42,8 +44,10 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
             {
                 throw new TokenGenerationException("An error occurred while generating a twitch token.");
             }
+
             return responseObject;
         }
+
         throw new TokenGenerationException(
             $"An error occurred while generating a twitch token: {response.StatusCode}.");
     }
@@ -72,12 +76,14 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
             throw new TokenGenerationException(
                 $"An error occurred while generating a twitch token: {response.StatusCode}.", new Exception(content));
         }
+
         var json = await response.Content.ReadAsStringAsync();
         var responseObject = JsonSerializer.Deserialize<ClientCredentialsTokenResponse>(json);
         if (responseObject == null)
         {
             throw new TokenGenerationException("An error occurred while generating a twitch token.");
         }
+
         return responseObject;
     }
 
@@ -97,20 +103,21 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
         {
             throw new TokenGenerationException(
                 $"An error occurred while generating a twitch token: {response.StatusCode}.");
-
         }
+
         var responseObject = JsonSerializer.Deserialize<ClientCredentialsTokenResponse>(json);
         if (responseObject == null)
         {
             throw new TokenGenerationException("An error occurred while generating a twitch token.");
         }
+
         return responseObject;
     }
 
     public string GetWorkerAuthorizationCodeUrl()
     {
         return
-            $"https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={_settings.TwitchConnectionInfo!.ClientId}&redirect_uri={_settings.TwitchConnectionInfo.WorkerRedirectUrl}&scope=chat%3Aread+chat%3Aedit";
+            $"https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={_settings.TwitchConnectionInfo!.ClientId}&redirect_uri={_settings.TwitchConnectionInfo.WorkerRedirectUrl}&scope=chat:read+chat:edit+channel:read:subscriptions+channel:manage:polls+channel:manage:predictions";
     }
 
     public string GetClientOIDCAuthorizationCodeUrl()
