@@ -49,7 +49,7 @@ public abstract class WebSocketHandlerBase
     {
         if (_socket.State == WebSocketState.Open)
         {
-            await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", _cancellationToken);
+            await _socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "Closing", _cancellationToken);
         }
     }
     public async Task SendMessage(string message)
