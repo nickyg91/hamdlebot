@@ -6,6 +6,7 @@ using Hamdlebot.Core.Models.EventSub.Messages;
 using Hamdlebot.Models.Twitch;
 using HamdleBot.Services.Factories;
 using HamdleBot.Services.Twitch.Interfaces;
+using Microsoft.Extensions.Logging;
 using Timer = System.Timers.Timer;
 
 namespace HamdleBot.Services.Handlers;
@@ -21,6 +22,7 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
     private string _sessionId = string.Empty;
     private int _keepaliveTimeoutSeconds;
     private List<SubscriptionType> _events;
+    private readonly ILogger<TwitchEventSubWebSocketHandler> _logger;
     private Timer _keepaliveTimer;
     public Action<EventMessage>? OnStreamOnline { get; set; }
     public Action<EventMessage>? OnStreamOffline { get; set; }
@@ -59,6 +61,7 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
         _broadcasterId = broadcasterId;
         _userId = userId;
         _events = events;
+
         _twitchApiService = TwitchApiServiceFactory.CreateTwitchApiService(_authToken, _clientId, CancellationToken);
     }
 

@@ -5,6 +5,7 @@ using HamdleBot.Services;
 using HamdleBot.Services.OBS;
 using HamdleBot.Services.Twitch.Interfaces;
 using Microsoft.AspNetCore.SignalR.Client;
+using OpenTelemetry.Trace;
 
 namespace Hamdlebot.Worker;
 
@@ -20,6 +21,7 @@ public class HamdlebotWorker : BackgroundService
     private readonly ICacheService _cacheService;
     private readonly ITwitchIdentityApiService _identityApiService;
     private readonly ILogger<HamdlebotWorker> _logger;
+    private readonly Tracer _tracer;
     private readonly ITwitchEventSubService _twitchEventSubService;
 
     public HamdlebotWorker(
@@ -33,7 +35,8 @@ public class HamdlebotWorker : BackgroundService
         ICacheService cacheService,
         ITwitchIdentityApiService identityApiService,
         ITwitchEventSubService twitchEventSubService,
-        ILogger<HamdlebotWorker> logger)
+        ILogger<HamdlebotWorker> logger,
+        Tracer tracer)
     {
         _twitchChatService = twitchChatService;
         _wordService = wordService;
@@ -45,6 +48,7 @@ public class HamdlebotWorker : BackgroundService
         _cacheService = cacheService;
         _identityApiService = identityApiService;
         _logger = logger;
+        _tracer = tracer;
         _twitchEventSubService = twitchEventSubService;
     }
     protected override Task ExecuteAsync(CancellationToken cancellationToken)
@@ -64,6 +68,7 @@ public class HamdlebotWorker : BackgroundService
     
     private async Task OnStarted(CancellationToken cancellationToken)
     {
+        using var span = _tracer.StartActiveSpan("Hamdlebot.Worker.OnStarted");
         // The application has fully started, start the background tasks
         await Task.WhenAll(
             _hamdleHub.StartAsync(cancellationToken),

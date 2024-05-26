@@ -1,5 +1,4 @@
 using Hamdle.Cache;
-using Hamdle.Cache.Channels;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
 using Hamdlebot.Core.SignalR.Clients.Hamdle;
@@ -9,12 +8,14 @@ using HamdleBot.Services.OBS;
 using HamdleBot.Services.Twitch;
 using HamdleBot.Services.Twitch.Interfaces;
 using Hamdlebot.Web.Hubs;
+using Hamdlebot.Web.Middleware;
+using Hamdlebot.Web.Middleware.Extensions;
 using Hamdlebot.Worker;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.IdentityModel.Tokens;
-using OpenTelemetry.Logs;
 using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,7 +28,6 @@ builder.Configuration.AddAzureAppConfig(isDevelopment);
 builder.Services.AddSingleton<ICacheService, CacheService>();
 var appSettings = builder.Configuration.GetSection("Settings");
 builder.Services.Configure<AppConfigSettings>(appSettings);
-
 var oauthHandler = new HttpClientHandler();
 var oauthHttpClient = new HttpClient(oauthHandler);
 
@@ -46,15 +46,21 @@ var botLogHubConnection = new HubConnectionBuilder()
     .WithAutomaticReconnect()
     .Build();
 
-builder.Logging.AddOpenTelemetry(options =>
+builder.Services.AddOpenTelemetry().WithTracing(tcb =>
 {
-    options.SetResourceBuilder(
-        ResourceBuilder.CreateDefault().AddService("Hamdlebot.Web")).AddOtlpExporter(config =>
-    {
-        config.Endpoint = new Uri("http://localhost:4317");
-    });
+    tcb
+        .AddSource("Hamdlebot.Web")
+        .SetResourceBuilder(
+            ResourceBuilder.CreateDefault()
+                .AddService(serviceName: "Hamdlebot.Web", serviceVersion: "1.0.0"))
+        .AddAspNetCoreInstrumentation()
+        .AddOtlpExporter(config =>
+        {
+            config.Endpoint = new Uri("http://localhost:4317");
+        });
 });
 
+builder.Services.AddSingleton(TracerProvider.Default.GetTracer("Hamdlebot.Web"));
 builder.Services.AddSingleton(oauthHttpClient);
 builder.Services.AddKeyedSingleton("twitchApiHttpClient", twitchApiHttpClient);
 builder.Services.AddSingleton<ITwitchChatService, TwitchChatService>();
@@ -106,6 +112,7 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseOpenTelemetryTrace();
 app.MapControllers();
 app.MapHub<HamdlebotHub>("/hamdlebothub");
 app.MapHub<BotLogHub>("/botloghub");

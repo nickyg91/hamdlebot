@@ -8,6 +8,7 @@ using Hamdlebot.Models;
 using HamdleBot.Services.Factories;
 using HamdleBot.Services.Handlers;
 using HamdleBot.Services.Twitch.Interfaces;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
@@ -20,14 +21,16 @@ public class TwitchEventSubService : ITwitchEventSubService
     private readonly ICacheService _cacheService;
     private readonly RedisChannel _botTokenChannel;
     private readonly IBotLogClient _logClient;
+    private readonly ILogger<TwitchEventSubService> _logger;
     private TwitchEventSubWebSocketHandler? _eventSubHandler;
     private CancellationToken? _cancellationToken;
 
-    public TwitchEventSubService(IOptions<AppConfigSettings> appConfigSettings, ICacheService cacheService, IBotLogClient logClient)
+    public TwitchEventSubService(IOptions<AppConfigSettings> appConfigSettings, ICacheService cacheService, IBotLogClient logClient, ILogger<TwitchEventSubService> logger)
     {
         _appConfigSettings = appConfigSettings;
         _cacheService = cacheService;
         _logClient = logClient;
+        _logger = logger;
         _botTokenChannel = new RedisChannel(RedisChannelType.BotTwitchToken, RedisChannel.PatternMode.Auto);
         SetupSubscriptions();
     }
@@ -40,6 +43,7 @@ public class TwitchEventSubService : ITwitchEventSubService
         
         if (authToken is null)
         {
+            _logger.LogError("Auth token is null. Cannot start subscriptions.");
             return;
         }
 
@@ -80,6 +84,7 @@ public class TwitchEventSubService : ITwitchEventSubService
                 {
                     await _eventSubHandler.Disconnect();
                     _eventSubHandler.SetNewAuthToken(token!.AccessToken);
+                    _logger.LogInformation("Starting new eventsub connection.");
                     await StartSubscriptions("hamhamreborn", _cancellationToken!.Value);
                 }
             });
