@@ -8,6 +8,7 @@ using Hamdlebot.Models.OBS;
 using Hamdlebot.Models.OBS.RequestTypes;
 using HamdleBot.Services.Hamdle.States;
 using HamdleBot.Services.OBS;
+using Microsoft.Extensions.Logging;
 
 namespace HamdleBot.Services.Hamdle;
 
@@ -22,6 +23,7 @@ public class HamdleContext
     private readonly IBotLogClient _logClient;
     private readonly ObsSettings _obsSettings;
     private readonly IObsService _obsService;
+    private readonly ILogger<HamdleService> _logger;
     private BaseState<HamdleContext, IHamdleHubClient>? State { get; set; }
     public event EventHandler<string>? SendMessageToChat;
     public event EventHandler? Restarted;
@@ -38,7 +40,8 @@ public class HamdleContext
         int hamdleSceneId,
         IBotLogClient logClient,
         ObsSettings obsSettings,
-        IObsService obsService)
+        IObsService obsService,
+        ILogger<HamdleService> logger)
     {
         _cache = cache;
         _hamdleHubClient = hamdleHubClient;
@@ -48,6 +51,7 @@ public class HamdleContext
         _logClient = logClient;
         _obsSettings = obsSettings;
         _obsService = obsService;
+        _logger = logger;
     }
     
     public void Send(string message)
@@ -84,6 +88,7 @@ public class HamdleContext
     {
         if (State == null || State.GetType() != typeof(VotingState))
         {
+            _logger.LogError("State must be VotingState.");
             throw new InvalidStateException("State must be VotingState.");
         }
         _logClient.LogMessage(new LogMessage($"Hamdle vote submitted by {username} for submission {submission}.", DateTime.UtcNow, SeverityLevel.Info));
@@ -94,6 +99,7 @@ public class HamdleContext
     {
         if (State == null || State.GetType() != typeof(GuessState))
         {
+            _logger.LogError("State must be GuessState.");
             throw new InvalidStateException("State must be GuessState.");
         }
         
@@ -107,8 +113,8 @@ public class HamdleContext
         CurrentWord = "";
         CurrentRound = 1;
         Guesses = [];
-        
-        await _logClient.LogMessage(new LogMessage($"Stop hamdle context and reset state.", DateTime.UtcNow, SeverityLevel.Info));
+        _logger.LogInformation("Hamdle state stopped and reset.");
+        await _logClient.LogMessage(new LogMessage("Stop hamdle context and reset state.", DateTime.UtcNow, SeverityLevel.Info));
         await EnableHamdleScene(false);
         Restarted?.Invoke(this, null!);
     }
@@ -132,6 +138,7 @@ public class HamdleContext
     {
         if (State == null || State.GetType() != typeof(GuessState))
         {
+            _logger.LogError("State must be GuessState.");
             throw new InvalidStateException("State must be GuessState.");
         }
         

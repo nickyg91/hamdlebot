@@ -13,6 +13,8 @@ using Hamdlebot.Worker;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.IdentityModel.Tokens;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Resources;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,6 +43,15 @@ var botLogHubConnection = new HubConnectionBuilder()
     .WithUrl(botLogHubUrl)
     .WithAutomaticReconnect()
     .Build();
+
+builder.Logging.AddOpenTelemetry(options =>
+{
+    options.SetResourceBuilder(
+        ResourceBuilder.CreateDefault().AddService("Hamdlebot.Web")).AddOtlpExporter(config =>
+    {
+        config.Endpoint = new Uri("http://localhost:4317");
+    });
+});
 
 builder.Services.AddSingleton(oauthHttpClient);
 builder.Services.AddSingleton<ITwitchChatService, TwitchChatService>();
@@ -74,11 +85,11 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-// if (!app.Environment.IsDevelopment())
-// {
-//     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-//     app.UseHsts();
-// }
+if (!app.Environment.IsDevelopment())
+{
+    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    app.UseHsts();
+}
 
 var forwardedHeadersOptions = new ForwardedHeadersOptions
 {

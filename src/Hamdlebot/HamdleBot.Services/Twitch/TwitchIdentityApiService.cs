@@ -1,10 +1,10 @@
-using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Exceptions;
 using Hamdlebot.Models;
 using HamdleBot.Services.Twitch.Interfaces;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace HamdleBot.Services.Twitch;
@@ -12,15 +12,18 @@ namespace HamdleBot.Services.Twitch;
 public class TwitchIdentityApiService : ITwitchIdentityApiService
 {
     private readonly HttpClient _client;
+    private readonly ILogger<TwitchIdentityApiService> _logger;
     private readonly AppConfigSettings _settings;
-    public TwitchIdentityApiService(HttpClient client, IOptions<AppConfigSettings> settings)
+    public TwitchIdentityApiService(HttpClient client, IOptions<AppConfigSettings> settings, ILogger<TwitchIdentityApiService> logger)
     {
         _client = client;
+        _logger = logger;
         _settings = settings.Value;
     }
 
     public async Task<ClientCredentialsTokenResponse> GetToken(string code)
     {
+        _logger.LogInformation("Getting token.");
         _client.DefaultRequestHeaders.Clear();
         using var content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
         {
@@ -47,6 +50,7 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
 
     public async Task<ClientCredentialsTokenResponse> GetTokenForBot(string code)
     {
+        _logger.LogInformation("Getting token for bot.");
         if (code == null)
         {
             throw new Exception("No auth code found");
@@ -79,6 +83,7 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
 
     public async Task<ClientCredentialsTokenResponse> RefreshToken(string refreshToken)
     {
+        _logger.LogInformation("Refreshing token.");
         using var content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
         {
             new("client_id", _settings.TwitchConnectionInfo!.ClientId!),
@@ -102,17 +107,6 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
         return responseObject;
     }
 
-    public async Task<string?> ListenForRedirect(string redirectUrl)
-    {
-        var listener = new HttpListener();
-        listener.Prefixes.Add(_settings.TwitchConnectionInfo!.WorkerRedirectUrl!);
-        listener.Prefixes.Add("http://localhost:3000/");
-        listener.Start();
-        var code = await OnRequest(listener);
-        listener.Stop();
-        return code;
-    }
-
     public string GetWorkerAuthorizationCodeUrl()
     {
         return
@@ -131,22 +125,5 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
         var url =
             $"https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={_settings.TwitchConnectionInfo!.ClientId}&redirect_uri={_settings.TwitchConnectionInfo.ClientRedirectUrl}&scope=channel%3Amanage%3Apolls+channel%3Aread%3Apolls+openid+user%3Aread%3Aemail&claims={{\"id_token\":{{\"email\":null,\"email_verified\":null}},\"userinfo\":{{\"email\":null,\"email_verified\":null,\"picture\":null,\"updated_at\":null}}}}&state={nonce}&nonce={nonce}";
         return url;
-    }
-
-    private async Task<string?> OnRequest(HttpListener listener)
-    {
-        while (listener.IsListening)
-        {
-            var context = await listener.GetContextAsync();
-            var request = context.Request;
-            var response = context.Response;
-            await using var writer = new StreamWriter(response.OutputStream);
-            if (request.QueryString.AllKeys.Any("code".Contains!))
-            {
-                return request.QueryString["code"];
-            }
-        }
-
-        return null;
     }
 }

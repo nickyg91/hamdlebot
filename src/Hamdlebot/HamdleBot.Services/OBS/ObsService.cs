@@ -11,6 +11,7 @@ using Hamdlebot.Models.OBS.RequestTypes;
 using Hamdlebot.Models.OBS.ResponseTypes;
 using HamdleBot.Services.Factories;
 using HamdleBot.Services.Handlers;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
@@ -22,6 +23,7 @@ public class ObsService : IObsService, IProcessCacheMessage, IDisposable
     private CancellationToken? _cancellationToken;
     private readonly ICacheService _cache;
     private readonly IBotLogClient _logClient;
+    private readonly ILogger<ObsService> _logger;
     private ObsSettings _obsSettings;
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -34,10 +36,12 @@ public class ObsService : IObsService, IProcessCacheMessage, IDisposable
     public ObsService(
         ICacheService cache, 
         IOptions<AppConfigSettings> settings,
-        IBotLogClient logClient)
+        IBotLogClient logClient,
+        ILogger<ObsService> logger)
     {
         _cache = cache;
         _logClient = logClient;
+        _logger = logger;
         _obsSettings = settings.Value.ObsSettingsOptions!;
         var obsSettingsChangedChannel = new RedisChannel(RedisChannelType.ObsSettingsChanged, RedisChannel.PatternMode.Auto);
         _sceneReceivedChannel = new RedisChannel(RedisChannelType.OnSceneReceived, RedisChannel.PatternMode.Auto);
@@ -50,13 +54,15 @@ public class ObsService : IObsService, IProcessCacheMessage, IDisposable
     {
         _cancellationToken ??= cancellationToken;
         _socket = new ObsWebSocketHandler(_obsSettings.SocketUrl!, _cancellationToken.Value, 2);
-        
+        _logger.LogTrace("Create WebSocket called.");
         _socket.Connected += async () =>
-        {
+        {   
+            _logger.LogInformation("Connected to OBS websocket.");
             await _logClient.LogMessage(new LogMessage("Connected to OBS websocket", DateTime.UtcNow, SeverityLevel.Info));
         };
         _socket.ReconnectStarted += async () =>
         {
+            _logger.LogInformation("Reconnect started.");
             await _logClient.LogMessage(new LogMessage("Reconnecting to OBS websocket", DateTime.UtcNow, SeverityLevel.Info));
         };
         _socket.MessageReceived += async message =>
@@ -65,6 +71,7 @@ public class ObsService : IObsService, IProcessCacheMessage, IDisposable
             {
                 return;
             }
+            _logger.LogInformation("OBS message received: {1}", message);
             await _logClient.LogMessage(new LogMessage($"OBS message received: {message}", DateTime.UtcNow, SeverityLevel.Info));
             var obj = JsonNode.Parse(message)?.AsObject();
             var opCode = obj?["op"]?.ToString();
@@ -89,6 +96,7 @@ public class ObsService : IObsService, IProcessCacheMessage, IDisposable
 
     public async Task SendRequest<T>(ObsRequest<T> message) where T : class
     {
+        _logger.LogInformation("OBS request sent: {1}", message);
         var serializedJson = JsonSerializer.Serialize(message, _jsonOptions);
         await _logClient.LogMessage(new LogMessage($"Request sent to OBS for {message.RequestData?.RequestType ?? "scene"}." , DateTime.UtcNow, SeverityLevel.Info));
         await _socket!.SendMessage(serializedJson);
@@ -132,6 +140,7 @@ public class ObsService : IObsService, IProcessCacheMessage, IDisposable
         {
             await foreach (var item in _obsSettingsStream.Subscribe(_subscriptionCancellationToken.Token))
             {
+                _logger.LogInformation("Obs settings updated.");
                 _obsSettings = item;
                 await _logClient.LogMessage(new LogMessage("Obs settings updated.", DateTime.UtcNow, SeverityLevel.Info));
                 if (_socket != null)

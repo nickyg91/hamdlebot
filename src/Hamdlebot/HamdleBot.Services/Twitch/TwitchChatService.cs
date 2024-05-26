@@ -7,6 +7,7 @@ using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Models;
 using HamdleBot.Services.Handlers;
 using HamdleBot.Services.Twitch.Interfaces;
+using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 
 namespace HamdleBot.Services.Twitch;
@@ -19,6 +20,7 @@ public class TwitchChatService : ITwitchChatService
     private TwitchChatWebSocketHandler? _webSocketHandler;
     private readonly ITwitchIdentityApiService _identityApiService;
     private readonly IBotLogClient _logClient;
+    private readonly ILogger<TwitchChatService> _logger;
     private CancellationToken? _cancellationToken;
     private readonly RedisChannel _botTokenChannel;
     private readonly RedisChannel _startHamdleSceneChannel;
@@ -35,13 +37,15 @@ public class TwitchChatService : ITwitchChatService
         ICacheService cache,
         IHamdleService hamdleService,
         ITwitchIdentityApiService identityApiService,
-        IBotLogClient logClient)
+        IBotLogClient logClient,
+        ILogger<TwitchChatService> logger)
     {
         _wordService = wordService;
         _cache = cache;
         _hamdleService = hamdleService;
         _identityApiService = identityApiService;
         _logClient = logClient;
+        _logger = logger;
         _botTokenChannel = new RedisChannel(RedisChannelType.BotTwitchToken, RedisChannel.PatternMode.Auto);
         _startHamdleSceneChannel = new RedisChannel(RedisChannelType.StartHamdleScene, RedisChannel.PatternMode.Auto);
         SetupSubscriptions();
@@ -53,13 +57,14 @@ public class TwitchChatService : ITwitchChatService
         _cancellationToken ??= cancellationToken;
         _webSocketHandler ??= new TwitchChatWebSocketHandler("wss://irc-ws.chat.twitch.tv:443",
             _cancellationToken.Value, "hamhamreborn", 3);
-
+        _logger.LogInformation("Connecting to Twitch Chat.");
         var tokenResponse = await Authenticate();
 
         if (tokenResponse == null)
         {
             await _logClient.LogMessage(new LogMessage("Failed to authenticate with Twitch. No valid token found.",
                 DateTime.UtcNow, SeverityLevel.Error));
+            _logger.LogError("Failed to authenticate with Twitch. No valid token found.");
             return;
         }
 
@@ -69,6 +74,7 @@ public class TwitchChatService : ITwitchChatService
             {
                 await _logClient.LogMessage(new LogMessage("PING received from Twitch.", DateTime.UtcNow,
                     SeverityLevel.Info));
+                _logger.LogInformation("PING received from Twitch.");
                 await _webSocketHandler.SendMessage("PONG :tmi.twitch.tv");
                 await _logClient.LogMessage(new LogMessage("PONG :tmi.twitch.tv sent back to Twitch.", DateTime.UtcNow,
                     SeverityLevel.Info));
@@ -104,6 +110,8 @@ public class TwitchChatService : ITwitchChatService
         {
             await _logClient.LogMessage(new LogMessage("Reconnecting to Twitch Chat.", DateTime.UtcNow,
                 SeverityLevel.Info));
+            
+            _logger.LogInformation("Reconnecting to Twitch Chat.");
         };
 
         await _webSocketHandler.Connect();
@@ -116,6 +124,7 @@ public class TwitchChatService : ITwitchChatService
         await _logClient.LogMessage(new LogMessage("Connecting to Twitch Chat.", DateTime.UtcNow, SeverityLevel.Info));
         await _logClient.LogMessage(new LogMessage("Connection to Twitch Chat Successful.", DateTime.UtcNow,
             SeverityLevel.Info));
+        _logger.LogInformation("Connection to Twitch Chat Successful.");
         await _logClient.SendBotStatus(BotStatusType.Online);
         var capReq = $"CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands";
         var pass = $"PASS oauth:{accessToken}";
@@ -126,6 +135,7 @@ public class TwitchChatService : ITwitchChatService
         await Task.Delay(3000);
         await _webSocketHandler.JoinChannel();
         await _webSocketHandler.SendMessageToChat("hamdlebot has arrived Kappa");
+        _logger.LogInformation("Twitch Chat authenticated.");
     }
 
     private async Task<ClientCredentialsTokenResponse?> Authenticate()

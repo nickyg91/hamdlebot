@@ -19,6 +19,8 @@ public class HamdlebotWorker : BackgroundService
     private readonly IBotLogClient _logClient;
     private readonly ICacheService _cacheService;
     private readonly ITwitchIdentityApiService _identityApiService;
+    private readonly ILogger<HamdlebotWorker> _logger;
+
     public HamdlebotWorker(
         ITwitchChatService twitchChatService,
         IWordService wordService,
@@ -28,7 +30,8 @@ public class HamdlebotWorker : BackgroundService
         IHostApplicationLifetime appLifetime,
         IBotLogClient logClient,
         ICacheService cacheService,
-        ITwitchIdentityApiService identityApiService)
+        ITwitchIdentityApiService identityApiService,
+        ILogger<HamdlebotWorker> logger)
     {
         _twitchChatService = twitchChatService;
         _wordService = wordService;
@@ -39,9 +42,11 @@ public class HamdlebotWorker : BackgroundService
         _logClient = logClient;
         _cacheService = cacheService;
         _identityApiService = identityApiService;
+        _logger = logger;
     }
     protected override Task ExecuteAsync(CancellationToken cancellationToken)
     {
+        _logger.Log(LogLevel.Information, "Hamdlebot Worker started.");
         _appLifetime.ApplicationStarted.Register(Start);
         return Task.CompletedTask;
 
@@ -61,9 +66,10 @@ public class HamdlebotWorker : BackgroundService
             _hamdleHub.StartAsync(cancellationToken),
             _logHub.StartAsync(cancellationToken)
         );
+        _logger.Log(LogLevel.Information, "SignalR Hubs started.");
         await _logClient.LogMessage(new LogMessage("Bot connected.", DateTime.UtcNow, SeverityLevel.Info));
         await _logClient.SendBotStatus(BotStatusType.Online);
-
+        
         await _wordService.InsertWords();
         try
         {

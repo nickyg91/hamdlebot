@@ -1,14 +1,17 @@
 using Hamdle.Cache;
+using Microsoft.Extensions.Logging;
 
 namespace HamdleBot.Services;
 
 public class WordService : IWordService
 {
     private readonly ICacheService _cache;
+    private readonly ILogger<WordService> _logger;
 
-    public WordService(ICacheService cache)
+    public WordService(ICacheService cache, ILogger<WordService> logger)
     {
         _cache = cache;
+        _logger = logger;
     }
 
     public async Task InsertWords()
@@ -27,6 +30,7 @@ public class WordService : IWordService
         }
 
         await Task.WhenAll(addTasks);
+        _logger.Log(LogLevel.Information, "Words inserted into cache.");
     }
 
     public async Task<string?> GetRandomWord()

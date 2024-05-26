@@ -11,6 +11,7 @@ using Hamdlebot.Models.OBS.ResponseTypes;
 using HamdleBot.Services.Factories;
 using HamdleBot.Services.Hamdle;
 using HamdleBot.Services.OBS;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
@@ -23,6 +24,7 @@ public partial class HamdleService : IHamdleService, IProcessCacheMessage, IDisp
     private readonly IHamdleHubClient _hamdleHubClient;
     private readonly IBotLogClient _logClient;
     private readonly IObsService _obsService;
+    private readonly ILogger<HamdleService> _logger;
     private ObsSettings _obsSettings;
     private HamdleContext? _hamdleContext;
     private SceneItem? _hamdleScene;
@@ -36,12 +38,14 @@ public partial class HamdleService : IHamdleService, IProcessCacheMessage, IDisp
         IHamdleHubClient hamdleHubClient, 
         IOptions<AppConfigSettings> settings,
         IBotLogClient logClient,
-        IObsService obsService)
+        IObsService obsService,
+        ILogger<HamdleService> logger)
     {
         _cache = cache;
         _hamdleHubClient = hamdleHubClient;
         _logClient = logClient;
         _obsService = obsService;
+        _logger = logger;
         _obsSettings = settings.Value.ObsSettingsOptions!;
         var sceneRetreivedChannel = new RedisChannel(RedisChannelType.OnSceneReceived, RedisChannel.PatternMode.Auto);
         var startHamdleSceneChannel = new RedisChannel(RedisChannelType.StartHamdleScene, RedisChannel.PatternMode.Auto);
@@ -88,7 +92,8 @@ public partial class HamdleService : IHamdleService, IProcessCacheMessage, IDisp
                 _hamdleScene!.SceneItemId,
                 _logClient, 
                 _obsSettings,
-                _obsService);
+                _obsService,
+                _logger);
         _logClient.SendBotStatus(BotStatusType.HamdleInProgress);
         _hamdleContext.SendMessageToChat += SendMessageToChat;
         _hamdleContext.Restarted += Restart_Triggered!;
@@ -133,6 +138,7 @@ public partial class HamdleService : IHamdleService, IProcessCacheMessage, IDisp
                 {
                     continue;
                 }
+                _logger.LogInformation("Starting Hamdle Scene");
                 await _logClient.LogMessage(new LogMessage("Starting Hamdle Scene", DateTime.UtcNow, SeverityLevel.Info));
                 await SendObsSceneRequest();
             }
