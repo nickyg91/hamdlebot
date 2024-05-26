@@ -6,4 +6,5 @@ public static class CacheKeyType
     public static string TwitchRefreshToken => "twitchRefreshToken";
     public static string TwitchAccessToken => "twitchAccessToken";
     public static string BotCommands => "commands";
+    public static string IsStreamOnline => "isStreamOnline";
 }

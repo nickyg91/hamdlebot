@@ -27,6 +27,13 @@ public class LimitedSizeHashSet<TType, TKeyType>
         }
     }
 
+    public TType LastItem()
+    {
+        return _queue.Last();
+    }
+
+    public TType Peek() => _queue.Peek();
+    
     public bool Contains(TKeyType item)
     {
         return _hashSet.Contains(item);

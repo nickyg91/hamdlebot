@@ -1,10 +1,12 @@
 using System.Text.Json;
 using Hamdlebot.Core.Collections;
+using Hamdlebot.Core.Exceptions;
 using Hamdlebot.Core.Models.Enums;
 using Hamdlebot.Core.Models.EventSub.Messages;
 using Hamdlebot.Models.Twitch;
 using HamdleBot.Services.Factories;
 using HamdleBot.Services.Twitch.Interfaces;
+using Timer = System.Timers.Timer;
 
 namespace HamdleBot.Services.Handlers;
 
@@ -13,12 +15,13 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
     private readonly LimitedSizeHashSet<EventMessage, string> _eventSet = new(25, x => x.Metadata.MessageId);
     private readonly string _broadcasterId;
     private readonly string _userId;
-    private string _sessionId = string.Empty;
-    private readonly string _authToken;
     private readonly string _clientId;
+    private string _authToken;
+    private ITwitchApiService _twitchApiService;
+    private string _sessionId = string.Empty;
+    private int _keepaliveTimeoutSeconds;
     private List<SubscriptionType> _events;
-    private readonly ITwitchApiService _twitchApiService;
-    private readonly HashSet<SubscriptionType> _enabledSubscriptions;
+    private Timer _keepaliveTimer;
     public Action<EventMessage>? OnStreamOnline { get; set; }
     public Action<EventMessage>? OnStreamOffline { get; set; }
     public Action<EventMessage>? OnChannelPollBegin { get; set; }
@@ -38,7 +41,7 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
     public Action<EventMessage>? OnChannelBan { get; set; }
     public Action<EventMessage>? OnChannelUpdate { get; set; }
     public Action<EventMessage>? OnKeepaliveMessage { get; set; }
-
+    public Action<EventMessage>? OnWelcomeMessage { get; set; }
     public TwitchEventSubWebSocketHandler(
         string url,
         string broadcasterId,
@@ -50,13 +53,12 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
         List<SubscriptionType> events) : base(url, cancellationToken, maxReconnectAttempts)
     {
         MessageReceived += OnMessageReceived;
+        _clientId = clientId;
+        _authToken = authToken;
         _broadcasterId = broadcasterId;
         _userId = userId;
-        _authToken = authToken;
-        _clientId = clientId;
         _events = events;
-        _twitchApiService = TwitchApiServiceFactory.CreateTwitchApiService(authToken, clientId, cancellationToken);
-        _enabledSubscriptions = new HashSet<SubscriptionType>();
+        _twitchApiService = TwitchApiServiceFactory.CreateTwitchApiService(_authToken, _clientId, CancellationToken);
     }
 
     public async Task StartEventSubscriptions()
@@ -64,6 +66,12 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
         await Task.Run(async () => await Connect());
     }
 
+    public void SetNewAuthToken(string authToken)
+    {
+        _authToken = authToken;
+        _twitchApiService = TwitchApiServiceFactory.CreateTwitchApiService(_authToken, _clientId, CancellationToken);
+    }
+    
     private async void OnMessageReceived(string message)
     {
         if (message.Contains("PING"))
@@ -99,16 +107,10 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
             case MessageType.Revocation:
                 break;
             default:
-                //custom exception here
-                throw new ArgumentOutOfRangeException("Unsupported message type.");
+                throw new InvalidMetadataMessageType("Unsupported message type.");
         }
     }
-
-    private async Task ProcessSessionKeepaliveMessage()
-    {
-        await SendMessage("PING");
-    }
-
+    
     private async Task ProcessSessionWelcomeMessage(EventMessage eventMessage)
     {
         if (eventMessage.Payload is not null)
@@ -130,9 +132,9 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
                     Version = 1
                 })).ToList();
             await Task.WhenAll(subscriptionTasks);
-            var subs = subscriptionTasks.Select(x => x.Result).ToList();
-            subs.Where(x => x!.Data.First().Status == "enabled").SelectMany(x => x!.Data)
-                .Select(x => _enabledSubscriptions.Add(x.Type));
+            _keepaliveTimeoutSeconds = eventMessage.Payload.Session.KeepaliveTimeoutSeconds;
+            StartKeepaliveTimer();
+            OnWelcomeMessage?.Invoke(eventMessage);
         }
     }
 
@@ -194,20 +196,34 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
             case SubscriptionType.ChannelVipRemove:
                 OnChannelVipRemove?.Invoke(eventMessage);
                 break;
-            case SubscriptionType.NotSupported:
-                // exception here
-                break;
             case null:
-                // exception here
-                break;
+            case SubscriptionType.NotSupported:
+                throw new SubscriptionEventNotSupportedException("Subscription event not supported.");
             default:
                 // create new exception type here
-                throw new ArgumentOutOfRangeException();
+                throw new InvalidSubscriptionTypeException($"Invalid subscription type: {eventMessage.Payload?.Subscription.Type}");
         }
     }
 
     private async Task HandlePong()
     {
         await SendMessage("PONG");
+    }
+
+    private void StartKeepaliveTimer()
+    {
+        _keepaliveTimer = new Timer(TimeSpan.FromSeconds(_keepaliveTimeoutSeconds));
+        _keepaliveTimer.Elapsed += async (_, _) =>
+        {
+            var rightNow = DateTime.UtcNow;
+            var lastEvent = _eventSet.LastItem();
+            if (rightNow.Subtract(lastEvent.Metadata.MessageTimestamp).Seconds < _keepaliveTimeoutSeconds - 3)
+            {
+                return;
+            }
+            await Disconnect();
+            await StartEventSubscriptions();
+        };
+        _keepaliveTimer.Start();
     }
 }
