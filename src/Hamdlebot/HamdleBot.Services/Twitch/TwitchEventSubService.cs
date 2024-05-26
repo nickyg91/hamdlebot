@@ -76,13 +76,10 @@ public class TwitchEventSubService : ITwitchEventSubService
             async message =>
             {
                 var token = JsonSerializer.Deserialize<ClientCredentialsTokenResponse>(message.Message!);
-                await _cacheService.AddItem(CacheKeyType.TwitchOauthToken, token!.AccessToken,
-                    TimeSpan.FromSeconds(token.ExpiresIn));
-                await _cacheService.AddItem(CacheKeyType.TwitchRefreshToken, token.RefreshToken, TimeSpan.FromDays(30));
                 if (_eventSubHandler is not null)
                 {
                     await _eventSubHandler.Disconnect();
-                    _eventSubHandler.SetNewAuthToken(token.AccessToken);
+                    _eventSubHandler.SetNewAuthToken(token!.AccessToken);
                     await StartSubscriptions("hamhamreborn", _cancellationToken!.Value);
                 }
             });

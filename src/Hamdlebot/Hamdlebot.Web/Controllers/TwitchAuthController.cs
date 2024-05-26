@@ -43,6 +43,9 @@ namespace Hamdlebot.Web.Controllers
             {
                 throw new TokenGenerationException("An error occurred while generating a twitch token.");
             }
+            await _cacheService.AddItem(CacheKeyType.TwitchOauthToken, token!.AccessToken,
+                TimeSpan.FromSeconds(token.ExpiresIn));
+            await _cacheService.AddItem(CacheKeyType.TwitchRefreshToken, token.RefreshToken, TimeSpan.FromDays(30));
             await _cacheService
                 .Subscriber
                 .PublishAsync(

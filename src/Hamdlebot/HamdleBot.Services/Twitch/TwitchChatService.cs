@@ -168,18 +168,13 @@ public class TwitchChatService : ITwitchChatService
     private void SetupSubscriptions()
     {
         _cache.Subscriber.Subscribe(_botTokenChannel).OnMessage(
-            async message =>
+            async _ =>
             {
-                var token = JsonSerializer.Deserialize<ClientCredentialsTokenResponse>(message.Message!);
-                await _cache.AddItem(CacheKeyType.TwitchOauthToken, token!.AccessToken,
-                    TimeSpan.FromSeconds(token.ExpiresIn));
-                await _cache.AddItem(CacheKeyType.TwitchRefreshToken, token.RefreshToken, TimeSpan.FromDays(30));
                 if (_webSocketHandler != null)
                 {
                     await _webSocketHandler.Disconnect();
                     _webSocketHandler = null;
                 }
-
                 await CreateWebSocket(_cancellationToken!.Value);
             });
     }
