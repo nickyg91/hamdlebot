@@ -17,5 +17,15 @@ services:
     depends_on: 
       redis:
         condition: service_started
+  hamdle-insights:
+    container_name: "hamdle-insights"
+    restart: unless-stopped
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:8.0.0
+    ports:
+      - 18888:18888
+      - 4317:18889
+    depends_on: 
+      hamdle-web:
+        condition: service_started
 volumes:
   hamdle-data:
