@@ -8,7 +8,6 @@ using HamdleBot.Services.OBS;
 using HamdleBot.Services.Twitch;
 using HamdleBot.Services.Twitch.Interfaces;
 using Hamdlebot.Web.Hubs;
-using Hamdlebot.Web.Middleware;
 using Hamdlebot.Web.Middleware.Extensions;
 using Hamdlebot.Worker;
 using Microsoft.AspNetCore.HttpOverrides;

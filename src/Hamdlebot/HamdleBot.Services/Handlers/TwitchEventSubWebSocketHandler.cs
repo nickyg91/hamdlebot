@@ -22,7 +22,7 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
     private string _sessionId = string.Empty;
     private int _keepaliveTimeoutSeconds;
     private List<SubscriptionType> _events;
-    private readonly ILogger<TwitchEventSubWebSocketHandler> _logger;
+    private readonly ILogger _logger;
     private Timer _keepaliveTimer;
     public Action<EventMessage>? OnStreamOnline { get; set; }
     public Action<EventMessage>? OnStreamOffline { get; set; }
@@ -53,7 +53,8 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
         byte maxReconnectAttempts,
         string authToken,
         string clientId,
-        List<SubscriptionType> events) : base(url, cancellationToken, maxReconnectAttempts)
+        List<SubscriptionType> events,
+        ILogger logger) : base(url, cancellationToken, maxReconnectAttempts)
     {
         MessageReceived += OnMessageReceived;
         _clientId = clientId;
@@ -61,7 +62,7 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
         _broadcasterId = broadcasterId;
         _userId = userId;
         _events = events;
-
+        _logger = logger;
         _twitchApiService = TwitchApiServiceFactory.CreateTwitchApiService(_authToken, _clientId, CancellationToken);
     }
 
