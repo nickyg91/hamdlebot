@@ -4,7 +4,11 @@ using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
 using Hamdlebot.Core.SignalR.Clients.Hamdle;
 using Hamdlebot.Core.SignalR.Clients.Logging;
+using Hamdlebot.Data.Contexts.Hamdlebot;
+using Hamdlebot.Data.Contexts.Hamdlebot.Repositories;
+using Hamdlebot.Data.Contexts.Hamdlebot.Repositories.Interfaces;
 using HamdleBot.Services;
+using HamdleBot.Services.Handlers;
 using HamdleBot.Services.OBS;
 using HamdleBot.Services.Twitch;
 using HamdleBot.Services.Twitch.Interfaces;
@@ -12,6 +16,7 @@ using Hamdlebot.Web.Hubs;
 using Hamdlebot.Worker;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,6 +38,7 @@ var twitchApiHttpClient = new HttpClient();
 
 var hamdlebotHubUrl = isDevelopment ? "https://localhost:7256/hamdlebothub" : "http://localhost:8080/hamdlebothub";
 var botLogHubUrl = isDevelopment ? "https://localhost:7256/botloghub" : "http://localhost:8080/botloghub";
+var connectionString = builder.Configuration.GetConnectionString("hamdlebot");
 
 var hamdleBotHubConnection = new HubConnectionBuilder()
     .WithUrl(hamdlebotHubUrl)
@@ -44,20 +50,35 @@ var botLogHubConnection = new HubConnectionBuilder()
     .WithAutomaticReconnect()
     .Build();
 
+builder.Services.AddDbContext<HamdlebotContext>(options =>
+{
+    options.UseNpgsql(connectionString, npgBuilder =>
+    {
+        // For now.
+        npgBuilder.MigrationsAssembly("Hamdlebot.Data");
+    });
+});
+
 builder.Services.AddSingleton(oauthHttpClient);
-builder.Services.AddKeyedSingleton("twitchApiHttpClient", twitchApiHttpClient);
 builder.Services.AddSingleton<ITwitchChatService, TwitchChatService>();
 builder.Services.AddSingleton<ITwitchEventSubService, TwitchEventSubService>();
 builder.Services.AddSingleton<ITwitchIdentityApiService, TwitchIdentityApiService>();
-builder.Services.AddSingleton<ICacheService, CacheService>();
-builder.Services.AddSingleton<IWordService, WordService>();
-builder.Services.AddTransient<IHamdleHubClient, HamdleHubClient>();
-builder.Services.AddTransient<IBotLogClient, BotLogClient>();
 builder.Services.AddSingleton<IObsService, ObsService>();
 builder.Services.AddSingleton<IHamdleService, HamdleService>();
+builder.Services.AddSingleton<ICacheService, CacheService>();
+builder.Services.AddSingleton<IWordService, WordService>();
+builder.Services.AddSingleton<TwitchAuthTokenUpdateHandler>();
+builder.Services.AddKeyedSingleton("twitchApiHttpClient", twitchApiHttpClient);
 builder.Services.AddKeyedSingleton("logHub", botLogHubConnection);
 builder.Services.AddKeyedSingleton("hamdleHub", hamdleBotHubConnection);
+
+builder.Services.AddTransient<IHamdleHubClient, HamdleHubClient>();
+builder.Services.AddTransient<IBotLogClient, BotLogClient>();
+
+builder.Services.AddScoped<IBotChannelRepository, BotChannelRepository>();
+
 builder.Services.AddHostedService<HamdlebotWorker>();
+
 builder.Services.AddAuthentication().AddJwtBearer(opt =>
 {
     var settings = builder.Configuration.GetSection("Settings").Get<AppConfigSettings>();
@@ -99,5 +120,12 @@ app.MapControllers();
 app.MapHub<HamdlebotHub>("/hamdlebothub");
 app.MapHub<BotLogHub>("/botloghub");
 app.MapFallbackToFile("index.html");
+
+// move to migration app at some point.
+using (var scope = app.Services.CreateScope())
+{
+    var ctx = scope.ServiceProvider.GetRequiredService<HamdlebotContext>();
+    ctx?.Database.Migrate();
+}
 
 app.Run();

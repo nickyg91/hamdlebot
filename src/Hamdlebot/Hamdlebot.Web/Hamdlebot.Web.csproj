@@ -16,7 +16,13 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.6" />
         <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="8.0.6" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.6" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.6">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
         <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.2" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
     </ItemGroup>
 
     <ItemGroup>
@@ -36,6 +42,7 @@
     <ItemGroup>
       <ProjectReference Include="..\Hamdle.Cache\Hamdle.Cache.csproj" />
       <ProjectReference Include="..\Hamdlebot.Core\Hamdlebot.Core.csproj" />
+      <ProjectReference Include="..\Hamdlebot.Data\Hamdlebot.Data.csproj" />
       <ProjectReference Include="..\HamdleBot.Services\HamdleBot.Services.csproj" />
       <ProjectReference Include="..\Hamdlebot.Worker\Hamdlebot.Worker.csproj" />
     </ItemGroup>

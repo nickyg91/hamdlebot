@@ -12,7 +12,7 @@ public abstract class WebSocketHandlerBase
     public event Func<Task>? Connected;
     public event Action? ReconnectStarted;
     public event Action<string>? MessageReceived;
-    public CancellationToken CancellationToken => _cancellationToken;
+    protected CancellationToken CancellationToken => _cancellationToken;
     protected WebSocketHandlerBase(string url, CancellationToken cancellationToken, byte maxReconnectAttempts)
     {
         _url = url;

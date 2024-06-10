@@ -5,27 +5,31 @@ using Hamdlebot.Core.Extensions;
 using Hamdlebot.Core.Models;
 using Hamdlebot.Core.Models.Logging;
 using Hamdlebot.Core.SignalR.Clients.Logging;
+using Hamdlebot.Data.Contexts.Hamdlebot;
+using Hamdlebot.Data.Contexts.Hamdlebot.Entities;
 using Hamdlebot.Models;
-using HamdleBot.Services.Factories;
 using HamdleBot.Services.Handlers;
 using HamdleBot.Services.Twitch.Interfaces;
-using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 
 namespace HamdleBot.Services.Twitch;
 
 public class TwitchChatService : ITwitchChatService
 {
+    private readonly Dictionary<int, TwitchChannel> _channels = new();
     private readonly ICacheService _cache;
     private readonly IWordService _wordService;
     private readonly IHamdleService _hamdleService;
     private TwitchChatWebSocketHandler? _webSocketHandler;
     private readonly ITwitchIdentityApiService _identityApiService;
     private readonly IBotLogClient _logClient;
+    private readonly HamdlebotContext _dbContext;
     private CancellationToken? _cancellationToken;
     private readonly RedisChannel _botTokenChannel;
     private readonly RedisChannel _startHamdleSceneChannel;
-
+    private readonly TwitchAuthTokenUpdateHandler _authTokenUpdateHandler;
+    
     private readonly List<string> _validCommands =
     [
         "!#commands",
@@ -38,13 +42,17 @@ public class TwitchChatService : ITwitchChatService
         ICacheService cache,
         IHamdleService hamdleService,
         ITwitchIdentityApiService identityApiService,
-        IBotLogClient logClient)
+        IBotLogClient logClient,
+        TwitchAuthTokenUpdateHandler authTokenUpdateHandler,
+        HamdlebotContext dbContext)
     {
         _wordService = wordService;
         _cache = cache;
         _hamdleService = hamdleService;
         _identityApiService = identityApiService;
         _logClient = logClient;
+        _dbContext = dbContext;
+        _authTokenUpdateHandler = authTokenUpdateHandler;
         _botTokenChannel = new RedisChannel(RedisChannelType.BotTwitchToken, RedisChannel.PatternMode.Auto);
         _startHamdleSceneChannel = new RedisChannel(RedisChannelType.StartHamdleScene, RedisChannel.PatternMode.Auto);
         SetupSubscriptions();
@@ -114,6 +122,45 @@ public class TwitchChatService : ITwitchChatService
         _hamdleService.SendMessageToChat += Handle_Hamdle_Message!;
     }
 
+    public async Task JoinBotToChannel(BotChannel channel)
+    {
+        if (_channels.ContainsKey(channel.ChannelId))
+        {
+            return;
+        }
+        var oauthToken = await _cache.GetItem(CacheKeyType.TwitchOauthToken);
+        if (oauthToken is null)
+        {
+            await _logClient.LogMessage(
+                new LogMessage($"No valid OAuth token found. Cannot join channel {channel.TwitchChannelName}.", 
+                DateTime.UtcNow,
+                SeverityLevel.Error));
+            return;
+        }
+        var twitchChannel = new TwitchChannel(channel, oauthToken!, "wss://irc-ws.chat.twitch.tv:443",  _cancellationToken!.Value);
+        await twitchChannel.Authenticate();
+        _authTokenUpdateHandler.Subscribe(twitchChannel);
+        _channels.Add(channel.ChannelId, twitchChannel);
+    }
+
+    public async Task JoinExistingChannels()
+    {
+        var token = await Authenticate();
+        if (token == null)
+        {
+            await _logClient.LogMessage(new LogMessage("Failed to authenticate with Twitch. No valid token found.",
+                DateTime.UtcNow, SeverityLevel.Error));
+            return;
+        }
+        _authTokenUpdateHandler.UpdateToken(token.AccessToken);
+        // for now - this is not performant AT ALL when dealing with large datasets.
+        var channels = await _dbContext.BotChannels.ToListAsync();
+        foreach (var channel in channels)
+        {
+            await JoinBotToChannel(channel);
+        }
+    }
+
     private async Task OnConnected(string accessToken)
     {
         await _logClient.LogMessage(new LogMessage("Connecting to Twitch Chat.", DateTime.UtcNow, SeverityLevel.Info));
@@ -136,7 +183,7 @@ public class TwitchChatService : ITwitchChatService
         ClientCredentialsTokenResponse tokenResponse;
         var oauthToken = await _cache.GetItem(CacheKeyType.TwitchOauthToken);
         var refreshToken = await _cache.GetItem(CacheKeyType.TwitchRefreshToken);
-
+        
         if (oauthToken != null && refreshToken != null)
         {
             await _logClient.LogMessage(new LogMessage("Valid OAuth token found.", DateTime.UtcNow,
@@ -170,12 +217,7 @@ public class TwitchChatService : ITwitchChatService
         _cache.Subscriber.Subscribe(_botTokenChannel).OnMessage(
             async _ =>
             {
-                if (_webSocketHandler != null)
-                {
-                    await _webSocketHandler.Disconnect();
-                    _webSocketHandler = null;
-                }
-                await CreateWebSocket(_cancellationToken!.Value);
+                await Authenticate();
             });
     }
 

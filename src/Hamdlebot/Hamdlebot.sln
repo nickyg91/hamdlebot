@@ -14,6 +14,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hamdlebot.Web", "Hamdlebot.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hamdlebot.Tests", "Hamdlebot.Tests\Hamdlebot.Tests.csproj", "{69891770-C255-4A42-8928-B8FAE4294611}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hamdlebot.Data", "Hamdlebot.Data\Hamdlebot.Data.csproj", "{48DDB692-C7F1-4B24-A72F-8F5F695F815F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -48,5 +50,9 @@ Global
 		{69891770-C255-4A42-8928-B8FAE4294611}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{69891770-C255-4A42-8928-B8FAE4294611}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{69891770-C255-4A42-8928-B8FAE4294611}.Release|Any CPU.Build.0 = Release|Any CPU
+		{48DDB692-C7F1-4B24-A72F-8F5F695F815F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{48DDB692-C7F1-4B24-A72F-8F5F695F815F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{48DDB692-C7F1-4B24-A72F-8F5F695F815F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{48DDB692-C7F1-4B24-A72F-8F5F695F815F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

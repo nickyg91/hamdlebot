@@ -30,9 +30,9 @@ namespace Hamdlebot.Web.Controllers
         }
 
         [HttpGet("oidc/url")]
-        public string GetOIDCUrl()
+        public string GetOidcUrl()
         {
-            return _twitchIdentityApiService.GetClientOIDCAuthorizationCodeUrl();
+            return _twitchIdentityApiService.GetClientOidcAuthorizationCodeUrl();
         }
 
         [HttpGet("token/bot/{code}")]

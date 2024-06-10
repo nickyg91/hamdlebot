@@ -8,5 +8,5 @@ public interface ITwitchIdentityApiService
     Task<ClientCredentialsTokenResponse> GetTokenForBot(string code);
     Task<ClientCredentialsTokenResponse> RefreshToken(string refreshToken);
     string GetWorkerAuthorizationCodeUrl();
-    string GetClientOIDCAuthorizationCodeUrl();
+    string GetClientOidcAuthorizationCodeUrl();
 }
