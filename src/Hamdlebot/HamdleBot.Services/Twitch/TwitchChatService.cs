@@ -1,6 +1,4 @@
-using System.Text.Json;
 using Hamdle.Cache;
-using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
 using Hamdlebot.Core.Models;
 using Hamdlebot.Core.Models.Logging;
@@ -11,6 +9,7 @@ using Hamdlebot.Models;
 using HamdleBot.Services.Handlers;
 using HamdleBot.Services.Twitch.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
 
 namespace HamdleBot.Services.Twitch;
@@ -24,11 +23,11 @@ public class TwitchChatService : ITwitchChatService
     private TwitchChatWebSocketHandler? _webSocketHandler;
     private readonly ITwitchIdentityApiService _identityApiService;
     private readonly IBotLogClient _logClient;
-    private readonly HamdlebotContext _dbContext;
     private CancellationToken? _cancellationToken;
     private readonly RedisChannel _botTokenChannel;
     private readonly RedisChannel _startHamdleSceneChannel;
     private readonly TwitchAuthTokenUpdateHandler _authTokenUpdateHandler;
+    private readonly IServiceProvider _serviceProvider;
     
     private readonly List<string> _validCommands =
     [
@@ -44,15 +43,15 @@ public class TwitchChatService : ITwitchChatService
         ITwitchIdentityApiService identityApiService,
         IBotLogClient logClient,
         TwitchAuthTokenUpdateHandler authTokenUpdateHandler,
-        HamdlebotContext dbContext)
+        HamdlebotContext dbContext, IServiceProvider serviceProvider)
     {
         _wordService = wordService;
         _cache = cache;
         _hamdleService = hamdleService;
         _identityApiService = identityApiService;
         _logClient = logClient;
-        _dbContext = dbContext;
         _authTokenUpdateHandler = authTokenUpdateHandler;
+        _serviceProvider = serviceProvider;
         _botTokenChannel = new RedisChannel(RedisChannelType.BotTwitchToken, RedisChannel.PatternMode.Auto);
         _startHamdleSceneChannel = new RedisChannel(RedisChannelType.StartHamdleScene, RedisChannel.PatternMode.Auto);
         SetupSubscriptions();
@@ -154,7 +153,9 @@ public class TwitchChatService : ITwitchChatService
         }
         _authTokenUpdateHandler.UpdateToken(token.AccessToken);
         // for now - this is not performant AT ALL when dealing with large datasets.
-        var channels = await _dbContext.BotChannels.ToListAsync();
+        using var scope = _serviceProvider.CreateScope();
+        var dbCtx = scope.ServiceProvider.GetRequiredService<HamdlebotContext>();
+        var channels = await dbCtx.BotChannels.ToListAsync();
         foreach (var channel in channels)
         {
             await JoinBotToChannel(channel);
