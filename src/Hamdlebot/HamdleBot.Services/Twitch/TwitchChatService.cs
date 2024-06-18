@@ -43,7 +43,7 @@ public class TwitchChatService : ITwitchChatService
         ITwitchIdentityApiService identityApiService,
         IBotLogClient logClient,
         TwitchAuthTokenUpdateHandler authTokenUpdateHandler,
-        HamdlebotContext dbContext, IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider)
     {
         _wordService = wordService;
         _cache = cache;
