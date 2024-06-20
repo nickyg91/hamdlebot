@@ -10,23 +10,24 @@ public class BotChannelEntityConfiguration : BaseEntityConfiguration<BotChannel>
     public override void Configure(EntityTypeBuilder<BotChannel> builder)
     {
         builder
-            .Property(x => x.ChannelId)
-            .HasColumnName("channel_id")
+            .Property(x => x.TwitchUserId)
+            .HasColumnName("twitch_user_id")
             .IsRequired();
-        builder
-            .Property(x => x.IsHamdleEnabled)
-            .HasColumnName("is_hamdle_enabled")
-            .IsRequired();
-
+        
         builder
             .Property(x => x.TwitchChannelName)
             .HasColumnName("twitch_channel_name")
             .IsRequired();
+
+        builder
+            .Property(x => x.IsHamdleEnabled)
+            .HasColumnName("is_hamdle_enabled")
+            .IsRequired();
         
         builder
-            .HasIndex(x => x.ChannelId)
+            .HasIndex(x => x.TwitchUserId)
             .IsUnique()
-            .HasAnnotation("idx_channel_id_unique", "true");
+            .HasAnnotation("idx_twitch_user_id_unique", "true");
         
         base.Configure(builder);
     }

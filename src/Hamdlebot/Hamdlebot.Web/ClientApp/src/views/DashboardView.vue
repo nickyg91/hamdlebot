@@ -112,6 +112,22 @@ const showWarningModal = () => {
     }
   });
 };
+
+const joinChannel = async () => {
+  try {
+    await store.joinChannel();
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const leaveChannel = async () => {
+  try {
+    await store.leaveChannel();
+  } catch (error) {
+    console.error(error);
+  }
+};
 </script>
 <template>
   <div>
@@ -150,6 +166,20 @@ const showWarningModal = () => {
                   @click="showWarningModal()"
                 >
                 </Button>
+                <Button
+                  class="ml-3"
+                  severity="success"
+                  icon="pi pi-user-plus"
+                  label="Join Channel"
+                  @click="joinChannel"
+                ></Button>
+                <Button
+                  class="ml-3"
+                  severity="danger"
+                  icon="pi pi-user-minus"
+                  label="Leave Channel"
+                  @click="leaveChannel"
+                ></Button>
               </div>
             </div>
             <hr />

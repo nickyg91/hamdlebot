@@ -33,7 +33,7 @@ public partial class HamdleService : IHamdleService, IProcessCacheMessage, IDisp
     public event EventHandler<string>? SendMessageToChat;
     public HamdleService(
         ICacheService cache, 
-        IHamdleHubClient hamdleHubClient, 
+        IHamdleHubClient hamdleHubClient,
         IOptions<AppConfigSettings> settings,
         IBotLogClient logClient,
         IObsService obsService)

@@ -123,7 +123,7 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
 
         var nonce = Convert.ToBase64String(byteArray);
         var url =
-            $"https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={_settings.TwitchConnectionInfo!.ClientId}&redirect_uri={_settings.TwitchConnectionInfo.ClientRedirectUrl}&scope=channel%3Amanage%3Apolls+channel%3Aread%3Apolls+openid+user%3Aread%3Aemail&claims={{\"id_token\":{{\"email\":null,\"email_verified\":null}},\"userinfo\":{{\"email\":null,\"email_verified\":null,\"picture\":null,\"updated_at\":null}}}}&state={nonce}&nonce={nonce}";
+            $"https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={_settings.TwitchConnectionInfo!.ClientId}&redirect_uri={_settings.TwitchConnectionInfo.ClientRedirectUrl}&scope=channel%3Amanage%3Apolls+channel%3Aread%3Apolls+openid+user%3Aread%3Aemail&claims={{\"id_token\":{{\"email\":null,\"email_verified\":null, \"preferred_username\": null}},\"userinfo\":{{\"email\":null,\"email_verified\":null,\"picture\":null,\"updated_at\":null}}}}&state={nonce}&nonce={nonce}";
         return url;
     }
 }

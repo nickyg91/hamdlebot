@@ -16,7 +16,8 @@ namespace HamdleBot.Services.Twitch;
 
 public class TwitchChatService : ITwitchChatService
 {
-    private readonly Dictionary<int, TwitchChannel> _channels = new();
+    private const string TwitchWebSocketUrl = "wss://irc-ws.chat.twitch.tv:443";
+    private readonly Dictionary<long, TwitchChannel> _channels = new();
     private readonly ICacheService _cache;
     private readonly IWordService _wordService;
     private readonly IHamdleService _hamdleService;
@@ -29,13 +30,6 @@ public class TwitchChatService : ITwitchChatService
     private readonly TwitchAuthTokenUpdateHandler _authTokenUpdateHandler;
     private readonly IServiceProvider _serviceProvider;
     
-    private readonly List<string> _validCommands =
-    [
-        "!#commands",
-        "!#random",
-        "!#hamdle"
-    ];
-
     public TwitchChatService(
         IWordService wordService,
         ICacheService cache,
@@ -59,7 +53,6 @@ public class TwitchChatService : ITwitchChatService
 
     public async Task CreateWebSocket(CancellationToken cancellationToken)
     {
-        await InsertValidCommands();
         _cancellationToken ??= cancellationToken;
         _webSocketHandler ??= new TwitchChatWebSocketHandler("wss://irc-ws.chat.twitch.tv:443",
             _cancellationToken.Value, "hamhamreborn", 3);
@@ -108,8 +101,6 @@ public class TwitchChatService : ITwitchChatService
             }
         };
 
-        _webSocketHandler.Connected += async () => { await OnConnected(tokenResponse.AccessToken); };
-
         _webSocketHandler.ReconnectStarted += async () =>
         {
             await _logClient.LogMessage(new LogMessage("Reconnecting to Twitch Chat.", DateTime.UtcNow,
@@ -123,7 +114,7 @@ public class TwitchChatService : ITwitchChatService
 
     public async Task JoinBotToChannel(BotChannel channel)
     {
-        if (_channels.ContainsKey(channel.ChannelId))
+        if (_channels.ContainsKey(channel.TwitchUserId))
         {
             return;
         }
@@ -131,15 +122,24 @@ public class TwitchChatService : ITwitchChatService
         if (oauthToken is null)
         {
             await _logClient.LogMessage(
-                new LogMessage($"No valid OAuth token found. Cannot join channel {channel.TwitchChannelName}.", 
+                new LogMessage($"No valid OAuth token found. Cannot join channel {channel.TwitchUserId}.", 
                 DateTime.UtcNow,
                 SeverityLevel.Error));
             return;
         }
-        var twitchChannel = new TwitchChannel(channel, oauthToken!, "wss://irc-ws.chat.twitch.tv:443",  _cancellationToken!.Value);
-        await twitchChannel.Authenticate();
+        var twitchChannel = new TwitchChannel(channel, TwitchWebSocketUrl, oauthToken, _cancellationToken!.Value);
+        twitchChannel.Connect();
         _authTokenUpdateHandler.Subscribe(twitchChannel);
-        _channels.Add(channel.ChannelId, twitchChannel);
+        _channels.Add(channel.TwitchUserId, twitchChannel);
+    }
+
+    public async Task LeaveChannel(long twitchUserId)
+    {
+        if (_channels.TryGetValue(twitchUserId, out var channel))
+        {
+            await channel.LeaveChannel();
+            _channels.Remove(twitchUserId);
+        }
     }
 
     public async Task JoinExistingChannels()
@@ -151,7 +151,6 @@ public class TwitchChatService : ITwitchChatService
                 DateTime.UtcNow, SeverityLevel.Error));
             return;
         }
-        _authTokenUpdateHandler.UpdateToken(token.AccessToken);
         // for now - this is not performant AT ALL when dealing with large datasets.
         using var scope = _serviceProvider.CreateScope();
         var dbCtx = scope.ServiceProvider.GetRequiredService<HamdlebotContext>();
@@ -162,23 +161,11 @@ public class TwitchChatService : ITwitchChatService
         }
     }
 
-    private async Task OnConnected(string accessToken)
+    public void SetCancellationToken(CancellationToken token)
     {
-        await _logClient.LogMessage(new LogMessage("Connecting to Twitch Chat.", DateTime.UtcNow, SeverityLevel.Info));
-        await _logClient.LogMessage(new LogMessage("Connection to Twitch Chat Successful.", DateTime.UtcNow,
-            SeverityLevel.Info));
-        await _logClient.SendBotStatus(BotStatusType.Online);
-        var capReq = $"CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands";
-        var pass = $"PASS oauth:{accessToken}";
-        var nick = "NICK hamdlebot";
-        await _webSocketHandler!.SendMessage(pass);
-        await _webSocketHandler.SendMessage(nick);
-        await _webSocketHandler.SendMessage(capReq);
-        await Task.Delay(3000);
-        await _webSocketHandler.JoinChannel();
-        await _webSocketHandler.SendMessageToChat("hamdlebot has arrived Kappa");
+        _cancellationToken = token;
     }
-
+    
     private async Task<ClientCredentialsTokenResponse?> Authenticate()
     {
         ClientCredentialsTokenResponse tokenResponse;
@@ -209,7 +196,7 @@ public class TwitchChatService : ITwitchChatService
         await _cache.AddItem(CacheKeyType.TwitchOauthToken, tokenResponse.AccessToken,
             TimeSpan.FromSeconds(tokenResponse.ExpiresIn));
         await _cache.AddItem(CacheKeyType.TwitchRefreshToken, tokenResponse.RefreshToken, TimeSpan.FromDays(30));
-
+        _authTokenUpdateHandler.UpdateToken(tokenResponse.AccessToken);
         return tokenResponse;
     }
 
@@ -227,21 +214,8 @@ public class TwitchChatService : ITwitchChatService
         await _webSocketHandler!.SendMessageToChat(message);
     }
 
-    private async Task InsertValidCommands()
-    {
-        foreach (var command in _validCommands)
-        {
-            await _cache.AddToSet(CacheKeyType.BotCommands, command);
-        }
-    }
-
     private async Task ProcessCommand(TwitchMessage message)
     {
-        if (!message.IsValidCommand(_validCommands))
-        {
-            await _webSocketHandler!.SendMessageToChat("Invalid command! SirSad");
-        }
-
         switch (message.Message)
         {
             case "!#commands":

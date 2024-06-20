@@ -4,7 +4,6 @@ using Hamdlebot.Core;
 using HamdleBot.Services.OBS;
 using Hamdlebot.Web.Security.Attributes;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace Hamdlebot.Web.Controllers
@@ -15,14 +14,12 @@ namespace Hamdlebot.Web.Controllers
     {
         private readonly ICacheService _cacheService;
         private readonly IObsService _obsService;
-        private readonly AppConfigSettings _appConfigSettings;
         private readonly RedisChannel _obsSettingsChannel = new (RedisChannelType.ObsSettingsChanged, RedisChannel.PatternMode.Auto);
 
-        public ObsSettingsController(ICacheService cacheService, IOptions<AppConfigSettings> appConfigSettings, IObsService obsService)
+        public ObsSettingsController(ICacheService cacheService, IObsService obsService)
         {
             _cacheService = cacheService;
             _obsService = obsService;
-            _appConfigSettings = appConfigSettings.Value;
         }
         
         [HttpPut("update")]

@@ -2,6 +2,7 @@ using Hamdle.Cache;
 using Hamdle.Cache.Channels;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
+using Hamdlebot.Core.Models;
 using Hamdlebot.Core.SignalR.Clients.Hamdle;
 using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Data.Contexts.Hamdlebot;
@@ -91,6 +92,15 @@ builder.Services.AddAuthentication().AddJwtBearer(opt =>
         ValidAudience = settings?.TwitchConnectionInfo?.ClientId,
         ValidateAudience = true,
     };
+});
+
+builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddTransient<IAuthenticatedTwitchUser, AuthenticatedTwitchUser>(provider =>
+{
+    var user =
+        provider.GetService<IHttpContextAccessor>()!.HttpContext!.User;
+    return new AuthenticatedTwitchUser(user);
 });
 
 builder.Services.AddAuthorization();

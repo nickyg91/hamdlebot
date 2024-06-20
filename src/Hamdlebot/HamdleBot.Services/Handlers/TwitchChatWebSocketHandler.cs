@@ -14,4 +14,9 @@ public class TwitchChatWebSocketHandler(string url, CancellationToken cancellati
         var ircMessage = $"PRIVMSG #{channelName} :{message}";
         await SendMessage(ircMessage);
     }
+
+    public async Task SendPartMessage()
+    {
+        await SendMessage("PART");
+    }
 }

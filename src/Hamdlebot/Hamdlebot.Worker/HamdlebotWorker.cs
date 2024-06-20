@@ -69,16 +69,17 @@ public class HamdlebotWorker : BackgroundService
         await _logClient.SendBotStatus(BotStatusType.Online);
 
         await _wordService.InsertWords();
-        try
-        {
-            await _obsService.CreateWebSocket(cancellationToken);
-        }
-        catch (Exception e)
-        {
-            await _logClient.LogMessage(new LogMessage($"Connection to OBS failed: {e.Message}", DateTime.UtcNow, SeverityLevel.Error));
-        }
+        // try
+        // {
+        //     await _obsService.CreateWebSocket(cancellationToken);
+        // }
+        // catch (Exception e)
+        // {
+        //     await _logClient.LogMessage(new LogMessage($"Connection to OBS failed: {e.Message}", DateTime.UtcNow, SeverityLevel.Error));
+        // }
         // multitenant test
-        //await _twitchChatService.JoinExistingChannels();
+        _twitchChatService.SetCancellationToken(cancellationToken);
+        await _twitchChatService.JoinExistingChannels();
         //await _twitchChatService.CreateWebSocket(cancellationToken);
         // change where this is done.
         //await _twitchEventSubService.StartSubscriptions("hamhamreborn", cancellationToken);

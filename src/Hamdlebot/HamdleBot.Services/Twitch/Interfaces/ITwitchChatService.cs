@@ -5,5 +5,7 @@ namespace HamdleBot.Services.Twitch.Interfaces;
 public interface ITwitchChatService : IWebSocketEnabledService
 {
     Task JoinBotToChannel(BotChannel channel);
+    Task LeaveChannel(long twitchUserId);
     Task JoinExistingChannels();
+    void SetCancellationToken(CancellationToken token);
 }

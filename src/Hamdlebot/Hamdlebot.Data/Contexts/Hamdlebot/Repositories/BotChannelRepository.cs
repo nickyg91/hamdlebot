@@ -13,9 +13,9 @@ public class BotChannelRepository : IBotChannelRepository
         _context = context;
     }
     
-    public async Task<BotChannel?> GetBotChannelAsync(int channelId)
+    public async Task<BotChannel?> GetBotChannelAsync(int twitchUserId)
     {
-        return await _context.BotChannels.FirstOrDefaultAsync(x => x.ChannelId == channelId);
+        return await _context.BotChannels.FirstOrDefaultAsync(x => x.TwitchUserId == twitchUserId);
     }
 
     public async Task<BotChannel?> DeleteBotChannelAsync(int id)
