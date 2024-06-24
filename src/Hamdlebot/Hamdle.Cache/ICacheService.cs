@@ -16,4 +16,6 @@ public interface ICacheService
     Task<bool> KeyExists(string key);
     Task AddItem(string key, string item, TimeSpan? expiry = null);
     Task<string?> GetItem(string key);
+    Task<T?> GetObject<T>(string key);
+    Task SetObject<T>(string key, T item, TimeSpan? expiry = null);
 }

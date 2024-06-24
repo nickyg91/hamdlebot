@@ -87,4 +87,16 @@ public class CacheService : ICacheService
     {
         return await Database.StringGetAsync(key);
     }
+
+    public async Task<T?> GetObject<T>(string key)
+    {
+        var result = await Database.StringGetAsync(key);
+        return result.IsNullOrEmpty ? default : JsonSerializer.Deserialize<T>(result!);
+    }
+
+    public async Task SetObject<T>(string key, T item, TimeSpan? expiry = null)
+    {
+        var json = JsonSerializer.Serialize(item);
+        await Database.StringSetAsync(key, json, expiry);
+    }
 }

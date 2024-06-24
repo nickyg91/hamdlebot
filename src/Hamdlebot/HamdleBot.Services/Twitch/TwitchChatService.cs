@@ -127,7 +127,8 @@ public class TwitchChatService : ITwitchChatService
                 SeverityLevel.Error));
             return;
         }
-        var twitchChannel = new TwitchChannel(channel, TwitchWebSocketUrl, oauthToken, _cancellationToken!.Value);
+        var twitchChannel = 
+            new TwitchChannel(channel, TwitchWebSocketUrl, oauthToken, _cache, _cancellationToken!.Value);
         twitchChannel.Connect();
         _authTokenUpdateHandler.Subscribe(twitchChannel);
         _channels.Add(channel.TwitchUserId, twitchChannel);

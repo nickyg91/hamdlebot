@@ -25,6 +25,11 @@ public class BotChannelEntityConfiguration : BaseEntityConfiguration<BotChannel>
             .IsRequired();
         
         builder
+            .Property(x => x.AllowAccessToObs)
+            .HasColumnName("allow_access_to_obs")
+            .IsRequired();
+        
+        builder
             .HasIndex(x => x.TwitchUserId)
             .IsUnique()
             .HasAnnotation("idx_twitch_user_id_unique", "true");

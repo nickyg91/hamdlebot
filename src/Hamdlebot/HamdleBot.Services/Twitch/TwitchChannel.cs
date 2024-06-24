@@ -1,8 +1,10 @@
 using System.Net.WebSockets;
+using Hamdle.Cache;
+using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
 using Hamdlebot.Data.Contexts.Hamdlebot.Entities;
-using HamdleBot.Services.Hamdle;
 using HamdleBot.Services.Handlers;
+using HamdleBot.Services.OBS;
 
 namespace HamdleBot.Services.Twitch;
 
@@ -10,8 +12,11 @@ public class TwitchChannel : IObserver<string>
 {
     private readonly BotChannel _botChannel;
     private readonly TwitchChatWebSocketHandler _webSocketHandler;
+    private readonly ObsWebSocketHandler _obsWebSocketHandler;
     private string _botAccessToken;
-    private HamdleContext? _hamdleContext;
+    private IObsService? _obsService;
+    private readonly ICacheService _cacheService;
+    //private HamdleContext? _hamdleContext;
 
     private readonly List<string> _baseChannelCommands =
     [
@@ -24,9 +29,11 @@ public class TwitchChannel : IObserver<string>
         BotChannel channel,
         string url,
         string botAccessToken,
+        ICacheService cacheService,
         CancellationToken cancellationToken)
     {
         _botAccessToken = botAccessToken;
+        _cacheService = cacheService;
         _botChannel = channel;
         _webSocketHandler =
             new TwitchChatWebSocketHandler
@@ -37,21 +44,6 @@ public class TwitchChannel : IObserver<string>
                 3
             );
         SetupEvents();
-    }
-
-    private void SetupEvents()
-    {
-        _webSocketHandler.MessageReceived += async message => { await OnMessageReceived(message); };
-        _webSocketHandler.Connected += async () =>
-        {
-            await Authenticate();
-            await _webSocketHandler.SendMessageToChat("Never fear, hamdlebot is here!");
-        };
-    }
-
-    private async Task Authenticate()
-    {
-        await AuthenticateInternal();
     }
 
     public async Task LeaveChannel()
@@ -69,6 +61,49 @@ public class TwitchChannel : IObserver<string>
             _ = Task.Run(async () => await _webSocketHandler.Connect());
         }
     }
+    
+    public void OnCompleted()
+    {
+        //throw new NotImplementedException();
+    }
+
+    public void OnError(Exception error)
+    {
+        //throw new NotImplementedException();
+    }
+
+    public void OnNext(string botAccessToken)
+    {
+        _ = Task.Run(async () => await Reauthenticate(botAccessToken));
+    }
+
+    public async Task ConnectToObs()
+    {
+        if (_botChannel.AllowAccessToObs)
+        {
+            var obsDetails = await _cacheService.GetObject<ObsSettings>($"{CacheKeyType.UserObsSettings}:{_botChannel.TwitchUserId}");
+            if (obsDetails != null)
+            {
+                
+            }
+        }
+    }
+    
+    private void SetupEvents()
+    {
+        _webSocketHandler.MessageReceived += async message => { await OnMessageReceived(message); };
+        _webSocketHandler.Connected += async () =>
+        {
+            await Authenticate();
+            await _webSocketHandler.SendMessageToChat("Never fear, hamdlebot is here!");
+        };
+    }
+
+    private async Task Authenticate()
+    {
+        await AuthenticateInternal();
+    }
+
 
     private async Task Reauthenticate(string botAccessToken)
     {
@@ -132,20 +167,5 @@ public class TwitchChannel : IObserver<string>
             }
             await _webSocketHandler!.SendMessageToChat("Invalid command! SirSad");
         }
-    }
-
-    public void OnCompleted()
-    {
-        //throw new NotImplementedException();
-    }
-
-    public void OnError(Exception error)
-    {
-        //throw new NotImplementedException();
-    }
-
-    public void OnNext(string botAccessToken)
-    {
-        _ = Task.Run(async () => await Reauthenticate(botAccessToken));
     }
 }
