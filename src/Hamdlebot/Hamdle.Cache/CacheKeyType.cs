@@ -8,4 +8,5 @@ public static class CacheKeyType
     public static string BotCommands => "commands";
     public static string IsStreamOnline => "isStreamOnline";
     public static string UserObsSettings => "userObsSettings";
+    public static string HamdleWords => "words";
 }

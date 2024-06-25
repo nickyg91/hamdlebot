@@ -40,7 +40,6 @@ public class ObsWebSocketHandler : WebSocketHandlerBase
         await SendMessage(message);
     }
     
-    
     private async Task ProcessMessage(string message)
     {
         if (string.IsNullOrEmpty(message))

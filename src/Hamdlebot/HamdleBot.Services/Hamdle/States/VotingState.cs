@@ -5,7 +5,7 @@ using Hamdlebot.Core.SignalR.Clients.Hamdle;
 
 namespace HamdleBot.Services.Hamdle.States;
 
-public class VotingState : BaseState<HamdleContext, IHamdleHubClient>
+public class VotingState : BaseState<HamdleContext>
 {
     private readonly HashSet<string> _userVotes;
     private readonly Dictionary<int, int> _votes;
@@ -17,12 +17,15 @@ public class VotingState : BaseState<HamdleContext, IHamdleHubClient>
     {
         AutoReset = false
     };
+
+    public event EventHandler<int>? StartBetweenRoundTimer;
+    public event EventHandler<int>? StartVoteTimer;
+    public event EventHandler<string>? SendGuess;
+    public event EventHandler? ResetState; 
     
     public VotingState(
         HashSet<string> roundGuesses,
-        HamdleContext context, 
-        ICacheService cache, 
-        IHamdleHubClient hamdleHubClient) : base(context, cache, hamdleHubClient)
+        HamdleContext context) : base(context)
     {
         _userVotes = new HashSet<string>();
         _votes = new Dictionary<int, int>();
@@ -30,12 +33,13 @@ public class VotingState : BaseState<HamdleContext, IHamdleHubClient>
         _roundGuesses = roundGuesses;
     }
 
-    public override async Task Start()
+    public override Task Start()
     {
         var words = string.Join("\r\n", _roundGuesses.Select((x, idx) => $"{idx + 1}: {x}"));
         Context.Send($"Please vote for one the following words:\r\n {words.ToLower()}");
-        await HubClient!.StartVoteTimer(VoteTimerDuration);
+        StartVoteTimer?.Invoke(this, VoteTimerDuration);
         _voteTimer!.Start();
+        return Task.CompletedTask;
     }
     
     public void SubmitVoteForGuess(string username, int submission)
@@ -83,13 +87,13 @@ public class VotingState : BaseState<HamdleContext, IHamdleHubClient>
         }
         
         var guess = _roundGuesses.ToList().ElementAt(key - 1);
-        await HubClient!.SendGuess(guess);
+        SendGuess?.Invoke(this, guess);
         if (guess == Context.CurrentWord)
         {
             Context.Send($"We have a winner! The word was {Context.CurrentWord}.");
             Context.Send($"This concludes this instance of hamdle. To initiate another, type !#hamdle!");
             await Task.Delay(BetweenRoundTimerDuration);
-            await HubClient.ResetState();
+            ResetState?.Invoke(this, EventArgs.Empty);
             return;
         }
 
@@ -102,7 +106,7 @@ public class VotingState : BaseState<HamdleContext, IHamdleHubClient>
         else
         {
             Context.Send("10 seconds until next round!");
-            await HubClient.StartBetweenRoundTimer(BetweenRoundTimerDuration);
+            StartBetweenRoundTimer?.Invoke(this, BetweenRoundTimerDuration);
             await Task.Delay(BetweenRoundTimerDuration);
             await Context.StartGuesses();
         }

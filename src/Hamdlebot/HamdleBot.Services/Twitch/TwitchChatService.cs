@@ -155,10 +155,26 @@ public class TwitchChatService : ITwitchChatService
         // for now - this is not performant AT ALL when dealing with large datasets.
         using var scope = _serviceProvider.CreateScope();
         var dbCtx = scope.ServiceProvider.GetRequiredService<HamdlebotContext>();
-        var channels = await dbCtx.BotChannels.ToListAsync();
+        var channels = await dbCtx.BotChannels.AsNoTracking().ToListAsync();
         foreach (var channel in channels)
         {
             await JoinBotToChannel(channel);
+        }
+    }
+
+    public async Task ConnectToObs(long twitchUserId)
+    {
+        if (_channels.TryGetValue(twitchUserId, out var channel))
+        {
+            await channel.ConnectToObs();
+        }
+    }
+
+    public async Task DisconnectFromObs(long twitchUserId)
+    {
+        if (_channels.TryGetValue(twitchUserId, out var channel))
+        {
+            await channel.DisconnectFromObs();
         }
     }
 
@@ -220,7 +236,7 @@ public class TwitchChatService : ITwitchChatService
         switch (message.Message)
         {
             case "!#commands":
-                await _webSocketHandler!.SendMessageToChat("Commands: !#<command> commands, random, hamdle");
+                await _webSocketHandler!.SendMessageToChat("Commands: !#<command> commands, random, hamdle, guess");
                 break;
             case "!#random":
                 var word = await _wordService.GetRandomWord();

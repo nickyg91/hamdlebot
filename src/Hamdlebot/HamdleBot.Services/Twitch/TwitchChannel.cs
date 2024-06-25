@@ -3,6 +3,7 @@ using Hamdle.Cache;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
 using Hamdlebot.Data.Contexts.Hamdlebot.Entities;
+using HamdleBot.Services.Hamdle;
 using HamdleBot.Services.Handlers;
 using HamdleBot.Services.OBS;
 
@@ -16,13 +17,15 @@ public class TwitchChannel : IObserver<string>
     private string _botAccessToken;
     private readonly ICacheService _cacheService;
     private readonly CancellationToken _cancellationToken;
-    //private HamdleContext? _hamdleContext;
+    private HamdleContext? _hamdleContext;
+    private HashSet<string> _hamdleWords = new();
 
     private readonly List<string> _baseChannelCommands =
     [
         "!#commands",
         "!#random",
-        "!#hamdle"
+        "!#hamdle",
+        "!#guess"
     ];
     
     public TwitchChannel(
@@ -83,6 +86,11 @@ public class TwitchChannel : IObserver<string>
     {
         if (_botChannel.AllowAccessToObs)
         {
+            var words = await _cacheService.GetItemsInSet(CacheKeyType.HamdleWords);
+            if (words.Count > 0)
+            {
+                _hamdleWords = words.ToHashSet();
+            }
             var obsDetails = await _cacheService.GetObject<ObsSettings>($"{CacheKeyType.UserObsSettings}:{_botChannel.TwitchUserId}");
             if (obsDetails != null && _obsWebSocketHandler == null)
             {
@@ -94,6 +102,14 @@ public class TwitchChannel : IObserver<string>
             {
                 await _obsWebSocketHandler.Connect();
             }
+        }
+    }
+
+    public async Task DisconnectFromObs()
+    {
+        if (_obsWebSocketHandler != null)
+        {
+            await _obsWebSocketHandler.Disconnect();
         }
     }
     
@@ -153,9 +169,16 @@ public class TwitchChannel : IObserver<string>
                         await _webSocketHandler.SendMessageToChat("Commands: !#commands, !#random, !#hamdle");
                         break;
                     case "!#hamdle":
-                        if (_botChannel.IsHamdleEnabled)
+                        if (_botChannel.IsHamdleEnabled && _obsWebSocketHandler != null)
                         {
-                            // start a hamdle context
+                            var currentWord = _hamdleWords.ElementAt(new Random().Next(0, _hamdleWords.Count));
+                            _hamdleContext = new HamdleContext(_hamdleWords, currentWord!, _botChannel.TwitchUserId);
+                            await _obsWebSocketHandler!.SetHamdleSceneState(true);
+                            await _hamdleContext.StartGuesses();
+                            _hamdleContext.SendMessageToChat += async (sender, hamdleMessage) =>
+                            {
+                                await _webSocketHandler.SendMessageToChat(hamdleMessage);
+                            };
                         }
                         else
                         {
@@ -163,7 +186,12 @@ public class TwitchChannel : IObserver<string>
                         }
                         break;
                 }
-
+                if ((ircMessage.Message?.StartsWith("!#guess") ?? false) 
+                    && _hamdleContext is { IsRoundInProgress: true, IsInVotingState: false })
+                {
+                    var guess = ircMessage.Message.Split(" ")[1];
+                    _hamdleContext.SubmitGuess(ircMessage.User!, guess);
+                }
                 return;
             }
             var command = _botChannel.BotChannelCommands.FirstOrDefault(x => x.Command == ircMessage.Message);
@@ -174,5 +202,15 @@ public class TwitchChannel : IObserver<string>
             }
             await _webSocketHandler!.SendMessageToChat("Invalid command! SirSad");
         }
+    }
+    
+    private void StartHamdle(string currentWord)
+    {
+        if (_hamdleContext is not null)
+        {
+            return;
+        }
+
+        _hamdleContext = new HamdleContext(_hamdleWords, currentWord, null);
     }
 }

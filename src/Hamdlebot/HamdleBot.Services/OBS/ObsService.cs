@@ -48,43 +48,43 @@ public class ObsService : IObsService, IProcessCacheMessage, IDisposable
 
     public async Task CreateWebSocket(CancellationToken cancellationToken)
     {
-        _cancellationToken ??= cancellationToken;
-        _socket = new ObsWebSocketHandler(_obsSettings.SocketUrl!, _cancellationToken.Value, 2);
-        
-        _socket.Connected += async () =>
-        {
-            await _logClient.LogMessage(new LogMessage("Connected to OBS websocket", DateTime.UtcNow, SeverityLevel.Info));
-        };
-        _socket.ReconnectStarted += async () =>
-        {
-            await _logClient.LogMessage(new LogMessage("Reconnecting to OBS websocket", DateTime.UtcNow, SeverityLevel.Info));
-        };
-        _socket.MessageReceived += async message =>
-        {
-            if (string.IsNullOrEmpty(message))
-            {
-                return;
-            }
-            await _logClient.LogMessage(new LogMessage($"OBS message received: {message}", DateTime.UtcNow, SeverityLevel.Info));
-            var obj = JsonNode.Parse(message)?.AsObject();
-            var opCode = obj?["op"]?.ToString();
-            if (opCode is "0" or "3")
-            {
-                await SendIdentifyRequest();
-            }
-
-            if (obj?["d"]?["requestType"]?.ToString().ToLower() != "getsceneitemlist")
-            {
-                return;
-            }
-                
-            var response = ProcessMessage<GetSceneItemListResponse>(message);
-            if (response != null)
-            {
-                await GetHamdleScene(response.Response.ResponseData);
-            }
-        };
-        await _socket.Connect();
+        // _cancellationToken ??= cancellationToken;
+        // _socket = new ObsWebSocketHandler(_obsSettings.SocketUrl!, _cancellationToken.Value, 2);
+        //
+        // _socket.Connected += async () =>
+        // {
+        //     await _logClient.LogMessage(new LogMessage("Connected to OBS websocket", DateTime.UtcNow, SeverityLevel.Info));
+        // };
+        // _socket.ReconnectStarted += async () =>
+        // {
+        //     await _logClient.LogMessage(new LogMessage("Reconnecting to OBS websocket", DateTime.UtcNow, SeverityLevel.Info));
+        // };
+        // _socket.MessageReceived += async message =>
+        // {
+        //     if (string.IsNullOrEmpty(message))
+        //     {
+        //         return;
+        //     }
+        //     await _logClient.LogMessage(new LogMessage($"OBS message received: {message}", DateTime.UtcNow, SeverityLevel.Info));
+        //     var obj = JsonNode.Parse(message)?.AsObject();
+        //     var opCode = obj?["op"]?.ToString();
+        //     if (opCode is "0" or "3")
+        //     {
+        //         await SendIdentifyRequest();
+        //     }
+        //
+        //     if (obj?["d"]?["requestType"]?.ToString().ToLower() != "getsceneitemlist")
+        //     {
+        //         return;
+        //     }
+        //         
+        //     var response = ProcessMessage<GetSceneItemListResponse>(message);
+        //     if (response != null)
+        //     {
+        //         await GetHamdleScene(response.Response.ResponseData);
+        //     }
+        // };
+        // await _socket.Connect();
     }
 
     public async Task SendRequest<T>(ObsRequest<T> message) where T : class

@@ -1,15 +1,10 @@
 using System.Timers;
-using Hamdle.Cache;
-using Hamdlebot.Core.Models.Logging;
-using Hamdlebot.Core.SignalR.Clients;
 using Hamdlebot.Core.SignalR.Clients.Hamdle;
-using Hamdlebot.Core.SignalR.Clients.Logging;
 
 namespace HamdleBot.Services.Hamdle.States;
 
-public class GuessState : BaseState<HamdleContext, IHamdleHubClient>
+public class GuessState : BaseState<HamdleContext>
 {
-    private readonly IBotLogClient _logClient;
     private const int GuessTimer = 30000;
     private const int TimeBetweenRounds = 10000;
     private const int MaxNoGuesses = 3;
@@ -20,14 +15,16 @@ public class GuessState : BaseState<HamdleContext, IHamdleHubClient>
         AutoReset = false,
     };
     public event EventHandler<HashSet<string>>? StartVoting;
+    public event EventHandler<string>? SendGuess;
+    public event EventHandler? Reset;
+    public event EventHandler<int>? StartGuessTimer; 
+    public event EventHandler<string>? SendSelectedWord;
+    public event EventHandler? StopAndReset; 
+    
     public GuessState(
-        HamdleContext context, 
-        ICacheService cache, 
-        IHamdleHubClient hamdleHubClient, 
-        IBotLogClient logClient) 
-        : base(context, cache, hamdleHubClient)
+        HamdleContext context) 
+        : base(context)
     {
-        _logClient = logClient;
         _guessTimer!.Elapsed += OnGuessTimerExpired!;
         _guesses = new HashSet<string>();
         _usersWhoGuessed = new HashSet<string>();
@@ -37,44 +34,37 @@ public class GuessState : BaseState<HamdleContext, IHamdleHubClient>
     {
         if (Context.CurrentRound == 1)
         {
-            await HubClient!.ResetState();
-            var word = await Cache.GetRandomItemFromSet("words");
-            if (string.IsNullOrEmpty(word))
+            Reset?.Invoke(this, EventArgs.Empty);
+            if (string.IsNullOrEmpty(Context.CurrentWord))
             {
                 throw new NullReferenceException("No word to set.");
             }
 
-            Context.CurrentWord = word;
-            await HubClient!.SendSelectedWord(Context.CurrentWord);
-            await _logClient.LogMessage(new LogMessage($"First round: {word}.", DateTime.UtcNow, SeverityLevel.Info));
+            SendSelectedWord?.Invoke(this, Context.CurrentWord);
         }
         Context.Send("Guess a 5 letter word!");
-        await _logClient.LogMessage(new LogMessage($"Starting guess timer for round {Context.CurrentRound}.", DateTime.UtcNow, SeverityLevel.Info));
-        await HubClient!.StartGuessTimer(GuessTimer);
+        StartGuessTimer?.Invoke(this, GuessTimer);
         _guessTimer?.Start();
     }
     
-    public async Task SubmitGuess(string username, string guess)
+    public void SubmitGuess(string username, string guess)
     {
         if (_usersWhoGuessed.Contains(username))
         {
-            
-            await _logClient.LogMessage(new LogMessage($"{username} has already guessed.", DateTime.UtcNow, SeverityLevel.Info));
             return;
         }
-        
-        await _logClient.LogMessage(new LogMessage($"{username} guessed {guess}.", DateTime.UtcNow, SeverityLevel.Info));
-        var isValidGuess = await CheckGuess(guess.ToLower());
-        if (isValidGuess)
+        var isValidGuess = CheckGuess(guess.ToLower());
+        if (!isValidGuess)
         {
-            _guesses.Add(guess.ToLower());
-            _usersWhoGuessed.Add(username);
+            return;
         }
+        _guesses.Add(guess.ToLower());
+        _usersWhoGuessed.Add(username);
     }
     
-    private async Task<bool> CheckGuess(string guess)
+    private bool CheckGuess(string guess)
     {
-        var isValidGuess = await Cache.ContainsMember("words", guess) && guess.Length == 5;
+        var isValidGuess = Context.Words.Contains(guess) && guess.Length == 5;
         return isValidGuess && !Context.Guesses.Contains(guess);
     }
 
@@ -83,28 +73,23 @@ public class GuessState : BaseState<HamdleContext, IHamdleHubClient>
         Context.Send($"We have a winner! The word was {Context.CurrentWord}.");
         Context.Send($"This concludes this instance of hamdle. To initiate another, type !#hamdle!");
         await Task.Delay(TimeBetweenRounds);
-        await _logClient.LogMessage(new LogMessage($"Guess is correct. StopAndReset called.", DateTime.UtcNow, SeverityLevel.Info));
-        await Context.StopAndReset();
+        Context.StopAndReset();
     }
     
     private async void OnGuessTimerExpired(object source, ElapsedEventArgs e)
     {
         Context.Send("The window for guesses is over!");
-        await _logClient.LogMessage(new LogMessage($"Guess timer expired.", DateTime.UtcNow, SeverityLevel.Info));
         if (_guesses.Count == 1)
         {
             var guess = _guesses.First();
-            await HubClient!.SendGuess(guess);
+            SendGuess?.Invoke(this, guess);
             if (guess == Context.CurrentWord)
             {
                 await CorrectWordGuessed();
                 return;
             }
-            
-            await _logClient.LogMessage(new LogMessage($"Only one guess.", DateTime.UtcNow, SeverityLevel.Info));
             Context.Send("Only one guess was submitted. Let's take that one.");
             Context.IncrementCurrentRound();
-            await _logClient.LogMessage(new LogMessage($"Current round: {Context.CurrentRound}", DateTime.UtcNow, SeverityLevel.Info));
             if (Context.CurrentRound > 5)
             {
                 
@@ -126,7 +111,7 @@ public class GuessState : BaseState<HamdleContext, IHamdleHubClient>
             {
                 _guessTimer!.Stop();
                 Context.Send("Nobody is playing SirSad. Stopping the game.");
-                await Context.StopAndReset();
+                Context.StopAndReset();
             }
             else
             {
