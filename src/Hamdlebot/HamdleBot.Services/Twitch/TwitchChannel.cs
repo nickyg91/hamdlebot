@@ -12,10 +12,10 @@ public class TwitchChannel : IObserver<string>
 {
     private readonly BotChannel _botChannel;
     private readonly TwitchChatWebSocketHandler _webSocketHandler;
-    private readonly ObsWebSocketHandler _obsWebSocketHandler;
+    private ObsWebSocketHandler? _obsWebSocketHandler;
     private string _botAccessToken;
-    private IObsService? _obsService;
     private readonly ICacheService _cacheService;
+    private readonly CancellationToken _cancellationToken;
     //private HamdleContext? _hamdleContext;
 
     private readonly List<string> _baseChannelCommands =
@@ -44,6 +44,8 @@ public class TwitchChannel : IObserver<string>
                 3
             );
         SetupEvents();
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationToken);
+        _cancellationToken = cts.Token;
     }
 
     public async Task LeaveChannel()
@@ -82,9 +84,15 @@ public class TwitchChannel : IObserver<string>
         if (_botChannel.AllowAccessToObs)
         {
             var obsDetails = await _cacheService.GetObject<ObsSettings>($"{CacheKeyType.UserObsSettings}:{_botChannel.TwitchUserId}");
-            if (obsDetails != null)
+            if (obsDetails != null && _obsWebSocketHandler == null)
             {
-                
+                _obsWebSocketHandler = new ObsWebSocketHandler(obsDetails!, _cancellationToken, 3);
+            }
+
+            if (_obsWebSocketHandler != null && _obsWebSocketHandler.State != WebSocketState.Open
+                                             && _obsWebSocketHandler.State != WebSocketState.Connecting)
+            {
+                await _obsWebSocketHandler.Connect();
             }
         }
     }
@@ -103,8 +111,7 @@ public class TwitchChannel : IObserver<string>
     {
         await AuthenticateInternal();
     }
-
-
+    
     private async Task Reauthenticate(string botAccessToken)
     {
         _botAccessToken = botAccessToken;

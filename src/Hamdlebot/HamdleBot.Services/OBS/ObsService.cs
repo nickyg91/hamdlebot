@@ -109,7 +109,7 @@ public class ObsService : IObsService, IProcessCacheMessage, IDisposable
             {
                 RpcVersion = 1,
             },
-            Op = OpCodeType.Identify
+            Op = OpCodeType.Identify,
         };
         await SendRequest(req);
     }
