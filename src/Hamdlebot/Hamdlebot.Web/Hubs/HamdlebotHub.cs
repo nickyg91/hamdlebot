@@ -5,33 +5,43 @@ namespace Hamdlebot.Web.Hubs;
 
 public class HamdlebotHub : Hub<IHamdleHubClient>
 {
-    public async Task SendSelectedWord(string word)
+    public override async Task OnConnectedAsync()
     {
-        await Clients.All.SendSelectedWord(word);
+        if (Context.GetHttpContext() != null && Context.GetHttpContext()!.Request.Query.ContainsKey("twitchUserId"))
+        {
+            var twitchUserId = Context.GetHttpContext()!.Request.Query["twitchUserId"]!;
+            await Groups.AddToGroupAsync(Context.ConnectionId, twitchUserId!);
+        }
+        await base.OnConnectedAsync();
     }
 
-    public async Task SendGuess(string word)
+    public async Task SendSelectedWord(string word, string twitchUserId)
     {
-        await Clients.All.SendGuess(word);
+        await Clients.Group(twitchUserId).ReceiveSelectedWord(word);
     }
 
-    public async Task ResetState()
+    public async Task SendGuess(string word, string twitchUserId)
     {
-        await Clients.All.ResetState();
+        await Clients.Group(twitchUserId).ReceiveGuess(word);
     }
 
-    public async Task StartGuessTimer(int milliseconds)
+    public async Task SendResetState(string twitchUserId)
     {
-        await Clients.All.StartGuessTimer(milliseconds);
+        await Clients.Group(twitchUserId).ReceiveResetState();
+    }
+
+    public async Task StartGuessTimer(int milliseconds, string twitchUserId)
+    {
+        await Clients.Group(twitchUserId).ReceiveStartGuessTimer(milliseconds);
     }
     
-    public async Task StartVoteTimer(int milliseconds)
+    public async Task StartVoteTimer(int milliseconds, string twitchUserId)
     {
-        await Clients.All.StartVoteTimer(milliseconds);
+        await Clients.Group(twitchUserId).ReceiveStartVoteTimer(milliseconds);
     }
 
-    public async Task StartBetweenRoundTimer(int milliseconds)
+    public async Task StartBetweenRoundTimer(int milliseconds, string twitchUserId)
     {
-        await Clients.All.StartBetweenRoundTimer(milliseconds);
+        await Clients.Group(twitchUserId).ReceiveStartBetweenRoundTimer(milliseconds);
     }
 }

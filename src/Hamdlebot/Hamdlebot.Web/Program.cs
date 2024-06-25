@@ -1,9 +1,7 @@
 using Hamdle.Cache;
-using Hamdle.Cache.Channels;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
 using Hamdlebot.Core.Models;
-using Hamdlebot.Core.SignalR.Clients.Hamdle;
 using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Data.Contexts.Hamdlebot;
 using Hamdlebot.Data.Contexts.Hamdlebot.Repositories;
@@ -16,6 +14,7 @@ using HamdleBot.Services.Twitch.Interfaces;
 using Hamdlebot.Web.Hubs;
 using Hamdlebot.Worker;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -73,7 +72,6 @@ builder.Services.AddKeyedSingleton("twitchApiHttpClient", twitchApiHttpClient);
 builder.Services.AddKeyedSingleton("logHub", botLogHubConnection);
 builder.Services.AddKeyedSingleton("hamdleHub", hamdleBotHubConnection);
 
-builder.Services.AddTransient<IHamdleHubClient, HamdleHubClient>();
 builder.Services.AddTransient<IBotLogClient, BotLogClient>();
 
 builder.Services.AddScoped<IBotChannelRepository, BotChannelRepository>();
@@ -95,7 +93,6 @@ builder.Services.AddAuthentication().AddJwtBearer(opt =>
 });
 
 builder.Services.AddHttpContextAccessor();
-
 builder.Services.AddTransient<IAuthenticatedTwitchUser, AuthenticatedTwitchUser>(provider =>
 {
     var user =
@@ -135,7 +132,7 @@ app.MapFallbackToFile("index.html");
 using (var scope = app.Services.CreateScope())
 {
     var ctx = scope.ServiceProvider.GetRequiredService<HamdlebotContext>();
-    ctx?.Database.Migrate();
+    ctx.Database.Migrate();
 }
 
 app.Run();

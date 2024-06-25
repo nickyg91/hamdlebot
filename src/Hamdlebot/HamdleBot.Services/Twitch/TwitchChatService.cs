@@ -8,6 +8,8 @@ using Hamdlebot.Data.Contexts.Hamdlebot.Entities;
 using Hamdlebot.Models;
 using HamdleBot.Services.Handlers;
 using HamdleBot.Services.Twitch.Interfaces;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
@@ -19,35 +21,29 @@ public class TwitchChatService : ITwitchChatService
     private const string TwitchWebSocketUrl = "wss://irc-ws.chat.twitch.tv:443";
     private readonly Dictionary<long, TwitchChannel> _channels = new();
     private readonly ICacheService _cache;
-    private readonly IWordService _wordService;
-    private readonly IHamdleService _hamdleService;
     private TwitchChatWebSocketHandler? _webSocketHandler;
     private readonly ITwitchIdentityApiService _identityApiService;
     private readonly IBotLogClient _logClient;
     private CancellationToken? _cancellationToken;
     private readonly RedisChannel _botTokenChannel;
-    private readonly RedisChannel _startHamdleSceneChannel;
     private readonly TwitchAuthTokenUpdateHandler _authTokenUpdateHandler;
     private readonly IServiceProvider _serviceProvider;
-    
+    private HubConnection _hamdleHub;
     public TwitchChatService(
-        IWordService wordService,
         ICacheService cache,
-        IHamdleService hamdleService,
         ITwitchIdentityApiService identityApiService,
         IBotLogClient logClient,
         TwitchAuthTokenUpdateHandler authTokenUpdateHandler,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider,
+        HubConnection hamdleHub)
     {
-        _wordService = wordService;
         _cache = cache;
-        _hamdleService = hamdleService;
         _identityApiService = identityApiService;
         _logClient = logClient;
         _authTokenUpdateHandler = authTokenUpdateHandler;
         _serviceProvider = serviceProvider;
         _botTokenChannel = new RedisChannel(RedisChannelType.BotTwitchToken, RedisChannel.PatternMode.Auto);
-        _startHamdleSceneChannel = new RedisChannel(RedisChannelType.StartHamdleScene, RedisChannel.PatternMode.Auto);
+        _hamdleHub = hamdleHub;
         SetupSubscriptions();
     }
 
@@ -83,22 +79,22 @@ public class TwitchChatService : ITwitchChatService
                 return;
             }
 
-            if (_hamdleService.IsHamdleVotingInProgress() && int.TryParse(ircMessage.Message, out var vote))
-            {
-                _hamdleService.SubmitVoteForGuess(ircMessage.DisplayName!, vote);
-            }
+            // if (_hamdleService.IsHamdleVotingInProgress() && int.TryParse(ircMessage.Message, out var vote))
+            // {
+            //     _hamdleService.SubmitVoteForGuess(ircMessage.DisplayName!, vote);
+            // }
 
             if (ircMessage.IsCommand)
             {
                 await ProcessCommand(ircMessage);
             }
 
-            if (!_hamdleService.IsHamdleVotingInProgress()
-                && _hamdleService.IsHamdleSessionInProgress()
-                && ircMessage.Message is not null)
-            {
-                await _hamdleService.SubmitGuess(ircMessage.User!, ircMessage.Message);
-            }
+            // if (!_hamdleService.IsHamdleVotingInProgress()
+            //     && _hamdleService.IsHamdleSessionInProgress()
+            //     && ircMessage.Message is not null)
+            // {
+            //     await _hamdleService.SubmitGuess(ircMessage.User!, ircMessage.Message);
+            // }
         };
 
         _webSocketHandler.ReconnectStarted += async () =>
@@ -108,8 +104,8 @@ public class TwitchChatService : ITwitchChatService
         };
 
         await _webSocketHandler.Connect();
-        _hamdleService.SendMessageToChat -= Handle_Hamdle_Message!;
-        _hamdleService.SendMessageToChat += Handle_Hamdle_Message!;
+        //_hamdleService.SendMessageToChat -= Handle_Hamdle_Message!;
+        //_hamdleService.SendMessageToChat += Handle_Hamdle_Message!;
     }
 
     public async Task JoinBotToChannel(BotChannel channel)
@@ -128,7 +124,7 @@ public class TwitchChatService : ITwitchChatService
             return;
         }
         var twitchChannel = 
-            new TwitchChannel(channel, TwitchWebSocketUrl, oauthToken, _cache, _cancellationToken!.Value);
+            new TwitchChannel(channel, TwitchWebSocketUrl, oauthToken, _cache, _hamdleHub, _cancellationToken!.Value);
         twitchChannel.Connect();
         _authTokenUpdateHandler.Subscribe(twitchChannel);
         _channels.Add(channel.TwitchUserId, twitchChannel);
@@ -239,18 +235,18 @@ public class TwitchChatService : ITwitchChatService
                 await _webSocketHandler!.SendMessageToChat("Commands: !#<command> commands, random, hamdle, guess");
                 break;
             case "!#random":
-                var word = await _wordService.GetRandomWord();
-                await _webSocketHandler!.SendMessageToChat(word ?? "nooooo!");
+                //var word = await _wordService.GetRandomWord();
+                //await _webSocketHandler!.SendMessageToChat(word ?? "nooooo!");
                 break;
             case "!#hamdle":
-                if (!_hamdleService.IsHamdleSessionInProgress())
-                {
-                    await _cache.Subscriber.PublishAsync(_startHamdleSceneChannel, "start");
-                }
-                else
-                {
-                    await _webSocketHandler!.SendMessageToChat("Hamdle is already in progress. Can't start another!");
-                }
+                // if (!_hamdleService.IsHamdleSessionInProgress())
+                // {
+                //     await _cache.Subscriber.PublishAsync(_startHamdleSceneChannel, "start");
+                // }
+                // else
+                // {
+                //     await _webSocketHandler!.SendMessageToChat("Hamdle is already in progress. Can't start another!");
+                // }
                 break;
         }
     }

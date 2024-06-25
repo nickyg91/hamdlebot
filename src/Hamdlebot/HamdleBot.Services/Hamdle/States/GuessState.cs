@@ -1,5 +1,5 @@
 using System.Timers;
-using Hamdlebot.Core.SignalR.Clients.Hamdle;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace HamdleBot.Services.Hamdle.States;
 
@@ -15,11 +15,7 @@ public class GuessState : BaseState<HamdleContext>
         AutoReset = false,
     };
     public event EventHandler<HashSet<string>>? StartVoting;
-    public event EventHandler<string>? SendGuess;
     public event EventHandler? Reset;
-    public event EventHandler<int>? StartGuessTimer; 
-    public event EventHandler<string>? SendSelectedWord;
-    public event EventHandler? StopAndReset; 
     
     public GuessState(
         HamdleContext context) 
@@ -39,11 +35,10 @@ public class GuessState : BaseState<HamdleContext>
             {
                 throw new NullReferenceException("No word to set.");
             }
-
-            SendSelectedWord?.Invoke(this, Context.CurrentWord);
+            await Context.HubConnection.InvokeAsync("SendSelectedWord", Context.CurrentWord, Context.TwitchUserId.ToString());
         }
         Context.Send("Guess a 5 letter word!");
-        StartGuessTimer?.Invoke(this, GuessTimer);
+        await Context.HubConnection.InvokeAsync("StartGuessTimer", GuessTimer, Context.TwitchUserId.ToString());
         _guessTimer?.Start();
     }
     
@@ -82,7 +77,7 @@ public class GuessState : BaseState<HamdleContext>
         if (_guesses.Count == 1)
         {
             var guess = _guesses.First();
-            SendGuess?.Invoke(this, guess);
+            await Context.HubConnection.InvokeAsync("SendGuess", guess, Context.TwitchUserId.ToString());
             if (guess == Context.CurrentWord)
             {
                 await CorrectWordGuessed();

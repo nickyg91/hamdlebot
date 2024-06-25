@@ -6,6 +6,8 @@ using Hamdlebot.Data.Contexts.Hamdlebot.Entities;
 using HamdleBot.Services.Hamdle;
 using HamdleBot.Services.Handlers;
 using HamdleBot.Services.OBS;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace HamdleBot.Services.Twitch;
 
@@ -16,6 +18,7 @@ public class TwitchChannel : IObserver<string>
     private ObsWebSocketHandler? _obsWebSocketHandler;
     private string _botAccessToken;
     private readonly ICacheService _cacheService;
+    private readonly HubConnection _hubConnection;
     private readonly CancellationToken _cancellationToken;
     private HamdleContext? _hamdleContext;
     private HashSet<string> _hamdleWords = new();
@@ -33,10 +36,12 @@ public class TwitchChannel : IObserver<string>
         string url,
         string botAccessToken,
         ICacheService cacheService,
+        HubConnection hubConnection,
         CancellationToken cancellationToken)
     {
         _botAccessToken = botAccessToken;
         _cacheService = cacheService;
+        _hubConnection = hubConnection;
         _botChannel = channel;
         _webSocketHandler =
             new TwitchChatWebSocketHandler
@@ -172,7 +177,7 @@ public class TwitchChannel : IObserver<string>
                         if (_botChannel.IsHamdleEnabled && _obsWebSocketHandler != null)
                         {
                             var currentWord = _hamdleWords.ElementAt(new Random().Next(0, _hamdleWords.Count));
-                            _hamdleContext = new HamdleContext(_hamdleWords, currentWord!, _botChannel.TwitchUserId);
+                            _hamdleContext = new HamdleContext(_hamdleWords, currentWord!, _botChannel.TwitchUserId, _hubConnection);
                             await _obsWebSocketHandler!.SetHamdleSceneState(true);
                             await _hamdleContext.StartGuesses();
                             _hamdleContext.SendMessageToChat += async (sender, hamdleMessage) =>
@@ -211,6 +216,10 @@ public class TwitchChannel : IObserver<string>
             return;
         }
 
-        _hamdleContext = new HamdleContext(_hamdleWords, currentWord, null);
+        _hamdleContext = new HamdleContext(_hamdleWords, currentWord, _botChannel.TwitchUserId, _hubConnection);
+        _hamdleContext.SendMessageToChat += async (sender, hamdleMessage) =>
+        {
+            await _webSocketHandler.SendMessageToChat(hamdleMessage);
+        };
     }
 }

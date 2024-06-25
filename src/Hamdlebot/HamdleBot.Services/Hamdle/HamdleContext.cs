@@ -1,6 +1,6 @@
 using Hamdlebot.Core.Exceptions;
-using Hamdlebot.Core.SignalR.Clients.Hamdle;
 using HamdleBot.Services.Hamdle.States;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace HamdleBot.Services.Hamdle;
 
@@ -9,27 +9,31 @@ public class HamdleContext
     private const int StopAndResetDelay = 5000;
     private const int WaitBeforeSceneSet = 1000;
     private readonly long _twitchUserId;
+    private readonly HubConnection _hubConnection;
     public HashSet<string> Words { get; init; }
     private BaseState<HamdleContext>? State { get; set; }
     public event EventHandler<string>? SendMessageToChat;
     public event EventHandler? Restarted;
-    
     public string CurrentWord { get; init; }
     public byte CurrentRound { get; private set; } = 1;
     public bool IsInVotingState => State?.GetType() == typeof(VotingState);
     public bool IsRoundInProgress => State?.GetType() == typeof(GuessState) || IsInVotingState;
     public HashSet<string> Guesses { get; private set; }
     public byte NoGuesses { get; private set; }
+    public HubConnection HubConnection => _hubConnection;
+    public long TwitchUserId => _twitchUserId;
     
     public HamdleContext(
         HashSet<string> words,
         string currentWord,
-        long twitchUserId)
+        long twitchUserId, 
+        HubConnection hubConnection)
     {
         Words = words;
         CurrentWord = currentWord;
         Guesses = new HashSet<string>();
         _twitchUserId = twitchUserId;
+        _hubConnection = hubConnection;
     }
     
     public void Send(string message)
@@ -42,7 +46,7 @@ public class HamdleContext
         Send($"Game over! Nobody has guessed the word. It was {CurrentWord}. Use !#hamdle to begin again.");
         StopAndReset();
         await Task.Delay(StopAndResetDelay);
-        //await _hamdleHubClient.ResetState();
+        await _hubConnection.SendAsync("SendResetState", _twitchUserId.ToString());
     }
     
     public async Task StartGuesses()

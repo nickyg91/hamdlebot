@@ -70,7 +70,7 @@ public partial class HamdleService : IHamdleService, IProcessCacheMessage, IDisp
         {
             return false;
         }
-        await _hamdleContext!.SubmitGuess(username, guess);
+        //await _hamdleContext!.SubmitGuess(username, guess);
         return true;
     }
 
@@ -89,14 +89,14 @@ public partial class HamdleService : IHamdleService, IProcessCacheMessage, IDisp
         
         if (isOnline)
         {
-            _hamdleContext = 
-                new HamdleContext(
-                    _cache, 
-                    _hamdleHubClient, 
-                    _hamdleScene!.SceneItemId,
-                    _logClient, 
-                    _obsSettings,
-                    _obsService);
+            // _hamdleContext = 
+            //     new HamdleContext(
+            //         _cache, 
+            //         _hamdleHubClient, 
+            //         _hamdleScene!.SceneItemId,
+            //         _logClient, 
+            //         _obsSettings,
+            //         _obsService);
             await _logClient.SendBotStatus(BotStatusType.HamdleInProgress);
             _hamdleContext.SendMessageToChat += SendMessageToChat;
             _hamdleContext.Restarted += Restart_Triggered!;

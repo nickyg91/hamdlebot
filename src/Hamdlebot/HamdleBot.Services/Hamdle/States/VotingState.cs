@@ -1,7 +1,5 @@
 using System.Timers;
-using Hamdle.Cache;
-using Hamdlebot.Core.SignalR.Clients;
-using Hamdlebot.Core.SignalR.Clients.Hamdle;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace HamdleBot.Services.Hamdle.States;
 
@@ -17,11 +15,6 @@ public class VotingState : BaseState<HamdleContext>
     {
         AutoReset = false
     };
-
-    public event EventHandler<int>? StartBetweenRoundTimer;
-    public event EventHandler<int>? StartVoteTimer;
-    public event EventHandler<string>? SendGuess;
-    public event EventHandler? ResetState; 
     
     public VotingState(
         HashSet<string> roundGuesses,
@@ -33,13 +26,12 @@ public class VotingState : BaseState<HamdleContext>
         _roundGuesses = roundGuesses;
     }
 
-    public override Task Start()
+    public override async Task Start()
     {
         var words = string.Join("\r\n", _roundGuesses.Select((x, idx) => $"{idx + 1}: {x}"));
         Context.Send($"Please vote for one the following words:\r\n {words.ToLower()}");
-        StartVoteTimer?.Invoke(this, VoteTimerDuration);
+        await Context.HubConnection.InvokeAsync("StartVoteTimer", VoteTimerDuration, Context.TwitchUserId.ToString());
         _voteTimer!.Start();
-        return Task.CompletedTask;
     }
     
     public void SubmitVoteForGuess(string username, int submission)
@@ -87,13 +79,13 @@ public class VotingState : BaseState<HamdleContext>
         }
         
         var guess = _roundGuesses.ToList().ElementAt(key - 1);
-        SendGuess?.Invoke(this, guess);
+        await Context.HubConnection.InvokeAsync("SendGuess", guess, Context.TwitchUserId.ToString());
         if (guess == Context.CurrentWord)
         {
             Context.Send($"We have a winner! The word was {Context.CurrentWord}.");
             Context.Send($"This concludes this instance of hamdle. To initiate another, type !#hamdle!");
             await Task.Delay(BetweenRoundTimerDuration);
-            ResetState?.Invoke(this, EventArgs.Empty);
+            await Context.HubConnection.SendAsync("SendResetState", Context.TwitchUserId.ToString());
             return;
         }
 
@@ -106,7 +98,7 @@ public class VotingState : BaseState<HamdleContext>
         else
         {
             Context.Send("10 seconds until next round!");
-            StartBetweenRoundTimer?.Invoke(this, BetweenRoundTimerDuration);
+            await Context.HubConnection.InvokeAsync("StartBetweenRoundTimer", BetweenRoundTimerDuration, Context.TwitchUserId.ToString());
             await Task.Delay(BetweenRoundTimerDuration);
             await Context.StartGuesses();
         }
