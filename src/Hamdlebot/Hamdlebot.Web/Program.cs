@@ -64,7 +64,7 @@ builder.Services.AddSingleton<ITwitchChatService, TwitchChatService>();
 builder.Services.AddSingleton<ITwitchEventSubService, TwitchEventSubService>();
 builder.Services.AddSingleton<ITwitchIdentityApiService, TwitchIdentityApiService>();
 builder.Services.AddSingleton<IObsService, ObsService>();
-builder.Services.AddSingleton<IHamdleService, HamdleService>();
+//builder.Services.AddSingleton<IHamdleService, HamdleService>();
 builder.Services.AddSingleton<ICacheService, CacheService>();
 builder.Services.AddSingleton<IWordService, WordService>();
 builder.Services.AddSingleton<TwitchAuthTokenUpdateHandler>();

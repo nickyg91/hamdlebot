@@ -4,30 +4,32 @@ import { useSignalR } from '@/composables/signalr.composable';
 
 export const useHamdleStore = defineStore('hamdle', () => {
   const { createSignalRConnection } = useSignalR();
-  const startSignalRConnection = async () => {
-    createSignalRConnection('hamdlebothub').then((signalRConnection) => {
-      signalRConnection?.on('SendSelectedWord', (word: string) => {
+  const startSignalRConnection = async (twitchUserId: string) => {
+    const queryStringParams = new URLSearchParams();
+    queryStringParams.append('twitchUserId', twitchUserId);
+    createSignalRConnection('hamdlebothub', queryStringParams).then((signalRConnection) => {
+      signalRConnection?.on('ReceiveSelectedWord', (word: string) => {
         currentWord.value = word;
       });
 
-      signalRConnection?.on('SendGuess', (guess: string) => {
+      signalRConnection?.on('ReceiveGuess', (guess: string) => {
         guesses.value.push(guess);
       });
 
-      signalRConnection?.on('ResetState', () => {
+      signalRConnection?.on('ReceiveResetState', () => {
         guesses.value = [];
         currentWord.value = '';
       });
 
-      signalRConnection?.on('StartGuessTimer', (ms) => {
+      signalRConnection?.on('ReceiveStartGuessTimer', (ms) => {
         guessMs.value = ms;
       });
 
-      signalRConnection?.on('StartVoteTimer', (ms) => {
+      signalRConnection?.on('ReceiveStartVoteTimer', (ms) => {
         votingMs.value = ms;
       });
 
-      signalRConnection?.on('StartBetweenRoundTimer', (ms) => {
+      signalRConnection?.on('ReceiveStartBetweenRoundTimer', (ms) => {
         betweenRoundMs.value = ms;
       });
     });

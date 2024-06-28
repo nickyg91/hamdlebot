@@ -10,11 +10,11 @@ public class HamdleContext
     private const int WaitBeforeSceneSet = 1000;
     private readonly long _twitchUserId;
     private readonly HubConnection _hubConnection;
-    public HashSet<string> Words { get; init; }
+    public HashSet<string> Words { get; }
     private BaseState<HamdleContext>? State { get; set; }
     public event EventHandler<string>? SendMessageToChat;
     public event EventHandler? Restarted;
-    public string CurrentWord { get; init; }
+    public string CurrentWord { get; }
     public byte CurrentRound { get; private set; } = 1;
     public bool IsInVotingState => State?.GetType() == typeof(VotingState);
     public bool IsRoundInProgress => State?.GetType() == typeof(GuessState) || IsInVotingState;

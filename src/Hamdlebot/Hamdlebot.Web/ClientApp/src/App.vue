@@ -3,6 +3,7 @@ import { RouterView } from 'vue-router';
 import Toast from 'primevue/toast';
 import { onMounted } from 'vue';
 import { useAxios } from './composables/http-client.composable';
+import DynamicDialog from 'primevue/dynamicdialog';
 const http = useAxios();
 onMounted(() => {
   http.addErrorInterceptor();
@@ -10,10 +11,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <section>
+  <section class="min-h-screen">
     <RouterView />
     <Toast />
     <Toast group="signalr" />
+    <DynamicDialog />
   </section>
 </template>
 

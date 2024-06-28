@@ -36,10 +36,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Controllers\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\Hamdle.Cache\Hamdle.Cache.csproj" />
       <ProjectReference Include="..\Hamdlebot.Core\Hamdlebot.Core.csproj" />
       <ProjectReference Include="..\Hamdlebot.Data\Hamdlebot.Data.csproj" />

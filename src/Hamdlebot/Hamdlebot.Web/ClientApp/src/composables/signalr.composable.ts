@@ -15,7 +15,10 @@ export const useSignalR = () => {
     return statuses;
   });
 
-  const createSignalRConnection = async (hubName: string): Promise<HubConnection> => {
+  const createSignalRConnection = async (
+    hubName: string,
+    queryStringParams: URLSearchParams | null
+  ): Promise<HubConnection> => {
     const existingConnection = signalRConnections.value.get(hubName);
     if (
       signalRConnections.value.has(hubName) &&
@@ -23,11 +26,22 @@ export const useSignalR = () => {
     ) {
       return existingConnection as HubConnection;
     }
-    const signalRConnection = new HubConnectionBuilder()
-      .withUrl(`/${hubName}`)
-      .withAutomaticReconnect()
-      .configureLogging(LogLevel.Information)
-      .build();
+
+    let signalRConnection: HubConnection;
+    if ((queryStringParams?.size ?? 0) > 0) {
+      const queryString = queryStringParams!.toString();
+      signalRConnection = new HubConnectionBuilder()
+        .withUrl(`/${hubName}?${queryString}`)
+        .withAutomaticReconnect()
+        .configureLogging(LogLevel.Information)
+        .build();
+    } else {
+      signalRConnection = new HubConnectionBuilder()
+        .withUrl(`/${hubName}`)
+        .withAutomaticReconnect()
+        .configureLogging(LogLevel.Information)
+        .build();
+    }
 
     signalRConnection.keepAliveIntervalInMilliseconds = 1000;
 

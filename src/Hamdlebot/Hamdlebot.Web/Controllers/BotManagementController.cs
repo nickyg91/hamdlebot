@@ -1,6 +1,7 @@
 using Hamdlebot.Core.Models;
 using Hamdlebot.Data.Contexts.Hamdlebot;
 using Hamdlebot.Data.Contexts.Hamdlebot.Entities;
+using Hamdlebot.Models.ViewModels;
 using HamdleBot.Services.Twitch.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -27,25 +28,51 @@ namespace Hamdlebot.Web.Controllers
         }
         
         [HttpPut("join-channel")]
-        public async Task<BotChannel> JoinChannel()
+        public async Task<Channel> JoinChannel()
         {
             var joinedChannel = await 
-                _dbContext.BotChannels.FirstOrDefaultAsync(x => x.TwitchUserId == _authenticatedTwitchUser.TwitchUserId);
+                _dbContext
+                    .BotChannels
+                    .Include(x => x.BotChannelCommands)
+                    .FirstOrDefaultAsync(x => x.TwitchUserId == _authenticatedTwitchUser.TwitchUserId);
+            var channel = new Channel();
             if (joinedChannel != null)
             {
                 await _twitchChatService.JoinBotToChannel(joinedChannel);
-                return joinedChannel;
+                channel.Id = joinedChannel.Id;
+                channel.AllowAccessToObs = joinedChannel.AllowAccessToObs;
+                channel.Commands = joinedChannel.BotChannelCommands.Select(x => new ChannelCommand
+                {
+                    Id = x.Id,
+                    Command = x.Command,
+                    Response = x.Response
+                }).ToList();
+                channel.IsHamdleEnabled = joinedChannel.IsHamdleEnabled;
+                channel.TwitchChannelName = joinedChannel.TwitchChannelName;
+                channel.TwitchUserId = joinedChannel.TwitchUserId;
+                return channel;
             }
 
-            var channel = new BotChannel
+            joinedChannel = new BotChannel
             {
                 TwitchUserId = _authenticatedTwitchUser.TwitchUserId,
                 TwitchChannelName = _authenticatedTwitchUser.TwitchUserName,
                 IsHamdleEnabled = false
             };
-            await _dbContext.BotChannels.AddAsync(channel);
+            await _dbContext.BotChannels.AddAsync(joinedChannel);
             await _dbContext.SaveChangesAsync();
-            await _twitchChatService.JoinBotToChannel(channel);
+            await _twitchChatService.JoinBotToChannel(joinedChannel);
+            channel.Id = joinedChannel.Id;
+            channel.AllowAccessToObs = joinedChannel.AllowAccessToObs;
+            channel.Commands = joinedChannel.BotChannelCommands.Select(x => new ChannelCommand
+            {
+                Id = x.Id,
+                Command = x.Command,
+                Response = x.Response
+            }).ToList();
+            channel.IsHamdleEnabled = joinedChannel.IsHamdleEnabled;
+            channel.TwitchChannelName = joinedChannel.TwitchChannelName;
+            channel.TwitchUserId = joinedChannel.TwitchUserId;
             return channel;
         }
 
@@ -55,12 +82,36 @@ namespace Hamdlebot.Web.Controllers
             await _twitchChatService.LeaveChannel(_authenticatedTwitchUser.TwitchUserId);
         }
         
-        public async Task<BotChannel?> GetChannel()
+        [HttpGet("channel")]
+        public async Task<Channel?> GetChannel()
         {
-            return await 
+            var channel = await 
                 _dbContext
                     .BotChannels
+                    .Include(x => x.BotChannelCommands)
                     .FirstOrDefaultAsync(x => x.TwitchUserId == _authenticatedTwitchUser.TwitchUserId);
+
+            if (channel == null)
+            {
+                return null;
+            }
+            
+            var mappedChannel = new Channel
+            {
+                Id = channel.Id,
+                IsHamdleEnabled = channel.IsHamdleEnabled,
+                Commands = channel.BotChannelCommands.Select(x => new ChannelCommand
+                {
+                    Id = x.Id,
+                    Command = x.Command,
+                    Response = x.Response,
+                    BotChannelId = x.BotChannelId
+                }).ToList(),
+                TwitchChannelName = channel.TwitchChannelName,
+                TwitchUserId = channel.TwitchUserId,
+                AllowAccessToObs = channel.AllowAccessToObs
+            };
+            return mappedChannel;
         }
     }
 }

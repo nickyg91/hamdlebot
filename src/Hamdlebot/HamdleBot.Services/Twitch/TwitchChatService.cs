@@ -1,6 +1,5 @@
 using Hamdle.Cache;
-using Hamdlebot.Core.Extensions;
-using Hamdlebot.Core.Models;
+using Hamdlebot.Core;
 using Hamdlebot.Core.Models.Logging;
 using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Data.Contexts.Hamdlebot;
@@ -8,7 +7,6 @@ using Hamdlebot.Data.Contexts.Hamdlebot.Entities;
 using Hamdlebot.Models;
 using HamdleBot.Services.Handlers;
 using HamdleBot.Services.Twitch.Interfaces;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,21 +19,18 @@ public class TwitchChatService : ITwitchChatService
     private const string TwitchWebSocketUrl = "wss://irc-ws.chat.twitch.tv:443";
     private readonly Dictionary<long, TwitchChannel> _channels = new();
     private readonly ICacheService _cache;
-    private TwitchChatWebSocketHandler? _webSocketHandler;
     private readonly ITwitchIdentityApiService _identityApiService;
     private readonly IBotLogClient _logClient;
     private CancellationToken? _cancellationToken;
     private readonly RedisChannel _botTokenChannel;
     private readonly TwitchAuthTokenUpdateHandler _authTokenUpdateHandler;
     private readonly IServiceProvider _serviceProvider;
-    private HubConnection _hamdleHub;
     public TwitchChatService(
         ICacheService cache,
         ITwitchIdentityApiService identityApiService,
         IBotLogClient logClient,
         TwitchAuthTokenUpdateHandler authTokenUpdateHandler,
-        IServiceProvider serviceProvider,
-        HubConnection hamdleHub)
+        IServiceProvider serviceProvider)
     {
         _cache = cache;
         _identityApiService = identityApiService;
@@ -43,69 +38,7 @@ public class TwitchChatService : ITwitchChatService
         _authTokenUpdateHandler = authTokenUpdateHandler;
         _serviceProvider = serviceProvider;
         _botTokenChannel = new RedisChannel(RedisChannelType.BotTwitchToken, RedisChannel.PatternMode.Auto);
-        _hamdleHub = hamdleHub;
         SetupSubscriptions();
-    }
-
-    public async Task CreateWebSocket(CancellationToken cancellationToken)
-    {
-        _cancellationToken ??= cancellationToken;
-        _webSocketHandler ??= new TwitchChatWebSocketHandler("wss://irc-ws.chat.twitch.tv:443",
-            _cancellationToken.Value, "hamhamreborn", 3);
-
-        var tokenResponse = await Authenticate();
-
-        if (tokenResponse == null)
-        {
-            await _logClient.LogMessage(new LogMessage("Failed to authenticate with Twitch. No valid token found.",
-                DateTime.UtcNow, SeverityLevel.Error));
-            return;
-        }
-        
-        _webSocketHandler.MessageReceived += async message =>
-        {
-            if (message.IsPingMessage())
-            {
-                await _logClient.LogMessage(new LogMessage("PING received from Twitch.", DateTime.UtcNow,
-                    SeverityLevel.Info));
-                await _webSocketHandler.SendMessage("PONG :tmi.twitch.tv");
-                await _logClient.LogMessage(new LogMessage("PONG :tmi.twitch.tv sent back to Twitch.", DateTime.UtcNow,
-                    SeverityLevel.Info));
-            }
-
-            var ircMessage = message.ToTwitchMessage();
-            if (ircMessage.IsBot())
-            {
-                return;
-            }
-
-            // if (_hamdleService.IsHamdleVotingInProgress() && int.TryParse(ircMessage.Message, out var vote))
-            // {
-            //     _hamdleService.SubmitVoteForGuess(ircMessage.DisplayName!, vote);
-            // }
-
-            if (ircMessage.IsCommand)
-            {
-                await ProcessCommand(ircMessage);
-            }
-
-            // if (!_hamdleService.IsHamdleVotingInProgress()
-            //     && _hamdleService.IsHamdleSessionInProgress()
-            //     && ircMessage.Message is not null)
-            // {
-            //     await _hamdleService.SubmitGuess(ircMessage.User!, ircMessage.Message);
-            // }
-        };
-
-        _webSocketHandler.ReconnectStarted += async () =>
-        {
-            await _logClient.LogMessage(new LogMessage("Reconnecting to Twitch Chat.", DateTime.UtcNow,
-                SeverityLevel.Info));
-        };
-
-        await _webSocketHandler.Connect();
-        //_hamdleService.SendMessageToChat -= Handle_Hamdle_Message!;
-        //_hamdleService.SendMessageToChat += Handle_Hamdle_Message!;
     }
 
     public async Task JoinBotToChannel(BotChannel channel)
@@ -123,8 +56,11 @@ public class TwitchChatService : ITwitchChatService
                 SeverityLevel.Error));
             return;
         }
+
+        using var scope = _serviceProvider.CreateScope();
+        var hamdleHub = scope.ServiceProvider.GetKeyedService<HubConnection>(KeyedServiceValues.HamdleHub);
         var twitchChannel = 
-            new TwitchChannel(channel, TwitchWebSocketUrl, oauthToken, _cache, _hamdleHub, _cancellationToken!.Value);
+            new TwitchChannel(channel, TwitchWebSocketUrl, oauthToken, _cache, hamdleHub!, _cancellationToken!.Value);
         twitchChannel.Connect();
         _authTokenUpdateHandler.Subscribe(twitchChannel);
         _channels.Add(channel.TwitchUserId, twitchChannel);
@@ -151,7 +87,7 @@ public class TwitchChatService : ITwitchChatService
         // for now - this is not performant AT ALL when dealing with large datasets.
         using var scope = _serviceProvider.CreateScope();
         var dbCtx = scope.ServiceProvider.GetRequiredService<HamdlebotContext>();
-        var channels = await dbCtx.BotChannels.AsNoTracking().ToListAsync();
+        var channels = await dbCtx.BotChannels.Include(x => x.BotChannelCommands).AsNoTracking().ToListAsync();
         foreach (var channel in channels)
         {
             await JoinBotToChannel(channel);
@@ -178,7 +114,15 @@ public class TwitchChatService : ITwitchChatService
     {
         _cancellationToken = token;
     }
-    
+
+    public void UpdateChannelSettings(BotChannel channel)
+    {
+        if (_channels.TryGetValue(channel.TwitchUserId, out var twitchChannel))
+        {
+            twitchChannel.UpdateChannelSettings(channel);
+        }
+    }
+
     private async Task<ClientCredentialsTokenResponse?> Authenticate()
     {
         ClientCredentialsTokenResponse tokenResponse;
@@ -220,34 +164,5 @@ public class TwitchChatService : ITwitchChatService
             {
                 await Authenticate();
             });
-    }
-
-    private async void Handle_Hamdle_Message(object sender, string message)
-    {
-        await _webSocketHandler!.SendMessageToChat(message);
-    }
-
-    private async Task ProcessCommand(TwitchMessage message)
-    {
-        switch (message.Message)
-        {
-            case "!#commands":
-                await _webSocketHandler!.SendMessageToChat("Commands: !#<command> commands, random, hamdle, guess");
-                break;
-            case "!#random":
-                //var word = await _wordService.GetRandomWord();
-                //await _webSocketHandler!.SendMessageToChat(word ?? "nooooo!");
-                break;
-            case "!#hamdle":
-                // if (!_hamdleService.IsHamdleSessionInProgress())
-                // {
-                //     await _cache.Subscriber.PublishAsync(_startHamdleSceneChannel, "start");
-                // }
-                // else
-                // {
-                //     await _webSocketHandler!.SendMessageToChat("Hamdle is already in progress. Can't start another!");
-                // }
-                break;
-        }
     }
 }

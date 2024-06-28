@@ -9,7 +9,7 @@ public class HamdlebotHub : Hub<IHamdleHubClient>
     {
         if (Context.GetHttpContext() != null && Context.GetHttpContext()!.Request.Query.ContainsKey("twitchUserId"))
         {
-            var twitchUserId = Context.GetHttpContext()!.Request.Query["twitchUserId"]!;
+            var twitchUserId = Context.GetHttpContext()!.Request.Query["twitchUserId"];
             await Groups.AddToGroupAsync(Context.ConnectionId, twitchUserId!);
         }
         await base.OnConnectedAsync();

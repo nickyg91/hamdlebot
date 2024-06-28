@@ -2,7 +2,7 @@ using Hamdlebot.Data.Contexts.Hamdlebot.Entities;
 
 namespace HamdleBot.Services.Twitch.Interfaces;
 
-public interface ITwitchChatService : IWebSocketEnabledService
+public interface ITwitchChatService
 {
     Task JoinBotToChannel(BotChannel channel);
     Task LeaveChannel(long twitchUserId);
@@ -10,4 +10,5 @@ public interface ITwitchChatService : IWebSocketEnabledService
     Task ConnectToObs(long twitchUserId);
     Task DisconnectFromObs(long twitchUserId);
     void SetCancellationToken(CancellationToken token);
+    void UpdateChannelSettings(BotChannel channel);
 }

@@ -5,15 +5,13 @@ using Hamdlebot.Core.Extensions;
 using Hamdlebot.Data.Contexts.Hamdlebot.Entities;
 using HamdleBot.Services.Hamdle;
 using HamdleBot.Services.Handlers;
-using HamdleBot.Services.OBS;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 
 namespace HamdleBot.Services.Twitch;
 
 public class TwitchChannel : IObserver<string>
 {
-    private readonly BotChannel _botChannel;
+    private BotChannel _botChannel;
     private readonly TwitchChatWebSocketHandler _webSocketHandler;
     private ObsWebSocketHandler? _obsWebSocketHandler;
     private string _botAccessToken;
@@ -117,6 +115,11 @@ public class TwitchChannel : IObserver<string>
             await _obsWebSocketHandler.Disconnect();
         }
     }
+
+    public void UpdateChannelSettings(BotChannel channel)
+    {
+        _botChannel = channel;
+    }
     
     private void SetupEvents()
     {
@@ -199,7 +202,8 @@ public class TwitchChannel : IObserver<string>
                 }
                 return;
             }
-            var command = _botChannel.BotChannelCommands.FirstOrDefault(x => x.Command == ircMessage.Message);
+            var strippedCommand = ircMessage.Message!.Replace("!#", "");
+            var command = _botChannel.BotChannelCommands.FirstOrDefault(x => string.Equals(x.Command, strippedCommand, StringComparison.CurrentCultureIgnoreCase));
             if (command != null)
             {
                 await _webSocketHandler.SendMessageToChat(command.Response);

@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import LogMessage from '@/components/LogMessage.vue';
 import InlineMessage from 'primevue/inlinemessage';
 import { useDashboardStore } from '@/stores/dashboard.store';
-import ScrollPanel from 'primevue/scrollpanel';
 import Panel from 'primevue/panel';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
@@ -10,27 +8,24 @@ import Sidebar from 'primevue/sidebar';
 import ObsSettings from '@/components/ObsSettings.vue';
 import { BotStatusType } from '@/models/bot-status-type.enum';
 import { computed, ref } from 'vue';
-import { useSignalR } from '@/composables/signalr.composable';
-import { HubConnectionState } from '@microsoft/signalr';
 import { storeToRefs } from 'pinia';
-import { useHamdleStore } from '@/stores/hamdle.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { watch } from 'vue';
 import { useConfirm } from 'primevue/useconfirm';
 import ConfirmDialog from 'primevue/confirmdialog';
+import ChannelCommands from '@/components/dashboard/ChannelCommands.vue';
+import ScrollPanel from 'primevue/scrollpanel';
+import LogMessage from '@/components/LogMessage.vue';
 
-const store = useDashboardStore();
-const hamdleStore = useHamdleStore();
+const dashboardStore = useDashboardStore();
+const { botChannel } = storeToRefs(dashboardStore);
 const authStore = useAuthStore();
 const { token } = storeToRefs(authStore);
-const { currentWord, guesses } = storeToRefs(hamdleStore);
-const { botStatus, logMessages } = storeToRefs(store);
-const { reconnect, signalRHubStatuses } = useSignalR();
 const confirm = useConfirm();
 const isLoginDialogOpen = ref(false);
 const isObsSettingsSliderOpen = ref(false);
 const botStatusSeverity = computed(() => {
-  switch (botStatus.value) {
+  switch (dashboardStore.botStatus) {
     case BotStatusType.Online:
       return {
         class: 'success',
@@ -54,27 +49,20 @@ const botStatusSeverity = computed(() => {
   }
 });
 
-const hubs = computed(() => {
-  const signalRHubs: { hubName: string; status: HubConnectionState }[] = [];
-  signalRHubStatuses.value.forEach((state, name) => {
-    signalRHubs.push({
-      hubName: name,
-      status: state
-    });
-  });
-  return signalRHubs;
-});
-
-const isHamdleRunning = computed(() => botStatus.value === BotStatusType.HamdleInProgress);
-
 watch(
   token,
   async () => {
     if (!authStore.token) {
       isLoginDialogOpen.value = true;
     } else {
-      await store.startDashboardSignalRConnection();
-      await hamdleStore.startSignalRConnection();
+      if (authStore.isHamdlebot) {
+        await dashboardStore.startDashboardSignalRConnection();
+      }
+      try {
+        await dashboardStore.getMyChannel();
+      } catch (error) {
+        console.error(error);
+      }
     }
   },
   { immediate: true }
@@ -115,7 +103,7 @@ const showWarningModal = () => {
 
 const joinChannel = async () => {
   try {
-    await store.joinChannel();
+    await dashboardStore.joinMyChannel();
   } catch (error) {
     console.error(error);
   }
@@ -123,15 +111,15 @@ const joinChannel = async () => {
 
 const leaveChannel = async () => {
   try {
-    await store.leaveChannel();
+    await dashboardStore.leaveMyChannel();
   } catch (error) {
     console.error(error);
   }
 };
 </script>
 <template>
-  <div>
-    <div v-if="authStore.token">
+  <div class="min-h-screen">
+    <div v-if="authStore.token && botChannel">
       <section class="flex justify-content-between">
         <div class="flex-grow-1 p-2">
           <Sidebar
@@ -141,8 +129,8 @@ const leaveChannel = async () => {
           >
             <ObsSettings @on-update-suceeded="isObsSettingsSliderOpen = false"></ObsSettings>
           </Sidebar>
-          <Panel>
-            <template #header>
+          <Panel class="min-h-screen">
+            <template v-if="authStore.isHamdlebot" #header>
               <h2>
                 Bot Status
                 <InlineMessage class="ml-3" :severity="botStatusSeverity.class">
@@ -150,87 +138,68 @@ const leaveChannel = async () => {
                 </InlineMessage>
               </h2>
             </template>
+            <template v-else #header>
+              <h2>
+                Welcome to your Hamdlebot Dashboard, {{ authStore.jwtDecoded.preferred_username }}!
+              </h2>
+            </template>
             <div>
-              <div>
-                <Button
-                  severity="help"
-                  icon="pi pi-verified"
-                  label="Authenticate Bot"
-                  @click="getAuthUrl"
-                ></Button>
-                <Button
-                  class="ml-3"
-                  severity="info"
-                  label="Obs Settings"
-                  icon="pi pi-cog"
-                  @click="showWarningModal()"
-                >
-                </Button>
-                <Button
-                  class="ml-3"
-                  severity="success"
-                  icon="pi pi-user-plus"
-                  label="Join Channel"
-                  @click="joinChannel"
-                ></Button>
-                <Button
-                  class="ml-3"
-                  severity="danger"
-                  icon="pi pi-user-minus"
-                  label="Leave Channel"
-                  @click="leaveChannel"
-                ></Button>
-              </div>
+              <Button
+                v-if="authStore.isHamdlebot"
+                severity="help"
+                icon="pi pi-verified"
+                label="Authenticate Bot"
+                @click="getAuthUrl"
+              ></Button>
+              <Button
+                class="ml-3"
+                severity="info"
+                label="Obs Settings"
+                icon="pi pi-cog"
+                @click="showWarningModal()"
+              >
+              </Button>
+              <Button
+                class="ml-3"
+                severity="success"
+                icon="pi pi-user-plus"
+                label="Join Channel"
+                @click="joinChannel"
+              ></Button>
+              <Button
+                class="ml-3"
+                severity="danger"
+                icon="pi pi-user-minus"
+                label="Leave Channel"
+                @click="leaveChannel"
+              ></Button>
             </div>
             <hr />
-            <div class="mt-2">
-              <h3>SignalR Connections</h3>
-              <Button label="Reconnect Hubs" icon="pi pi-wifi" @click="reconnect"></Button>
-              <div class="mt-2" v-for="hub in hubs" :key="hub.hubName">
-                <InlineMessage
-                  :severity="hub.status === HubConnectionState.Connected ? 'success' : 'error'"
-                >
-                  {{ hub.hubName }} - {{ hub.status }}
-                </InlineMessage>
+            <div class="grid grid-nogutter">
+              <div class="col-6">
+                <ChannelCommands
+                  :channel-id="botChannel!.id"
+                  :commands="botChannel!.commands"
+                ></ChannelCommands>
               </div>
             </div>
-          </Panel>
-        </div>
-        <div class="flex-grow-1 p-2">
-          <Panel>
-            <template #header>
-              <h2>Hamdle</h2>
-            </template>
-            <div>
-              <InlineMessage :severity="isHamdleRunning ? 'success' : 'error'">
-                Hamdle Session {{ isHamdleRunning ? 'is running' : 'is not running' }}
-              </InlineMessage>
-            </div>
-            <div class="p-2 mt-2" v-if="isHamdleRunning && currentWord">
-              Current word: {{ currentWord }}
-            </div>
-            <template v-if="isHamdleRunning">
-              <div class="p-2 mt-2" v-for="guess in guesses" :key="guess">
-                {{ guess }}
+            <section>
+              <div v-if="authStore.isHamdlebot" class="flex-grow-1 p-2">
+                <Panel>
+                  <template #header>
+                    <h2>Bot Log</h2>
+                  </template>
+                  <ScrollPanel class="scroll-panel">
+                    <LogMessage
+                      class="p-2"
+                      v-for="message in dashboardStore.logMessages"
+                      :key="message.timestamp"
+                      :message="message"
+                    />
+                  </ScrollPanel>
+                </Panel>
               </div>
-            </template>
-          </Panel>
-        </div>
-      </section>
-      <section>
-        <div class="flex-grow-1 p-2">
-          <Panel>
-            <template #header>
-              <h2>Bot Log</h2>
-            </template>
-            <ScrollPanel class="scroll-panel">
-              <LogMessage
-                class="p-2"
-                v-for="message in logMessages"
-                :key="message.timestamp"
-                :message="message"
-              />
-            </ScrollPanel>
+            </section>
           </Panel>
         </div>
       </section>
