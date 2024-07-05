@@ -3,10 +3,12 @@ using Hamdlebot.Core;
 using Hamdlebot.Core.Models.Logging;
 using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Data.Contexts.Hamdlebot;
-using Hamdlebot.Data.Contexts.Hamdlebot.Entities;
 using Hamdlebot.Models;
+using Hamdlebot.Models.ViewModels;
+using HamdleBot.Services.Consumers;
 using HamdleBot.Services.Handlers;
 using HamdleBot.Services.Twitch.Interfaces;
+using MassTransit;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,23 +27,26 @@ public class TwitchChatService : ITwitchChatService
     private readonly RedisChannel _botTokenChannel;
     private readonly TwitchAuthTokenUpdateHandler _authTokenUpdateHandler;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IBus _bus;
     public TwitchChatService(
         ICacheService cache,
         ITwitchIdentityApiService identityApiService,
         IBotLogClient logClient,
         TwitchAuthTokenUpdateHandler authTokenUpdateHandler,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider,
+        IBus bus)
     {
         _cache = cache;
         _identityApiService = identityApiService;
         _logClient = logClient;
         _authTokenUpdateHandler = authTokenUpdateHandler;
         _serviceProvider = serviceProvider;
+        _bus = bus;
         _botTokenChannel = new RedisChannel(RedisChannelType.BotTwitchToken, RedisChannel.PatternMode.Auto);
         SetupSubscriptions();
     }
 
-    public async Task JoinBotToChannel(BotChannel channel)
+    public async Task JoinBotToChannel(Channel channel)
     {
         if (_channels.ContainsKey(channel.TwitchUserId))
         {
@@ -61,6 +66,12 @@ public class TwitchChatService : ITwitchChatService
         var hamdleHub = scope.ServiceProvider.GetKeyedService<HubConnection>(KeyedServiceValues.HamdleHub);
         var twitchChannel = 
             new TwitchChannel(channel, TwitchWebSocketUrl, oauthToken, _cache, hamdleHub!, _cancellationToken!.Value);
+        
+        _bus.ConnectReceiveEndpoint($"{MassTransitReceiveEndpoints.TwitchChannelSettingsUpdatedConsumer}-{channel.TwitchUserId}", cfg =>
+        {
+            cfg.Consumer(() => new TwitchChannelSettingsUpdatedConsumer(twitchChannel));
+        });
+        
         twitchChannel.Connect();
         _authTokenUpdateHandler.Subscribe(twitchChannel);
         _channels.Add(channel.TwitchUserId, twitchChannel);
@@ -90,7 +101,8 @@ public class TwitchChatService : ITwitchChatService
         var channels = await dbCtx.BotChannels.Include(x => x.BotChannelCommands).AsNoTracking().ToListAsync();
         foreach (var channel in channels)
         {
-            await JoinBotToChannel(channel);
+            var vmChannel = new Channel(channel);
+            await JoinBotToChannel(vmChannel);
         }
     }
 
@@ -115,7 +127,7 @@ public class TwitchChatService : ITwitchChatService
         _cancellationToken = token;
     }
 
-    public void UpdateChannelSettings(BotChannel channel)
+    public void UpdateChannelSettings(Channel channel)
     {
         if (_channels.TryGetValue(channel.TwitchUserId, out var twitchChannel))
         {

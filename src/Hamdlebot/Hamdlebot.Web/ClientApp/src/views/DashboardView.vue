@@ -119,7 +119,7 @@ const leaveChannel = async () => {
 </script>
 <template>
   <div class="min-h-screen">
-    <div v-if="authStore.token && botChannel">
+    <div v-if="authStore.token">
       <section class="flex justify-content-between">
         <div class="flex-grow-1 p-2">
           <Sidebar
@@ -140,7 +140,7 @@ const leaveChannel = async () => {
             </template>
             <template v-else #header>
               <h2>
-                Welcome to your Hamdlebot Dashboard, {{ authStore.jwtDecoded.preferred_username }}!
+                Welcome to your Hamdlebot Dashboard, {{ authStore.jwtDecoded?.preferred_username }}!
               </h2>
             </template>
             <div>
@@ -175,7 +175,7 @@ const leaveChannel = async () => {
               ></Button>
             </div>
             <hr />
-            <div class="grid grid-nogutter">
+            <div v-if="botChannel" class="grid grid-nogutter">
               <div class="col-6">
                 <ChannelCommands
                   :channel-id="botChannel!.id"

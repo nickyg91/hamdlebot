@@ -2,7 +2,7 @@ using System.Net.WebSockets;
 using Hamdle.Cache;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
-using Hamdlebot.Data.Contexts.Hamdlebot.Entities;
+using Hamdlebot.Models.ViewModels;
 using HamdleBot.Services.Hamdle;
 using HamdleBot.Services.Handlers;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -11,7 +11,7 @@ namespace HamdleBot.Services.Twitch;
 
 public class TwitchChannel : IObserver<string>
 {
-    private BotChannel _botChannel;
+    private Channel _botChannel;
     private readonly TwitchChatWebSocketHandler _webSocketHandler;
     private ObsWebSocketHandler? _obsWebSocketHandler;
     private string _botAccessToken;
@@ -20,7 +20,7 @@ public class TwitchChannel : IObserver<string>
     private readonly CancellationToken _cancellationToken;
     private HamdleContext? _hamdleContext;
     private HashSet<string> _hamdleWords = new();
-
+    private ObsSettings _obsSettings;
     private readonly List<string> _baseChannelCommands =
     [
         "!#commands",
@@ -30,7 +30,7 @@ public class TwitchChannel : IObserver<string>
     ];
     
     public TwitchChannel(
-        BotChannel channel,
+        Channel channel,
         string url,
         string botAccessToken,
         ICacheService cacheService,
@@ -116,9 +116,14 @@ public class TwitchChannel : IObserver<string>
         }
     }
 
-    public void UpdateChannelSettings(BotChannel channel)
+    public void UpdateChannelSettings(Channel channel)
     {
         _botChannel = channel;
+    }
+
+    public void UpdateObsSettings(ObsSettings obsSettings)
+    {
+        _obsSettings = obsSettings;
     }
     
     private void SetupEvents()
@@ -203,7 +208,7 @@ public class TwitchChannel : IObserver<string>
                 return;
             }
             var strippedCommand = ircMessage.Message!.Replace("!#", "");
-            var command = _botChannel.BotChannelCommands.FirstOrDefault(x => string.Equals(x.Command, strippedCommand, StringComparison.CurrentCultureIgnoreCase));
+            var command = _botChannel.Commands.FirstOrDefault(x => string.Equals(x.Command, strippedCommand, StringComparison.CurrentCultureIgnoreCase));
             if (command != null)
             {
                 await _webSocketHandler.SendMessageToChat(command.Response);

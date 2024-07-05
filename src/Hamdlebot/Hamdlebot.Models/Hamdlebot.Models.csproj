@@ -8,6 +8,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Hamdlebot.Core\Hamdlebot.Core.csproj" />
+      <ProjectReference Include="..\Hamdlebot.Data\Hamdlebot.Data.csproj" />
     </ItemGroup>
 
 </Project>

@@ -35,10 +35,11 @@ namespace Hamdlebot.Web.Controllers
                     .BotChannels
                     .Include(x => x.BotChannelCommands)
                     .FirstOrDefaultAsync(x => x.TwitchUserId == _authenticatedTwitchUser.TwitchUserId);
-            var channel = new Channel();
+            Channel channel;
             if (joinedChannel != null)
             {
-                await _twitchChatService.JoinBotToChannel(joinedChannel);
+                channel = new Channel(joinedChannel);
+                await _twitchChatService.JoinBotToChannel(channel);
                 channel.Id = joinedChannel.Id;
                 channel.AllowAccessToObs = joinedChannel.AllowAccessToObs;
                 channel.Commands = joinedChannel.BotChannelCommands.Select(x => new ChannelCommand
@@ -61,19 +62,8 @@ namespace Hamdlebot.Web.Controllers
             };
             await _dbContext.BotChannels.AddAsync(joinedChannel);
             await _dbContext.SaveChangesAsync();
-            await _twitchChatService.JoinBotToChannel(joinedChannel);
-            channel.Id = joinedChannel.Id;
-            channel.AllowAccessToObs = joinedChannel.AllowAccessToObs;
-            channel.Commands = joinedChannel.BotChannelCommands.Select(x => new ChannelCommand
-            {
-                Id = x.Id,
-                Command = x.Command,
-                Response = x.Response
-            }).ToList();
-            channel.IsHamdleEnabled = joinedChannel.IsHamdleEnabled;
-            channel.TwitchChannelName = joinedChannel.TwitchChannelName;
-            channel.TwitchUserId = joinedChannel.TwitchUserId;
-            return channel;
+            await _twitchChatService.JoinBotToChannel(new Channel(joinedChannel));
+            return new Channel(joinedChannel);
         }
 
         [HttpPut("leave-channel")]

@@ -1,9 +1,13 @@
+using Hamdlebot.Core;
 using Hamdlebot.Core.Exceptions;
 using Hamdlebot.Core.Models;
 using Hamdlebot.Data.Contexts.Hamdlebot;
 using Hamdlebot.Data.Contexts.Hamdlebot.Entities;
+using Hamdlebot.Models;
+using Hamdlebot.Models.Enums;
 using Hamdlebot.Models.ViewModels;
 using HamdleBot.Services.Twitch.Interfaces;
+using MassTransit;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,16 +21,16 @@ namespace Hamdlebot.Web.Controllers
     {
         private readonly HamdlebotContext _dbContext;
         private readonly IAuthenticatedTwitchUser _twitchUser;
-        private readonly ITwitchChatService _twitchChatService;
+        private readonly IBus _bus;
 
         public ChannelCommandController(
             HamdlebotContext dbContext,
             IAuthenticatedTwitchUser twitchUser,
-            ITwitchChatService twitchChatService)
+            IBus bus)
         {
             _dbContext = dbContext;
             _twitchUser = twitchUser;
-            _twitchChatService = twitchChatService;
+            _bus = bus;
         }
 
         [HttpPost("add")]
@@ -65,7 +69,12 @@ namespace Hamdlebot.Web.Controllers
             commandToAdd.Id = botChannelCommand.Id;
             if (botChannel != null)
             {
-                _twitchChatService.UpdateChannelSettings(botChannel);
+                var endpoint = await _bus.GetSendEndpoint(new Uri($"queue:{MassTransitReceiveEndpoints.TwitchChannelSettingsUpdatedConsumer}-{botChannel.TwitchUserId}"));
+                await endpoint.Send(new TwitchChannelUpdateMessage
+                {
+                    Action = ActionType.UpdateChannel,
+                    Channel = new Channel(botChannel)
+                });
             }
 
             return Ok(commandToAdd);
@@ -98,7 +107,12 @@ namespace Hamdlebot.Web.Controllers
                 .FirstOrDefaultAsync(x => x.Id == channelId);
             if (botChannel != null)
             {
-                _twitchChatService.UpdateChannelSettings(botChannel);
+                var endpoint = await _bus.GetSendEndpoint(new Uri($"queue:{MassTransitReceiveEndpoints.TwitchChannelSettingsUpdatedConsumer}-{botChannel.TwitchUserId}"));
+                await endpoint.Send(new TwitchChannelUpdateMessage
+                {
+                    Action = ActionType.UpdateChannel,
+                    Channel = new Channel(botChannel)
+                });
             }
 
             return Ok();
@@ -132,7 +146,12 @@ namespace Hamdlebot.Web.Controllers
                 .FirstOrDefaultAsync(x => x.Id == channelId);
             if (botChannel != null)
             {
-                _twitchChatService.UpdateChannelSettings(botChannel);
+                var endpoint = await _bus.GetSendEndpoint(new Uri($"queue:{MassTransitReceiveEndpoints.TwitchChannelSettingsUpdatedConsumer}-{botChannel.TwitchUserId}"));
+                await endpoint.Send(new TwitchChannelUpdateMessage
+                {
+                    Action = ActionType.UpdateChannel,
+                    Channel = new Channel(botChannel)
+                });
             }
 
             return Ok();

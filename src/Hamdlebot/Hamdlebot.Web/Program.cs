@@ -13,6 +13,7 @@ using HamdleBot.Services.Twitch;
 using HamdleBot.Services.Twitch.Interfaces;
 using Hamdlebot.Web.Hubs;
 using Hamdlebot.Worker;
+using MassTransit;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -64,20 +65,23 @@ builder.Services.AddSingleton<ITwitchChatService, TwitchChatService>();
 builder.Services.AddSingleton<ITwitchEventSubService, TwitchEventSubService>();
 builder.Services.AddSingleton<ITwitchIdentityApiService, TwitchIdentityApiService>();
 builder.Services.AddSingleton<IObsService, ObsService>();
-//builder.Services.AddSingleton<IHamdleService, HamdleService>();
+builder.Services.AddMassTransit(x =>
+{
+    x.UsingInMemory((context, cfg) =>
+    {
+        cfg.ConfigureEndpoints(context);
+    });
+});
+
 builder.Services.AddSingleton<ICacheService, CacheService>();
 builder.Services.AddSingleton<IWordService, WordService>();
 builder.Services.AddSingleton<TwitchAuthTokenUpdateHandler>();
 builder.Services.AddKeyedSingleton("twitchApiHttpClient", twitchApiHttpClient);
 builder.Services.AddKeyedSingleton("logHub", botLogHubConnection);
 builder.Services.AddKeyedSingleton("hamdleHub", hamdleBotHubConnection);
-
 builder.Services.AddTransient<IBotLogClient, BotLogClient>();
-
 builder.Services.AddScoped<IBotChannelRepository, BotChannelRepository>();
-
 builder.Services.AddHostedService<HamdlebotWorker>();
-
 builder.Services.AddAuthentication().AddJwtBearer(opt =>
 {
     var settings = builder.Configuration.GetSection("Settings").Get<AppConfigSettings>();
