@@ -66,7 +66,7 @@ public class TwitchChannel : IObserver<string>
         if (_webSocketHandler.State != WebSocketState.Open 
             && _webSocketHandler.State != WebSocketState.Connecting)
         {
-            _ = Task.Run(async () => await _webSocketHandler.Connect());
+            _ = Task.Run(async () => await _webSocketHandler.Connect(), _cancellationToken);
         }
     }
     
@@ -82,7 +82,7 @@ public class TwitchChannel : IObserver<string>
 
     public void OnNext(string botAccessToken)
     {
-        _ = Task.Run(async () => await Reauthenticate(botAccessToken));
+        _ = Task.Run(async () => await Reauthenticate(botAccessToken), _cancellationToken);
     }
 
     public async Task ConnectToObs()
@@ -97,7 +97,7 @@ public class TwitchChannel : IObserver<string>
             var obsDetails = await _cacheService.GetObject<ObsSettings>($"{CacheKeyType.UserObsSettings}:{_botChannel.TwitchUserId}");
             if (obsDetails != null && _obsWebSocketHandler == null)
             {
-                _obsWebSocketHandler = new ObsWebSocketHandler(obsDetails!, _cancellationToken, 3);
+                _obsWebSocketHandler = new ObsWebSocketHandler(obsDetails, _cancellationToken, 3);
             }
 
             if (_obsWebSocketHandler != null && _obsWebSocketHandler.State != WebSocketState.Open
@@ -180,10 +180,10 @@ public class TwitchChannel : IObserver<string>
                         if (_botChannel.IsHamdleEnabled && _obsWebSocketHandler != null)
                         {
                             var currentWord = _hamdleWords.ElementAt(new Random().Next(0, _hamdleWords.Count));
-                            _hamdleContext = new HamdleContext(_hamdleWords, currentWord!, _botChannel.TwitchUserId, _hubConnection);
+                            _hamdleContext = new HamdleContext(_hamdleWords, currentWord, _botChannel.TwitchUserId, _hubConnection);
                             await _obsWebSocketHandler!.SetHamdleSceneState(true);
                             await _hamdleContext.StartGuesses();
-                            _hamdleContext.SendMessageToChat += async (sender, hamdleMessage) =>
+                            _hamdleContext.SendMessageToChat += async (_, hamdleMessage) =>
                             {
                                 await _webSocketHandler.SendMessageToChat(hamdleMessage);
                             };
@@ -209,7 +209,7 @@ public class TwitchChannel : IObserver<string>
                 await _webSocketHandler.SendMessageToChat(command.Response);
                 return;
             }
-            await _webSocketHandler!.SendMessageToChat("Invalid command! SirSad");
+            await _webSocketHandler.SendMessageToChat("Invalid command! SirSad");
         }
     }
     
@@ -221,7 +221,7 @@ public class TwitchChannel : IObserver<string>
         }
 
         _hamdleContext = new HamdleContext(_hamdleWords, currentWord, _botChannel.TwitchUserId, _hubConnection);
-        _hamdleContext.SendMessageToChat += async (sender, hamdleMessage) =>
+        _hamdleContext.SendMessageToChat += async (_, hamdleMessage) =>
         {
             await _webSocketHandler.SendMessageToChat(hamdleMessage);
         };
