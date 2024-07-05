@@ -8,7 +8,7 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: '/hamdle',
+      path: '/:twitchUserId/hamdle',
       name: 'hamdle',
       component: HamdleView
     },

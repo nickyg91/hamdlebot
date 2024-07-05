@@ -1,8 +1,13 @@
+using Hamdlebot.Core;
+using Hamdlebot.Core.Exceptions;
 using Hamdlebot.Core.Models;
 using Hamdlebot.Data.Contexts.Hamdlebot;
 using Hamdlebot.Data.Contexts.Hamdlebot.Entities;
+using Hamdlebot.Models;
+using Hamdlebot.Models.Enums;
 using Hamdlebot.Models.ViewModels;
 using HamdleBot.Services.Twitch.Interfaces;
+using MassTransit;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,14 +22,18 @@ namespace Hamdlebot.Web.Controllers
         private readonly HamdlebotContext _dbContext;
         private readonly IAuthenticatedTwitchUser _authenticatedTwitchUser;
         private readonly ITwitchChatService _twitchChatService;
+        private readonly IBus _bus;
+
         public BotManagementController(
             HamdlebotContext dbContext, 
             IAuthenticatedTwitchUser authenticatedTwitchUser, 
-            ITwitchChatService twitchChatService)
+            ITwitchChatService twitchChatService,
+            IBus bus)
         {
             _dbContext = dbContext;
             _authenticatedTwitchUser = authenticatedTwitchUser;
             _twitchChatService = twitchChatService;
+            _bus = bus;
         }
         
         [HttpPut("join-channel")]
@@ -103,5 +112,33 @@ namespace Hamdlebot.Web.Controllers
             };
             return mappedChannel;
         }
+        
+        [HttpPut("set-hamdle-optin/{isHamdleEnabled}")]
+        public async Task<Channel> SetHamdleOptin(bool isHamdleEnabled)
+        {
+            var botChannel = await 
+                _dbContext
+                    .BotChannels
+                    .Include(x => x.BotChannelCommands)
+                    .FirstOrDefaultAsync(x => x.TwitchUserId == _authenticatedTwitchUser.TwitchUserId);
+
+            if (botChannel == null)
+            {
+                throw new ChannelNotFoundException("Channel not found");
+            }
+
+            botChannel.IsHamdleEnabled = isHamdleEnabled;
+            await _dbContext.SaveChangesAsync();
+            
+            var endpoint = await _bus.GetSendEndpoint(new Uri($"queue:{MassTransitReceiveEndpoints.TwitchChannelSettingsUpdatedConsumer}-{botChannel.TwitchUserId}"));
+            await endpoint.Send(new TwitchChannelUpdateMessage
+            {
+                Action = ActionType.UpdateChannel,
+                Channel = new Channel(botChannel)
+            });
+            
+            return new Channel(botChannel);
+        }
+        
     }
 }

@@ -4,11 +4,13 @@ using Hamdlebot.Core;
 using Hamdlebot.Core.Exceptions;
 using Hamdlebot.Core.Models;
 using Hamdlebot.Data.Contexts.Hamdlebot;
+using Hamdlebot.Models;
+using Hamdlebot.Models.Enums;
 using HamdleBot.Services.OBS;
 using Hamdlebot.Web.Security.Attributes;
+using MassTransit;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StackExchange.Redis;
 
 namespace Hamdlebot.Web.Controllers
 {
@@ -16,55 +18,100 @@ namespace Hamdlebot.Web.Controllers
     [ApiController]
     public class ObsSettingsController : ControllerBase
     {
-        private readonly ICacheService _cacheService;
         private readonly IObsService _obsService;
         private readonly HamdlebotContext _dbContext;
         private readonly IAuthenticatedTwitchUser _authenticatedTwitchUser;
-
-        private readonly RedisChannel _obsSettingsChannel =
-            new(RedisChannelType.ObsSettingsChanged, RedisChannel.PatternMode.Auto);
+        private readonly IBus _bus;
+        private readonly ICacheService _cache;
 
         public ObsSettingsController(
-            ICacheService cacheService,
             IObsService obsService,
             HamdlebotContext dbContext,
-            IAuthenticatedTwitchUser authenticatedTwitchUser)
+            IAuthenticatedTwitchUser authenticatedTwitchUser,
+            IBus bus,
+            ICacheService cache)
         {
-            _cacheService = cacheService;
             _obsService = obsService;
             _dbContext = dbContext;
             _authenticatedTwitchUser = authenticatedTwitchUser;
+            _bus = bus;
+            _cache = cache;
         }
 
         [HttpPut("update")]
         public async Task SetObsSettings([FromBody] ObsSettings settings)
         {
-            await _cacheService.Subscriber.PublishAsync(_obsSettingsChannel, JsonSerializer.Serialize(settings));
+            var channel =
+                await _dbContext.BotChannels.FirstOrDefaultAsync(x =>
+                    x.TwitchUserId == _authenticatedTwitchUser.TwitchUserId);
+            if (channel == null)
+            {
+                throw new ChannelNotFoundException("Channel not found!");
+            }
+
+            channel.AllowAccessToObs = settings.IsObsEnabled;
+            await _dbContext.SaveChangesAsync();
+            await _cache.SetObject($"{CacheKeyType.UserObsSettings}:{_authenticatedTwitchUser.TwitchUserId}", settings);            
+            var endpoint = await _bus
+                .GetSendEndpoint(
+                    new Uri($"queue:{MassTransitReceiveEndpoints.TwitchChannelSettingsUpdatedConsumer}-{channel.TwitchUserId}")
+                    );
+            
+            await endpoint.Send(new TwitchChannelUpdateMessage
+            {
+                Action = ActionType.UpdateObsSettings,
+                ObsSettings = settings
+            });
         }
 
         [HttpGet]
-        public ObsSettings? GetObsSettings()
+        public async Task<ObsSettings?> GetObsSettings()
         {
-            return _obsService.GetCurrentSettings();
+            var obsSettings =
+                await _cache.GetObject<ObsSettings>(
+                    $"{CacheKeyType.UserObsSettings}:{_authenticatedTwitchUser.TwitchUserId}");
+            return obsSettings;
         }
 
-        [HttpPut("update-enabled-status/{isEnabled}")]
-        public async Task ToggleObsEnabled(bool isEnabled)
+        [HttpPut("connect")]
+        public async Task ConnectToObs()
         {
-            var channel = await _dbContext.BotChannels
-                .FirstOrDefaultAsync(x => x.TwitchUserId == _authenticatedTwitchUser.TwitchUserId);
-
+            var channel =
+                await _dbContext.BotChannels.FirstOrDefaultAsync(x =>
+                    x.TwitchUserId == _authenticatedTwitchUser.TwitchUserId);
             if (channel == null)
             {
-                throw new ChannelNotFoundException("Channel not found");
+                throw new ChannelNotFoundException("Channel not found!");
             }
-            
-            channel.AllowAccessToObs = isEnabled;
-            await _dbContext.SaveChangesAsync();
 
-            if (!isEnabled)
+            if (channel.AllowAccessToObs)
             {
-                // stop OBS connection for this specific channel.
+                var endpoint = await _bus.GetSendEndpoint(new Uri($"queue:{MassTransitReceiveEndpoints.TwitchChannelSettingsUpdatedConsumer}-{channel.TwitchUserId}"));
+                await endpoint.Send(new TwitchChannelUpdateMessage
+                {
+                    Action = ActionType.ConnectToObs,
+                });
+            }
+        }
+        
+        [HttpPut("disconnect")]
+        public async Task DisconnectFromObs()
+        {
+            var channel =
+                await _dbContext.BotChannels.FirstOrDefaultAsync(x =>
+                    x.TwitchUserId == _authenticatedTwitchUser.TwitchUserId);
+            if (channel == null)
+            {
+                throw new ChannelNotFoundException("Channel not found!");
+            }
+
+            if (channel.AllowAccessToObs)
+            {
+                var endpoint = await _bus.GetSendEndpoint(new Uri($"queue:{MassTransitReceiveEndpoints.TwitchChannelSettingsUpdatedConsumer}-{channel.TwitchUserId}"));
+                await endpoint.Send(new TwitchChannelUpdateMessage
+                {
+                    Action = ActionType.DisconnectFromObs,
+                });
             }
         }
     }

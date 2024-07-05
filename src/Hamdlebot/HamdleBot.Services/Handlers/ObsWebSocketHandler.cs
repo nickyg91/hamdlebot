@@ -1,4 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Hamdlebot.Core;
 using Hamdlebot.Models.OBS;
 using Hamdlebot.Models.OBS.RequestTypes;
@@ -11,13 +14,16 @@ public class ObsWebSocketHandler : WebSocketHandlerBase
 {
     private readonly ObsSettings _obsSettings;
     private int _hamdleSceneId;
+    private JsonSerializerOptions _jsonSerializerOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
     public ObsWebSocketHandler(ObsSettings obsSettings, CancellationToken cancellationToken, byte maxReconnectAttempts)
         : base(obsSettings.SocketUrl!, cancellationToken, maxReconnectAttempts)
     {
         _obsSettings = obsSettings;
         SetUpEventHandlers();
     }
-
     
     public async Task SetHamdleSceneState(bool isEnabled)
     {
@@ -36,7 +42,26 @@ public class ObsWebSocketHandler : WebSocketHandlerBase
                 }
             }
         };
-        var message = JsonSerializer.Serialize(request);
+        var message = JsonSerializer.Serialize(request, _jsonSerializerOptions);
+        await SendMessage(message);
+    }
+    
+    private async Task GetSceneItemList()
+    {
+        var request = new ObsRequest<GetSceneItemListRequest>
+        {
+            Op = OpCodeType.Request,
+            RequestData = new RequestWrapper<GetSceneItemListRequest>
+            {
+                RequestId = Guid.NewGuid(),
+                RequestType = ObsRequestStrings.GetSceneItemList,
+                RequestData = new GetSceneItemListRequest
+                {
+                    SceneName = _obsSettings.SceneName!
+                }
+            }
+        };
+        var message = JsonSerializer.Serialize(request, _jsonSerializerOptions);
         await SendMessage(message);
     }
     
@@ -47,29 +72,38 @@ public class ObsWebSocketHandler : WebSocketHandlerBase
             return;
         }
             
-        var authResponse = JsonSerializer.Deserialize<ObsResponse<ObsAuthenticationResponse>>(message);
+        var response = JsonSerializer.Deserialize<ObsResponse<ObsAuthenticationResponse>>(message, _jsonSerializerOptions);
 
-        if (authResponse == null)
+        if (response is null)
         {
             return;
         }
-
-        if (authResponse.OpCode is OpCodeType.Hello or OpCodeType.Reidentify)
+        
+        if (response.OpCode is OpCodeType.RequestResponse)
         {
-            await SendIdentifyRequest();
-            return;
+            var sceneItemListResponse = JsonSerializer.Deserialize<ObsResponse<GetSceneItemListResponse>>(message, _jsonSerializerOptions);
+
+            if (sceneItemListResponse == null)
+            {
+                return;
+            }
+
+            if (sceneItemListResponse.Response.RequestType.Equals("GetSceneItemList", StringComparison.CurrentCultureIgnoreCase))
+            {
+                GetHamdleScene(sceneItemListResponse.Response.ResponseData);
+            }
         }
-
-        var sceneItemListResponse = JsonSerializer.Deserialize<ObsResponse<GetSceneItemListResponse>>(message);
-
-        if (sceneItemListResponse == null)
+        else
         {
-            return;
-        }
-
-        if (sceneItemListResponse.Response.RequestType.Equals("GetSceneItemList", StringComparison.CurrentCultureIgnoreCase))
-        {
-            GetHamdleScene(sceneItemListResponse.Response.ResponseData);
+            switch (response.OpCode)
+            {
+                case OpCodeType.Identified:
+                    await GetSceneItemList();
+                    return;
+                case OpCodeType.Hello or OpCodeType.Reidentify:
+                    await SendIdentifyRequest(response.Response.Authentication);
+                    return;
+            }
         }
     }
     
@@ -81,21 +115,26 @@ public class ObsWebSocketHandler : WebSocketHandlerBase
         };
     }
     
-    private async Task SendIdentifyRequest()
+    private async Task SendIdentifyRequest(ObsAuthenticationResponse authResponse)
     {
+        var ps = _obsSettings.ObsAuthentication! + authResponse.Salt;
+        var binaryHash = SHA256.HashData(Encoding.UTF8.GetBytes(ps));
+        var b64Hash = Convert.ToBase64String(binaryHash);
+        var challengeHash = SHA256.HashData(Encoding.UTF8.GetBytes(b64Hash + authResponse.Challenge));
+        var b64Challenge = Convert.ToBase64String(challengeHash);
         var req = new ObsRequest<IdentifyRequest>
         {
             RequestData = new RequestWrapper<IdentifyRequest>
             {
                 RpcVersion = 1,
-                Authentication = _obsSettings.ObsAuthentication!
+                Authentication = b64Challenge
             },
             Op = OpCodeType.Identify,
         };
-        var json = JsonSerializer.Serialize(req);
+        var json = JsonSerializer.Serialize(req, _jsonSerializerOptions);
         await SendMessage(json);
     }
-    
+
     private void GetHamdleScene(GetSceneItemListResponse scenes)
     {
         var scene = scenes.SceneItems.FirstOrDefault(x => x.SourceName.ToLower().Equals(_obsSettings.HamdleSourceName, StringComparison.CurrentCultureIgnoreCase));

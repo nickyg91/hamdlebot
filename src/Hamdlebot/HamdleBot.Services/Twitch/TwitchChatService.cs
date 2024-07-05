@@ -64,17 +64,22 @@ public class TwitchChatService : ITwitchChatService
 
         using var scope = _serviceProvider.CreateScope();
         var hamdleHub = scope.ServiceProvider.GetKeyedService<HubConnection>(KeyedServiceValues.HamdleHub);
+        var obsSettings = await _cache.GetObject<ObsSettings>($"{CacheKeyType.UserObsSettings}:{channel.TwitchUserId}");
         var twitchChannel = 
-            new TwitchChannel(channel, TwitchWebSocketUrl, oauthToken, _cache, hamdleHub!, _cancellationToken!.Value);
-        
-        _bus.ConnectReceiveEndpoint($"{MassTransitReceiveEndpoints.TwitchChannelSettingsUpdatedConsumer}-{channel.TwitchUserId}", cfg =>
-        {
-            cfg.Consumer(() => new TwitchChannelSettingsUpdatedConsumer(twitchChannel));
-        });
+            new TwitchChannel(channel, TwitchWebSocketUrl, oauthToken, obsSettings, _cache, hamdleHub!, _cancellationToken!.Value);
         
         twitchChannel.Connect();
         _authTokenUpdateHandler.Subscribe(twitchChannel);
         _channels.Add(channel.TwitchUserId, twitchChannel);
+        
+        _bus.ConnectReceiveEndpoint($"{MassTransitReceiveEndpoints.TwitchChannelSettingsUpdatedConsumer}-{channel.TwitchUserId}", cfg =>
+        {
+            cfg.Consumer(() => new TwitchChannelSettingsUpdatedConsumer(twitchChannel));
+            cfg.UseMessageRetry(rty =>
+            {
+                rty.Immediate(1);
+            });
+        });
     }
 
     public async Task LeaveChannel(long twitchUserId)
@@ -106,33 +111,9 @@ public class TwitchChatService : ITwitchChatService
         }
     }
 
-    public async Task ConnectToObs(long twitchUserId)
-    {
-        if (_channels.TryGetValue(twitchUserId, out var channel))
-        {
-            await channel.ConnectToObs();
-        }
-    }
-
-    public async Task DisconnectFromObs(long twitchUserId)
-    {
-        if (_channels.TryGetValue(twitchUserId, out var channel))
-        {
-            await channel.DisconnectFromObs();
-        }
-    }
-
     public void SetCancellationToken(CancellationToken token)
     {
         _cancellationToken = token;
-    }
-
-    public void UpdateChannelSettings(Channel channel)
-    {
-        if (_channels.TryGetValue(channel.TwitchUserId, out var twitchChannel))
-        {
-            twitchChannel.UpdateChannelSettings(channel);
-        }
     }
 
     private async Task<ClientCredentialsTokenResponse?> Authenticate()

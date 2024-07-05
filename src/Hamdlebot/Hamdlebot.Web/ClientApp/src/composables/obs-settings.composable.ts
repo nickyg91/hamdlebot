@@ -12,8 +12,18 @@ export const useObsSettingsService = () => {
     await httpClient.put('/obs-settings/update', settings);
   };
 
+  const connectToObs = async () => {
+    await httpClient.put('/obs-settings/connect');
+  };
+
+  const disconnectFromObs = async () => {
+    await httpClient.put('/obs-settings/connect');
+  };
+
   return {
     getObsSettings,
-    updateObsSettings
+    updateObsSettings,
+    connectToObs,
+    disconnectFromObs
   };
 };

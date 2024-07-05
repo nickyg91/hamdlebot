@@ -3,4 +3,5 @@ export class ObsSettings {
   hamdleSourceName?: string | null;
   sceneName?: string | null;
   obsAuthentication?: string | null;
+  isObsEnabled?: boolean | null;
 }

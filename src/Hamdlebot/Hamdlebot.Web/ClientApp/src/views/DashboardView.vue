@@ -5,7 +5,7 @@ import Panel from 'primevue/panel';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import Sidebar from 'primevue/sidebar';
-import ObsSettings from '@/components/ObsSettings.vue';
+import ObsSettingsSlider from '@/components/ObsSettingsSlider.vue';
 import { BotStatusType } from '@/models/bot-status-type.enum';
 import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -16,12 +16,17 @@ import ConfirmDialog from 'primevue/confirmdialog';
 import ChannelCommands from '@/components/dashboard/ChannelCommands.vue';
 import ScrollPanel from 'primevue/scrollpanel';
 import LogMessage from '@/components/LogMessage.vue';
+import type { ObsSettings } from '@/models/obs-settings.model';
+import { useObsSettingsService } from '@/composables/obs-settings.composable';
+import HamdleSettings from '@/components/dashboard/HamdleSettings.vue';
 
 const dashboardStore = useDashboardStore();
+const { connectToObs, disconnectFromObs } = useObsSettingsService();
 const { botChannel } = storeToRefs(dashboardStore);
 const authStore = useAuthStore();
 const { token } = storeToRefs(authStore);
 const confirm = useConfirm();
+const obsSettings = ref<ObsSettings | null>(null);
 const isLoginDialogOpen = ref(false);
 const isObsSettingsSliderOpen = ref(false);
 const botStatusSeverity = computed(() => {
@@ -116,75 +121,137 @@ const leaveChannel = async () => {
     console.error(error);
   }
 };
+
+const onObsUpdateSucceeded = (settings: ObsSettings) => {
+  obsSettings.value = settings;
+  isObsSettingsSliderOpen.value = false;
+};
+
+const onConnectToObs = async () => {
+  await connectToObs();
+};
+
+const onDisconnectFromObs = async () => {
+  await disconnectFromObs();
+};
 </script>
 <template>
   <div class="min-h-screen">
-    <div v-if="authStore.token">
-      <section class="flex justify-content-between">
+    <div v-if="authStore.token && authStore.jwtDecoded">
+      <section class="flex justify-content-between min-h-screen">
         <div class="flex-grow-1 p-2">
           <Sidebar
             v-model:visible="isObsSettingsSliderOpen"
             header="OBS Settings"
             class="w-full md:w-20rem lg:w-30rem"
           >
-            <ObsSettings @on-update-suceeded="isObsSettingsSliderOpen = false"></ObsSettings>
+            <ObsSettingsSlider @on-update-suceeded="onObsUpdateSucceeded"></ObsSettingsSlider>
           </Sidebar>
-          <Panel class="min-h-screen">
-            <template v-if="authStore.isHamdlebot" #header>
+          <section class="mt-2">
+            <div v-if="authStore.isHamdlebot">
               <h2>
                 Bot Status
                 <InlineMessage class="ml-3" :severity="botStatusSeverity.class">
                   {{ botStatusSeverity.text }}
                 </InlineMessage>
               </h2>
-            </template>
-            <template v-else #header>
-              <h2>
-                Welcome to your Hamdlebot Dashboard, {{ authStore.jwtDecoded?.preferred_username }}!
-              </h2>
-            </template>
-            <div>
-              <Button
-                v-if="authStore.isHamdlebot"
-                severity="help"
-                icon="pi pi-verified"
-                label="Authenticate Bot"
-                @click="getAuthUrl"
-              ></Button>
-              <Button
-                class="ml-3"
-                severity="info"
-                label="Obs Settings"
-                icon="pi pi-cog"
-                @click="showWarningModal()"
-              >
-              </Button>
-              <Button
-                class="ml-3"
-                severity="success"
-                icon="pi pi-user-plus"
-                label="Join Channel"
-                @click="joinChannel"
-              ></Button>
-              <Button
-                class="ml-3"
-                severity="danger"
-                icon="pi pi-user-minus"
-                label="Leave Channel"
-                @click="leaveChannel"
-              ></Button>
             </div>
-            <hr />
-            <div v-if="botChannel" class="grid grid-nogutter">
-              <div class="col-6">
-                <ChannelCommands
-                  :channel-id="botChannel!.id"
-                  :commands="botChannel!.commands"
-                ></ChannelCommands>
+            <div v-else>
+              <h2>
+                Welcome to your Hamdlebot Dashboard, {{ authStore.jwtDecoded.preferred_username }}!
+              </h2>
+            </div>
+          </section>
+          <section class="mt-2">
+            <div class="grid grid-nogutter gap-3">
+              <div v-if="botChannel" class="col">
+                <Panel>
+                  <template #header>
+                    <h2>Hamdle Settings</h2>
+                  </template>
+                  <div>
+                    <HamdleSettings
+                      :twitch-user-id="authStore.jwtDecoded.sub"
+                      :channel="botChannel"
+                    ></HamdleSettings>
+                  </div>
+                </Panel>
+              </div>
+              <div class="col">
+                <Panel>
+                  <template #header>
+                    <h2>Channel Actions</h2>
+                  </template>
+                  <div>
+                    <Button
+                      v-if="authStore.isHamdlebot"
+                      severity="help"
+                      icon="pi pi-verified"
+                      label="Authenticate Bot"
+                      @click="getAuthUrl"
+                    ></Button>
+                    <Button
+                      v-if="!authStore.isHamdlebot && botChannel.isHamdleEnabled"
+                      class="ml-3"
+                      severity="info"
+                      label="Obs Settings"
+                      icon="pi pi-cog"
+                      @click="showWarningModal()"
+                    >
+                    </Button>
+                    <Button
+                      class="ml-3"
+                      severity="success"
+                      icon="pi pi-user-plus"
+                      label="Join Channel"
+                      @click="joinChannel"
+                    ></Button>
+                    <Button
+                      class="ml-3"
+                      severity="danger"
+                      icon="pi pi-user-minus"
+                      label="Leave Channel"
+                      @click="leaveChannel"
+                    ></Button>
+                    <template
+                      v-if="
+                        !authStore.isHamdlebot &&
+                        obsSettings &&
+                        botChannel?.allowAccessToObs &&
+                        botChannel.isHamdleEnabled
+                      "
+                    >
+                      <div class="flex mt-2">
+                        <Button
+                          class="ml-3"
+                          severity="contrast"
+                          icon="pi pi-sign-in"
+                          label="Connect to OBS"
+                          @click="onConnectToObs"
+                        >
+                        </Button>
+                        <Button
+                          class="ml-3"
+                          severity="warning"
+                          icon="pi pi-sign-out"
+                          label="Disconnect from OBS"
+                          @click="onDisconnectFromObs"
+                        >
+                        </Button>
+                      </div>
+                    </template>
+                  </div>
+                  <ChannelCommands
+                    :channel-id="botChannel!.id"
+                    :commands="botChannel!.commands"
+                  ></ChannelCommands>
+                </Panel>
               </div>
             </div>
-            <section>
-              <div v-if="authStore.isHamdlebot" class="flex-grow-1 p-2">
+          </section>
+          <section v-if="authStore.isHamdlebot">
+            <Panel>
+              <div class="flex-grow-1 p-2">
                 <Panel>
                   <template #header>
                     <h2>Bot Log</h2>
@@ -199,8 +266,8 @@ const leaveChannel = async () => {
                   </ScrollPanel>
                 </Panel>
               </div>
-            </section>
-          </Panel>
+            </Panel>
+          </section>
         </div>
       </section>
     </div>

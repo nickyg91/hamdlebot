@@ -6,4 +6,5 @@ public class ObsSettings
     public string HamdleSourceName { get; set; }
     public string SceneName { get; set; }
     public string ObsAuthentication { get; set; }
+    public bool IsObsEnabled { get; set; }
 }

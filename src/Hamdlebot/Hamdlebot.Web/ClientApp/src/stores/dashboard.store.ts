@@ -72,6 +72,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
     }
   };
 
+  const updateChannel = (channel: IBotChannel) => {
+    botChannel.value = channel;
+  };
+
   return {
     logMessages,
     botStatus,
@@ -82,6 +86,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     startDashboardSignalRConnection,
     addCommandToChannel,
     removeCommand,
-    updateCommand
+    updateCommand,
+    updateChannel
   };
 });

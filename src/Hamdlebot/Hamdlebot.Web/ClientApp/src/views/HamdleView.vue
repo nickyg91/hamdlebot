@@ -6,10 +6,14 @@ import { useHamdleStore } from '@/stores/hamdle.store';
 import { computed, onMounted, watchEffect } from 'vue';
 import ProgressSpinner from 'primevue/progressspinner';
 import { useConfetti } from '@/composables/confetti.composable';
+import { useRoute } from 'vue-router';
 const store = useHamdleStore();
 const confetti = useConfetti();
+
 onMounted(async () => {
-  await store.startSignalRConnection();
+  const route = useRoute();
+  const twitchUserId = route.params.twitchUserId.toString();
+  await store.startSignalRConnection(twitchUserId);
 });
 
 watchEffect(() => {

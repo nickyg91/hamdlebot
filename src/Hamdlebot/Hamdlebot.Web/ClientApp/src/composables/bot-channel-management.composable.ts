@@ -17,9 +17,14 @@ export const useBotManagementService = () => {
     await httpClient.put('/hamdlebot/management/leave-channel');
   };
 
+  const updateHamdleStatus = async (isEnabled: boolean): Promise<IBotChannel> => {
+    return (await httpClient.put(`/hamdlebot/management/set-hamdle-optin/${isEnabled}`)).data;
+  };
+
   return {
     getChannel,
     joinChannel,
-    leaveChannel
+    leaveChannel,
+    updateHamdleStatus
   };
 };

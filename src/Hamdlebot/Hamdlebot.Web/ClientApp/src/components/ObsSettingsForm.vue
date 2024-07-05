@@ -4,6 +4,7 @@ import { toTypedSchema } from '@vee-validate/zod';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import Password from 'primevue/password';
+import Checkbox from 'primevue/checkbox';
 import { useForm } from 'vee-validate';
 import * as zod from 'zod';
 const props = defineProps<{ obsSettings: ObsSettings }>();
@@ -30,7 +31,8 @@ const schema = toTypedSchema(
       .string({
         message: 'OBS Websocket Password is required.'
       })
-      .min(1)
+      .min(1),
+    isObsEnabled: zod.boolean()
   })
 );
 const { errors, defineField, handleSubmit, meta } = useForm({
@@ -49,6 +51,7 @@ const [socketUrl] = defineField('socketUrl');
 const [hamdleSourceName] = defineField('hamdleSourceName');
 const [sceneName] = defineField('sceneName');
 const [obsAuthentication] = defineField('obsAuthentication');
+const [isObsEnabled] = defineField('isObsEnabled');
 </script>
 <template>
   <div>
@@ -100,6 +103,12 @@ const [obsAuthentication] = defineField('obsAuthentication');
             id="obsAuthentication"
             :class="{ 'p-invalid': errors.obsAuthentication }"
           />
+        </div>
+      </div>
+      <div class="field">
+        <label for="isObsEnabled">Enable OBS</label>
+        <div>
+          <Checkbox v-model="isObsEnabled" :binary="true" />
         </div>
       </div>
       <div class="mt-3">

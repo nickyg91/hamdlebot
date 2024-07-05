@@ -24,7 +24,8 @@ public abstract class WebSocketHandlerBase
     public async Task Connect()
     {
         var retryCount = 0;
-        while(_socket.State != WebSocketState.Open && retryCount < _maxReconnectAttempts)
+        while(_socket.State != WebSocketState.Open
+              && retryCount < _maxReconnectAttempts)
         {
             try
             {
