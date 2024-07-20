@@ -14,8 +14,6 @@
 
     <ItemGroup>
       <PackageReference Include="MassTransit" Version="8.2.3" />
-      <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.6" />
-      <PackageReference Include="Microsoft.AspNetCore.SignalR.Client.Core" Version="8.0.6" />
     </ItemGroup>
 
     <ItemGroup>
