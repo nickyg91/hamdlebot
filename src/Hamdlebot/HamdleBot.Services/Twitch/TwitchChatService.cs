@@ -72,7 +72,7 @@ public class TwitchChatService : ITwitchChatService
                     SeverityLevel.Error));
             return;
         }
-        twitchChannel.Connect();
+        await twitchChannel.Connect();
     }
 
     public async Task LeaveChannel(long twitchUserId)

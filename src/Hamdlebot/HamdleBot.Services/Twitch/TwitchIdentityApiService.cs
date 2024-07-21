@@ -21,7 +21,6 @@ public class TwitchIdentityApiService : ITwitchIdentityApiService
 
     public async Task<ClientCredentialsTokenResponse> GetToken(string code)
     {
-        _client.DefaultRequestHeaders.Clear();
         using var content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
         {
             new("client_id", _settings.TwitchConnectionInfo!.ClientId!),

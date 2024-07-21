@@ -53,9 +53,6 @@ watchEffect(() => {
 </script>
 <template>
   <div>
-    {{ store.showGuessTimer }}
-    {{ store.showVotingTimer }}
-    {{ store.showBetweenRoundMs }}
     <div class="timer-text" v-if="store.showGuessTimer">
       Time to guess: {{ guessTimer }} seconds
     </div>
