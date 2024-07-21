@@ -191,7 +191,7 @@ const onDisconnectFromObs = async () => {
                       @click="getAuthUrl"
                     ></Button>
                     <Button
-                      v-if="!authStore.isHamdlebot && botChannel.isHamdleEnabled"
+                      v-if="!authStore.isHamdlebot && botChannel!.isHamdleEnabled"
                       class="ml-3"
                       severity="info"
                       label="Obs Settings"
@@ -249,7 +249,7 @@ const onDisconnectFromObs = async () => {
               </div>
             </div>
           </section>
-          <section v-if="authStore.isHamdlebot">
+          <section class="mt-4" v-if="authStore.isHamdlebot">
             <Panel>
               <div class="flex-grow-1 p-2">
                 <Panel>
