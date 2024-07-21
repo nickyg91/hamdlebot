@@ -109,7 +109,7 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
             case MessageType.Revocation:
                 break;
             default:
-                throw new InvalidMetadataMessageType("Unsupported message type.");
+                throw new InvalidMetadataMessageTypeException("Unsupported message type.");
         }
     }
     
