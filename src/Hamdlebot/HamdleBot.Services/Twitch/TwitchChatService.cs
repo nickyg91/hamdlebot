@@ -3,7 +3,6 @@ using Hamdlebot.Core;
 using Hamdlebot.Core.Models.Logging;
 using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Data.Contexts.Hamdlebot;
-using Hamdlebot.Models;
 using Hamdlebot.Models.ViewModels;
 using HamdleBot.Services.Consumers;
 using HamdleBot.Services.Handlers;
@@ -21,25 +20,19 @@ public class TwitchChatService : ITwitchChatService
     private const string TwitchWebSocketUrl = "wss://irc-ws.chat.twitch.tv:443";
     private readonly Dictionary<long, TwitchChannel> _channels = new();
     private readonly ICacheService _cache;
-    private readonly ITwitchIdentityApiService _identityApiService;
     private readonly IBotLogClient _logClient;
     private CancellationToken? _cancellationToken;
     private readonly RedisChannel _botTokenChannel;
-    private readonly TwitchAuthTokenUpdateHandler _authTokenUpdateHandler;
     private readonly IServiceProvider _serviceProvider;
     private readonly IBus _bus;
     public TwitchChatService(
         ICacheService cache,
-        ITwitchIdentityApiService identityApiService,
         IBotLogClient logClient,
-        TwitchAuthTokenUpdateHandler authTokenUpdateHandler,
         IServiceProvider serviceProvider,
         IBus bus)
     {
         _cache = cache;
-        _identityApiService = identityApiService;
         _logClient = logClient;
-        _authTokenUpdateHandler = authTokenUpdateHandler;
         _serviceProvider = serviceProvider;
         _bus = bus;
         _botTokenChannel = new RedisChannel(RedisChannelType.BotTwitchToken, RedisChannel.PatternMode.Auto);
@@ -53,23 +46,13 @@ public class TwitchChatService : ITwitchChatService
             return;
         }
         var oauthToken = await _cache.GetItem(CacheKeyType.TwitchOauthToken);
-        if (oauthToken is null)
-        {
-            await _logClient.LogMessage(
-                new LogMessage($"No valid OAuth token found. Cannot join channel {channel.TwitchUserId}.", 
-                DateTime.UtcNow,
-                SeverityLevel.Error));
-            return;
-        }
 
         using var scope = _serviceProvider.CreateScope();
         var hamdleHub = scope.ServiceProvider.GetKeyedService<HubConnection>(KeyedServiceValues.HamdleHub);
         var obsSettings = await _cache.GetObject<ObsSettings>($"{CacheKeyType.UserObsSettings}:{channel.TwitchUserId}");
         var twitchChannel = 
-            new TwitchChannel(channel, TwitchWebSocketUrl, oauthToken, obsSettings, _cache, hamdleHub!, _cancellationToken!.Value);
+            new TwitchChannel(channel, TwitchWebSocketUrl, oauthToken ?? "", obsSettings, _cache, hamdleHub!, _cancellationToken!.Value);
         
-        twitchChannel.Connect();
-        _authTokenUpdateHandler.Subscribe(twitchChannel);
         _channels.Add(channel.TwitchUserId, twitchChannel);
         
         _bus.ConnectReceiveEndpoint($"{MassTransitReceiveEndpoints.TwitchChannelSettingsUpdatedConsumer}-{channel.TwitchUserId}", cfg =>
@@ -80,6 +63,16 @@ public class TwitchChatService : ITwitchChatService
                 rty.Immediate(1);
             });
         });
+        
+        if (oauthToken is null)
+        {
+            await _logClient.LogMessage(
+                new LogMessage($"No valid OAuth token found. Cannot join channel {channel.TwitchUserId}.", 
+                    DateTime.UtcNow,
+                    SeverityLevel.Error));
+            return;
+        }
+        twitchChannel.Connect();
     }
 
     public async Task LeaveChannel(long twitchUserId)
@@ -93,13 +86,6 @@ public class TwitchChatService : ITwitchChatService
 
     public async Task JoinExistingChannels()
     {
-        var token = await Authenticate();
-        if (token == null)
-        {
-            await _logClient.LogMessage(new LogMessage("Failed to authenticate with Twitch. No valid token found.",
-                DateTime.UtcNow, SeverityLevel.Error));
-            return;
-        }
         // for now - this is not performant AT ALL when dealing with large datasets.
         using var scope = _serviceProvider.CreateScope();
         var dbCtx = scope.ServiceProvider.GetRequiredService<HamdlebotContext>();
@@ -116,46 +102,34 @@ public class TwitchChatService : ITwitchChatService
         _cancellationToken = token;
     }
 
-    private async Task<ClientCredentialsTokenResponse?> Authenticate()
+    private async Task UpdateToken()
     {
-        ClientCredentialsTokenResponse tokenResponse;
         var oauthToken = await _cache.GetItem(CacheKeyType.TwitchOauthToken);
-        var refreshToken = await _cache.GetItem(CacheKeyType.TwitchRefreshToken);
+
+        if (oauthToken is null)
+        {
+            await _logClient.LogMessage(new LogMessage("OAuth token was null. Bailing early from UpdateToken().", DateTime.UtcNow,
+                SeverityLevel.Info));
+            return;
+        }
         
-        if (oauthToken != null && refreshToken != null)
-        {
-            await _logClient.LogMessage(new LogMessage("Valid OAuth token found.", DateTime.UtcNow,
-                SeverityLevel.Info));
-            return new ClientCredentialsTokenResponse
-            {
-                AccessToken = oauthToken,
-                RefreshToken = refreshToken
-            };
-        }
-
-        if (oauthToken == null || refreshToken == null)
-        {
-            await _logClient.LogMessage(new LogMessage("Valid OAuth token not found.", DateTime.UtcNow,
-                SeverityLevel.Info));
-            return null;
-        }
-
-        await _logClient.LogMessage(new LogMessage("Fetching new twitch OAuthToken.", DateTime.UtcNow,
+        await _logClient.LogMessage(new LogMessage($"Updating token for {_channels.Count} channels.", DateTime.UtcNow,
             SeverityLevel.Info));
-        tokenResponse = await _identityApiService.RefreshToken(refreshToken);
-        await _cache.AddItem(CacheKeyType.TwitchOauthToken, tokenResponse.AccessToken,
-            TimeSpan.FromSeconds(tokenResponse.ExpiresIn));
-        await _cache.AddItem(CacheKeyType.TwitchRefreshToken, tokenResponse.RefreshToken, TimeSpan.FromDays(30));
-        _authTokenUpdateHandler.UpdateToken(tokenResponse.AccessToken);
-        return tokenResponse;
-    }
 
+        foreach (var channel in _channels.Values)
+        {
+            await channel.Reauthenticate(oauthToken);
+        }
+    }
+    
     private void SetupSubscriptions()
     {
         _cache.Subscriber.Subscribe(_botTokenChannel).OnMessage(
             async _ =>
             {
-                await Authenticate();
+                await _logClient.LogMessage(new LogMessage("Updated token received.", DateTime.UtcNow,
+                    SeverityLevel.Info));
+                await UpdateToken();
             });
     }
 }

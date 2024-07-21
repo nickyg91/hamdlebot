@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 
 namespace HamdleBot.Services.Twitch;
 
-public class TwitchChannel : IObserver<string>
+public class TwitchChannel
 {
     private Channel _botChannel;
     private readonly TwitchChatWebSocketHandler _webSocketHandler;
@@ -21,6 +21,9 @@ public class TwitchChannel : IObserver<string>
     private HamdleContext? _hamdleContext;
     private HashSet<string> _hamdleWords = new();
     private ObsSettings? _obsSettings;
+    
+    public bool IsConnected => _webSocketHandler.State == WebSocketState.Open 
+                               && _webSocketHandler.State != WebSocketState.Connecting;
 
     private readonly List<string> _baseChannelCommands =
     [
@@ -64,30 +67,15 @@ public class TwitchChannel : IObserver<string>
         await _webSocketHandler.Disconnect();
     }
 
-    public void Connect()
+    public async Task Connect()
     {
         if (_webSocketHandler.State != WebSocketState.Open
             && _webSocketHandler.State != WebSocketState.Connecting)
         {
-            _ = Task.Run(async () => await _webSocketHandler.Connect(), _cancellationToken);
+            await Task.Run(async () => await _webSocketHandler.Connect(), _cancellationToken);
         }
     }
-
-    public void OnCompleted()
-    {
-        //throw new NotImplementedException();
-    }
-
-    public void OnError(Exception error)
-    {
-        //throw new NotImplementedException();
-    }
-
-    public void OnNext(string botAccessToken)
-    {
-        _ = Task.Run(async () => await Reauthenticate(botAccessToken), _cancellationToken);
-    }
-
+    
     public async Task ConnectToObs()
     {
         try
@@ -149,17 +137,6 @@ public class TwitchChannel : IObserver<string>
 
     private async Task Authenticate()
     {
-        await AuthenticateInternal();
-    }
-
-    private async Task Reauthenticate(string botAccessToken)
-    {
-        _botAccessToken = botAccessToken;
-        await AuthenticateInternal();
-    }
-
-    private async Task AuthenticateInternal()
-    {
         var capReq = $"CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands";
         var pass = $"PASS oauth:{_botAccessToken}";
         var nick = "NICK hamdlebot";
@@ -170,6 +147,15 @@ public class TwitchChannel : IObserver<string>
         await _webSocketHandler.JoinChannel();
     }
 
+    public async Task Reauthenticate(string botAccessToken)
+    {
+        _botAccessToken = botAccessToken;
+        if (!IsConnected)
+        {
+            await Connect();
+        }
+    }
+    
     private async Task OnMessageReceived(string message)
     {
         if (message.IsPingMessage())

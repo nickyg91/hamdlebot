@@ -75,7 +75,6 @@ builder.Services.AddMassTransit(x =>
 
 builder.Services.AddSingleton<ICacheService, CacheService>();
 builder.Services.AddSingleton<IWordService, WordService>();
-builder.Services.AddSingleton<TwitchAuthTokenUpdateHandler>();
 builder.Services.AddKeyedSingleton("twitchApiHttpClient", twitchApiHttpClient);
 builder.Services.AddKeyedSingleton("logHub", botLogHubConnection);
 builder.Services.AddKeyedSingleton("hamdleHub", hamdleBotHubConnection);

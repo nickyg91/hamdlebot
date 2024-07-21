@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Hamdle.Cache;
 using Hamdlebot.Core.Models.Logging;
 using Hamdlebot.Core.SignalR.Clients.Logging;
@@ -5,6 +6,7 @@ using HamdleBot.Services;
 using HamdleBot.Services.OBS;
 using HamdleBot.Services.Twitch.Interfaces;
 using Microsoft.AspNetCore.SignalR.Client;
+using StackExchange.Redis;
 
 namespace Hamdlebot.Worker;
 
@@ -69,20 +71,8 @@ public class HamdlebotWorker : BackgroundService
         await _logClient.SendBotStatus(BotStatusType.Online);
 
         await _wordService.InsertWords();
-        // try
-        // {
-        //     await _obsService.CreateWebSocket(cancellationToken);
-        // }
-        // catch (Exception e)
-        // {
-        //     await _logClient.LogMessage(new LogMessage($"Connection to OBS failed: {e.Message}", DateTime.UtcNow, SeverityLevel.Error));
-        // }
-        // multitenant test
         _twitchChatService.SetCancellationToken(cancellationToken);
         await _twitchChatService.JoinExistingChannels();
-        //await _twitchChatService.CreateWebSocket(cancellationToken);
-        // change where this is done.
-        //await _twitchEventSubService.StartSubscriptions("hamhamreborn", cancellationToken);
         _ = Task.Run(async () =>
         {
             var ms = TimeSpan.FromHours(3.5);
@@ -103,6 +93,11 @@ public class HamdlebotWorker : BackgroundService
                     var newToken = await _identityApiService.RefreshToken(token);
                     await _cacheService.AddItem(CacheKeyType.TwitchRefreshToken, newToken.RefreshToken);
                     await _cacheService.AddItem(CacheKeyType.TwitchAccessToken, newToken.AccessToken);
+                    await _cacheService
+                        .Subscriber
+                        .PublishAsync(
+                            new RedisChannel(RedisChannelType.BotTwitchToken, RedisChannel.PatternMode.Auto),
+                            JsonSerializer.Serialize(newToken));
                 }
                 catch (Exception e)
                 {
