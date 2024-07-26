@@ -146,18 +146,15 @@ public class TwitchChannel
         {
             await Authenticate();
             await _webSocketHandler.SendMessageToChat("Never fear, hamdlebot is here!");
-            await _channelNotificationsConnection.InvokeAsync("SendChannelConnectionStatus",
-                ChannelConnectionStatusType.Connected, _botChannel.TwitchUserId.ToString(), _cancellationToken);
+            await SendTwitchConnectionPing(ChannelConnectionStatusType.Connected);
         };
         _webSocketHandler.OnDisconnect += async () =>
         {
-            await _channelNotificationsConnection.InvokeAsync("SendChannelConnectionStatus",
-                ChannelConnectionStatusType.Disconnected, _botChannel.TwitchUserId, _cancellationToken);
+            await SendTwitchConnectionPing(ChannelConnectionStatusType.Disconnected);
         };
         _webSocketHandler.OnFault += async () =>
         {
-            await _channelNotificationsConnection.InvokeAsync("SendChannelConnectionStatus",
-                ChannelConnectionStatusType.Errored, _botChannel.TwitchUserId, _cancellationToken);
+            await SendTwitchConnectionPing(ChannelConnectionStatusType.Errored);
         };
         
         _statusPingTimer.Elapsed += async (_, _) =>
@@ -168,8 +165,7 @@ public class TwitchChannel
                 WebSocketState.Aborted => ChannelConnectionStatusType.Errored,
                 _ => ChannelConnectionStatusType.Disconnected
             };
-            await _channelNotificationsConnection.InvokeAsync("SendChannelConnectionStatus",
-                connectionStatus, _botChannel.TwitchUserId.ToString(), _cancellationToken);
+            await SendTwitchConnectionPing(connectionStatus);
         };
         _statusPingTimer.Start();
     }
@@ -182,18 +178,15 @@ public class TwitchChannel
         }
         _obsWebSocketHandler.Connected += async () =>
         {
-            await _channelNotificationsConnection.InvokeAsync("SendObsConnectionStatus",
-                ObsConnectionStatusType.Connected, _botChannel.TwitchUserId.ToString(), _cancellationToken);
+            await SendObsConnectionPing(ObsConnectionStatusType.Connected);
         };
         _obsWebSocketHandler.OnDisconnect += async () =>
         {
-            await _channelNotificationsConnection.InvokeAsync("SendObsConnectionStatus",
-                ObsConnectionStatusType.Disconnected, _botChannel.TwitchUserId.ToString(), _cancellationToken);
+            await SendObsConnectionPing(ObsConnectionStatusType.Disconnected);
         };
         _obsWebSocketHandler.OnFault += async () =>
         {
-            await _channelNotificationsConnection.InvokeAsync("SendObsConnectionStatus",
-                ObsConnectionStatusType.Errored, _botChannel.TwitchUserId.ToString(), _cancellationToken);
+            await SendObsConnectionPing(ObsConnectionStatusType.Errored);
         };
         
         _statusObsPingTimer.Elapsed += async (_, _) =>
@@ -204,8 +197,7 @@ public class TwitchChannel
                 WebSocketState.Aborted => ObsConnectionStatusType.Errored,
                 _ => ObsConnectionStatusType.Disconnected
             };
-            await _channelNotificationsConnection.InvokeAsync("SendObsConnectionStatus",
-                connectionStatus, _botChannel.TwitchUserId.ToString(), _cancellationToken);
+            await SendObsConnectionPing(connectionStatus);
         };
         _statusPingTimer.Start();
     }
@@ -317,5 +309,17 @@ public class TwitchChannel
             await _webSocketHandler.SendMessageToChat("Hamdle is ending. Thanks for playing!");
             _hamdleContext = null;
         };
+    }
+
+    private async Task SendTwitchConnectionPing(ChannelConnectionStatusType status)
+    {
+        await _channelNotificationsConnection.InvokeAsync("SendChannelConnectionStatus",
+            status, _botChannel.TwitchUserId.ToString(), _cancellationToken);
+    }
+
+    private async Task SendObsConnectionPing(ObsConnectionStatusType status)
+    {
+        await _channelNotificationsConnection.InvokeAsync("SendObsConnectionStatus",
+            status, _botChannel.TwitchUserId.ToString(), _cancellationToken);
     }
 }
