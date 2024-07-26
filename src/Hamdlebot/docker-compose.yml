@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     image: "redis"
     volumes:
-      - "hamdle-data:/redis"
+      - "hamdle-data:/data"
   hamdle-web:
     container_name: "hamdlebot-web"
     restart: unless-stopped
