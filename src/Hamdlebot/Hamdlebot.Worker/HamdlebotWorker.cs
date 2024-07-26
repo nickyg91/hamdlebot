@@ -22,7 +22,6 @@ public class HamdlebotWorker : BackgroundService
     private readonly IBotLogClient _logClient;
     private readonly ICacheService _cacheService;
     private readonly ITwitchIdentityApiService _identityApiService;
-    private readonly ITwitchEventSubService _twitchEventSubService;
 
     public HamdlebotWorker(
         ITwitchChatService twitchChatService,
@@ -34,8 +33,7 @@ public class HamdlebotWorker : BackgroundService
         IHostApplicationLifetime appLifetime,
         IBotLogClient logClient,
         ICacheService cacheService,
-        ITwitchIdentityApiService identityApiService,
-        ITwitchEventSubService twitchEventSubService)
+        ITwitchIdentityApiService identityApiService)
     {
         _twitchChatService = twitchChatService;
         _wordService = wordService;
@@ -47,7 +45,6 @@ public class HamdlebotWorker : BackgroundService
         _logClient = logClient;
         _cacheService = cacheService;
         _identityApiService = identityApiService;
-        _twitchEventSubService = twitchEventSubService;
     }
     protected override Task ExecuteAsync(CancellationToken cancellationToken)
     {

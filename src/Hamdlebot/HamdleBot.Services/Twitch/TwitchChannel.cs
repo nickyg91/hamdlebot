@@ -1,9 +1,11 @@
 using System.Net.WebSockets;
-using System.Timers;
 using Hamdle.Cache;
 using Hamdlebot.Core;
 using Hamdlebot.Core.Extensions;
 using Hamdlebot.Core.Models.Enums;
+using Hamdlebot.Core.Models.Enums.EventSub;
+using Hamdlebot.Core.Models.EventSub.Responses;
+using Hamdlebot.Models;
 using Hamdlebot.Models.ViewModels;
 using HamdleBot.Services.Hamdle;
 using HamdleBot.Services.Handlers;
@@ -14,7 +16,8 @@ namespace HamdleBot.Services.Twitch;
 public class TwitchChannel
 {
     private Channel _botChannel;
-    private readonly TwitchChatWebSocketHandler _webSocketHandler;
+    private readonly TwitchChatWebSocketHandler _twitchChatSocketHandler;
+    private readonly TwitchEventSubWebSocketHandler _eventSubHandler;
     private ObsWebSocketHandler? _obsWebSocketHandler;
     private string _botAccessToken;
     private readonly ICacheService _cacheService;
@@ -24,6 +27,7 @@ public class TwitchChannel
     private HamdleContext? _hamdleContext;
     private HashSet<string> _hamdleWords = [];
     private ObsSettings? _obsSettings;
+    private readonly string _hamdlebotUserId;
     private readonly System.Timers.Timer _statusPingTimer = new(30000)
     {
         AutoReset = true
@@ -32,8 +36,10 @@ public class TwitchChannel
     {
         AutoReset = true
     };
-    public bool IsConnected => _webSocketHandler.State == WebSocketState.Open
-                               && _webSocketHandler.State != WebSocketState.Connecting;
+    
+    
+    public bool IsConnected => _twitchChatSocketHandler.State == WebSocketState.Open
+                               && _twitchChatSocketHandler.State != WebSocketState.Connecting;
 
     private readonly List<string> _baseChannelCommands =
     [
@@ -44,24 +50,18 @@ public class TwitchChannel
     ];
 
     public TwitchChannel(
-        Channel channel,
-        string url,
-        string botAccessToken,
-        ObsSettings? obsSettings,
+        TwitchChannelAggregate twitchChannelAggregate,
         ICacheService cacheService,
-        HubConnection hamdleHubConnection,
-        HubConnection channelNotificationsConnection,
         CancellationToken cancellationToken)
     {
-        _botAccessToken = botAccessToken;
+        _botAccessToken = twitchChannelAggregate.BotAccessToken;
         _cacheService = cacheService;
-        _hamdleHubConnection = hamdleHubConnection;
-        _channelNotificationsConnection = channelNotificationsConnection;
-        _botChannel = channel;
-        _webSocketHandler =
+        _hamdleHubConnection = twitchChannelAggregate.HamdleHubConnection;
+        _channelNotificationsConnection = twitchChannelAggregate.ChannelNotificationsConnection;
+        _botChannel = twitchChannelAggregate.Channel;
+        _twitchChatSocketHandler =
             new TwitchChatWebSocketHandler
             (
-                url,
                 cancellationToken,
                 _botChannel.TwitchChannelName,
                 3
@@ -69,22 +69,35 @@ public class TwitchChannel
         SetupTwitchIrcSocketEvents();
         var cts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationToken);
         _cancellationToken = cts.Token;
-        _obsSettings = obsSettings;
+        _obsSettings = twitchChannelAggregate.ObsSettings;
+        _hamdlebotUserId = twitchChannelAggregate.HamdlebotUserId;
+        
+        _eventSubHandler = new TwitchEventSubWebSocketHandler(
+            _botChannel.TwitchUserId.ToString(),
+            _hamdlebotUserId,
+            cancellationToken,
+            3,
+            _botAccessToken,
+            twitchChannelAggregate.ClientId,
+            [SubscriptionType.StreamOnline, SubscriptionType.StreamOffline]
+        );
+        SetupEventSubEvents();
     }
 
     public async Task LeaveChannel()
     {
-        await _webSocketHandler.SendMessageToChat("I'm leaving the channel. Bye!");
-        await _webSocketHandler.SendPartMessage();
-        await _webSocketHandler.Disconnect();
+        await _twitchChatSocketHandler.SendMessageToChat("I'm leaving the channel. Bye!");
+        await _twitchChatSocketHandler.SendPartMessage();
+        await _twitchChatSocketHandler.Disconnect();
     }
 
     public async Task Connect()
     {
-        if (_webSocketHandler.State != WebSocketState.Open
-            && _webSocketHandler.State != WebSocketState.Connecting)
+        if (_twitchChatSocketHandler.State != WebSocketState.Open
+            && _twitchChatSocketHandler.State != WebSocketState.Connecting)
         {
-            await Task.Run(async () => await _webSocketHandler.Connect(), _cancellationToken);
+            await Task.Run(async () => await _twitchChatSocketHandler.Connect(), _cancellationToken);
+            await Task.Run(async () => await _eventSubHandler.StartEventSubscriptions(), _cancellationToken);
         }
     }
 
@@ -141,25 +154,25 @@ public class TwitchChannel
 
     private void SetupTwitchIrcSocketEvents()
     {
-        _webSocketHandler.MessageReceived += async message => { await OnMessageReceived(message); };
-        _webSocketHandler.Connected += async () =>
+        _twitchChatSocketHandler.MessageReceived += async message => { await OnMessageReceived(message); };
+        _twitchChatSocketHandler.Connected += async () =>
         {
             await Authenticate();
-            await _webSocketHandler.SendMessageToChat("Never fear, hamdlebot is here!");
+            await _twitchChatSocketHandler.SendMessageToChat("Never fear, hamdlebot is here!");
             await SendTwitchConnectionPing(ChannelConnectionStatusType.Connected);
         };
-        _webSocketHandler.OnDisconnect += async () =>
+        _twitchChatSocketHandler.OnDisconnect += async () =>
         {
             await SendTwitchConnectionPing(ChannelConnectionStatusType.Disconnected);
         };
-        _webSocketHandler.OnFault += async () =>
+        _twitchChatSocketHandler.OnFault += async () =>
         {
             await SendTwitchConnectionPing(ChannelConnectionStatusType.Errored);
         };
         
         _statusPingTimer.Elapsed += async (_, _) =>
         {
-            var connectionStatus = _webSocketHandler.State switch
+            var connectionStatus = _twitchChatSocketHandler.State switch
             {
                 WebSocketState.Open => ChannelConnectionStatusType.Connected,
                 WebSocketState.Aborted => ChannelConnectionStatusType.Errored,
@@ -191,7 +204,7 @@ public class TwitchChannel
         
         _statusObsPingTimer.Elapsed += async (_, _) =>
         {
-            var connectionStatus = _webSocketHandler.State switch
+            var connectionStatus = _twitchChatSocketHandler.State switch
             {
                 WebSocketState.Open => ObsConnectionStatusType.Connected,
                 WebSocketState.Aborted => ObsConnectionStatusType.Errored,
@@ -202,21 +215,29 @@ public class TwitchChannel
         _statusPingTimer.Start();
     }
 
+    private void SetupEventSubEvents()
+    {
+        _eventSubHandler.OnStreamOnline += HandleStreamOnline;
+        _eventSubHandler.OnStreamOffline += HandleStreamOffline;
+    }
+    
     private async Task Authenticate()
     {
         var capReq = $"CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands";
         var pass = $"PASS oauth:{_botAccessToken}";
         var nick = "NICK hamdlebot";
-        await _webSocketHandler.SendMessage(pass);
-        await _webSocketHandler.SendMessage(nick);
-        await _webSocketHandler.SendMessage(capReq);
+        await _twitchChatSocketHandler.SendMessage(pass);
+        await _twitchChatSocketHandler.SendMessage(nick);
+        await _twitchChatSocketHandler.SendMessage(capReq);
         await Task.Delay(3000);
-        await _webSocketHandler.JoinChannel();
+        await _twitchChatSocketHandler.JoinChannel();
     }
 
     public async Task Reauthenticate(string botAccessToken)
     {
         _botAccessToken = botAccessToken;
+        await _eventSubHandler.Disconnect();
+        _eventSubHandler.SetNewAuthToken(_botAccessToken);
         if (!IsConnected)
         {
             await Connect();
@@ -227,7 +248,7 @@ public class TwitchChannel
     {
         if (message.IsPingMessage())
         {
-            await _webSocketHandler.SendMessage("PONG :tmi.twitch.tv");
+            await _twitchChatSocketHandler.SendMessage("PONG :tmi.twitch.tv");
         }
 
         var ircMessage = message.ToTwitchMessage();
@@ -243,7 +264,7 @@ public class TwitchChannel
                 switch (ircMessage.Message)
                 {
                     case "!#commands":
-                        await _webSocketHandler.SendMessageToChat("Commands: !#commands, !#random, !#hamdle");
+                        await _twitchChatSocketHandler.SendMessageToChat("Commands: !#commands, !#random, !#hamdle");
                         break;
                     case "!#hamdle":
                         if (_botChannel.IsHamdleEnabled && _obsWebSocketHandler != null)
@@ -253,7 +274,7 @@ public class TwitchChannel
                         }
                         else
                         {
-                            await _webSocketHandler.SendMessageToChat("Hamdle is not enabled in this channel.");
+                            await _twitchChatSocketHandler.SendMessageToChat("Hamdle is not enabled in this channel.");
                         }
 
                         break;
@@ -275,11 +296,11 @@ public class TwitchChannel
                 string.Equals(x.Command, strippedCommand, StringComparison.CurrentCultureIgnoreCase));
             if (command != null)
             {
-                await _webSocketHandler.SendMessageToChat(command.Response);
+                await _twitchChatSocketHandler.SendMessageToChat(command.Response);
                 return;
             }
 
-            await _webSocketHandler.SendMessageToChat("Invalid command! SirSad");
+            await _twitchChatSocketHandler.SendMessageToChat("Invalid command! SirSad");
         }
     }
 
@@ -294,19 +315,19 @@ public class TwitchChannel
             _hamdleHubConnection);
         await _obsWebSocketHandler!.SetHamdleSceneState(true);
         await Task.Delay(2000, _cancellationToken);
-        await _webSocketHandler.SendMessageToChat(
+        await _twitchChatSocketHandler.SendMessageToChat(
             "Starting a new game of hamdle! To guess a word, type in !#guess your-word-here.");
         await _hamdleContext.StartGuesses();
 
         _hamdleContext.SendMessageToChat += async (_, hamdleMessage) =>
         {
-            await _webSocketHandler.SendMessageToChat(hamdleMessage);
+            await _twitchChatSocketHandler.SendMessageToChat(hamdleMessage);
         };
 
         _hamdleContext.Restarted += async (_, _) =>
         {
             await _obsWebSocketHandler!.SetHamdleSceneState(false);
-            await _webSocketHandler.SendMessageToChat("Hamdle is ending. Thanks for playing!");
+            await _twitchChatSocketHandler.SendMessageToChat("Hamdle is ending. Thanks for playing!");
             _hamdleContext = null;
         };
     }
@@ -321,5 +342,30 @@ public class TwitchChannel
     {
         await _channelNotificationsConnection.InvokeAsync("SendObsConnectionStatus",
             status, _botChannel.TwitchUserId.ToString(), _cancellationToken);
+    }
+
+    private void HandleStreamOnline(StreamOnlineEvent evt)
+    {
+        Task.Run(async () =>
+        {
+            await Connect();
+            if (_obsSettings != null)
+            {
+                await ConnectToObs();
+            }
+        }, _cancellationToken);
+    }
+
+    private void HandleStreamOffline(StreamOfflineEvent evt)
+    {
+        Task.Run(async () =>
+        {
+            await _twitchChatSocketHandler.SendMessageToChat("Stream is offline. See you later!");
+            await _twitchChatSocketHandler.Disconnect();
+            if (_obsSettings != null)
+            {
+                await DisconnectFromObs();
+            }
+        }, _cancellationToken);
     }
 }

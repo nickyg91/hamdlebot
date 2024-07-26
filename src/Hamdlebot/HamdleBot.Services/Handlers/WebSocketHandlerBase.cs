@@ -6,7 +6,6 @@ namespace HamdleBot.Services.Handlers;
 public abstract class WebSocketHandlerBase
 {
     private readonly ClientWebSocket _socket = new();
-    private readonly string _url;
     private readonly CancellationToken _cancellationToken;
     private readonly byte _maxReconnectAttempts;
     public event Action? Connected;
@@ -15,23 +14,27 @@ public abstract class WebSocketHandlerBase
     public event Action? OnFault;
     public event Action? OnDisconnect;
     public WebSocketState State => _socket.State;
+    public virtual string Url { get; }
     protected CancellationToken CancellationToken => _cancellationToken;
-    protected WebSocketHandlerBase(string url, CancellationToken cancellationToken, byte maxReconnectAttempts)
+    protected WebSocketHandlerBase(CancellationToken cancellationToken, byte maxReconnectAttempts)
     {
-        _url = url;
         _cancellationToken = cancellationToken;
         _maxReconnectAttempts = maxReconnectAttempts;
     }
     
     public async Task Connect()
     {
+        if (string.IsNullOrEmpty(Url))
+        {
+            throw new ArgumentException("URL is required.");
+        }
         var retryCount = 0;
         while(_socket.State != WebSocketState.Open
               && retryCount < _maxReconnectAttempts)
         {
             try
             {
-                await _socket.ConnectAsync(new Uri(_url), _cancellationToken);
+                await _socket.ConnectAsync(new Uri(Url), _cancellationToken);
                 retryCount = 0;
             }
             catch (WebSocketException e)
@@ -45,7 +48,7 @@ public abstract class WebSocketHandlerBase
         if (retryCount >= _maxReconnectAttempts)
         {
             OnFault?.Invoke();
-            throw new WebSocketException($"Failed to connect to the websocket at {_url}.");
+            throw new WebSocketException($"Failed to connect to the websocket at {Url}.");
         }
         _ = Task.Run(StartListening, _cancellationToken);
         Connected?.Invoke();

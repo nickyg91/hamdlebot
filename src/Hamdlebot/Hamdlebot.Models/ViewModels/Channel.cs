@@ -18,7 +18,6 @@ public class Channel
         AllowAccessToObs = channel.AllowAccessToObs;
         Commands = channel.BotChannelCommands.Select(x => new ChannelCommand(x)).ToList();
     }
-    
     public int Id { get; set; }
     public long TwitchUserId { get; set; }
     public string TwitchChannelName { get; set; }
