@@ -2,7 +2,7 @@
 import { onMounted, ref, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth.store';
 import { useRouter } from 'vue-router';
-import type { ITwitchOAuthToken } from '@/models/twitch-oauth-token.interface';
+import type { ITwitchOAuthToken } from '@/models/auth/twitch-oauth-token.interface';
 const authStore = useAuthStore();
 const router = useRouter();
 const token = ref<ITwitchOAuthToken | null>(null);

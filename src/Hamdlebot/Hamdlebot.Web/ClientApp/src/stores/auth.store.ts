@@ -1,6 +1,6 @@
 import { useTwitchAuthService } from '@/composables/twitch-auth.composable';
-import type { ITwitchOAuthToken } from '@/models/twitch-oauth-token.interface';
-import type { IUserInfo } from '@/models/user-info.interface';
+import type { ITwitchOAuthToken } from '@/models/auth/twitch-oauth-token.interface';
+import type { IUserInfo } from '@/models/auth/user-info.interface';
 import { defineStore } from 'pinia';
 import { computed, ref, type ComputedRef } from 'vue';
 

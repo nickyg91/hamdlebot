@@ -1,13 +1,13 @@
 import { useBotManagementService } from '@/composables/bot-channel-management.composable';
 import { useSignalR } from '@/composables/signalr.composable';
-import type { IBotChannel } from '@/models/bot-channel.interface';
-import type { IBotChannelCommand } from '@/models/bot-commands.interface';
-import { BotStatusType } from '@/models/bot-status-type.enum';
-import { ChannelConnectionStatusType } from '@/models/channel-connection-status-type.enum';
-import type { ILogMessage } from '@/models/log-message.interface';
-import { ObsConnectionStatusType } from '@/models/obs-connection-status-type.enum';
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
+import type { IBotChannel } from '../models/bot-channel.interface';
+import type { IBotChannelCommand } from '../models/bot-commands.interface';
+import { BotStatusType } from '../models/bot-status-type.enum';
+import { ChannelConnectionStatusType } from '../models/channel-connection-status-type.enum';
+import type { ILogMessage } from '../models/log-message.interface';
+import { ObsConnectionStatusType } from '../models/obs-connection-status-type.enum';
 
 export const useDashboardStore = defineStore('dashboard', () => {
   const botChannel = ref<IBotChannel | null>(null);

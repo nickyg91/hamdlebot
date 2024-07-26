@@ -1,4 +1,4 @@
-import type { ITwitchOAuthToken } from '@/models/twitch-oauth-token.interface';
+import type { ITwitchOAuthToken } from '@/models/auth/twitch-oauth-token.interface';
 import axios, { type AxiosInstance } from 'axios';
 import { useToast } from 'primevue/usetoast';
 

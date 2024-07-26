@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { IBotChannelCommand } from '@/models/bot-commands.interface';
+import type { IBotChannelCommand } from '@/components/dashboard/models/bot-commands.interface';
 import { toTypedSchema } from '@vee-validate/zod';
 import { useForm } from 'vee-validate';
 import InputText from 'primevue/inputtext';

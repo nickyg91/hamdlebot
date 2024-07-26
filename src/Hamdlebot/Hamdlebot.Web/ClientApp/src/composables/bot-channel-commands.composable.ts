@@ -1,4 +1,4 @@
-import type { IBotChannelCommand } from '@/models/bot-commands.interface';
+import type { IBotChannelCommand } from '@/components/dashboard/models/bot-commands.interface';
 import { useAxios } from './http-client.composable';
 
 export const useBotChannelCommands = (channelId: number) => {

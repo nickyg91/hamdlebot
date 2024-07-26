@@ -1,25 +1,25 @@
 <script setup lang="ts">
 import InlineMessage from 'primevue/inlinemessage';
-import { useDashboardStore } from '@/stores/dashboard.store';
+import { useDashboardStore } from '@/components/dashboard/stores/dashboard.store';
 import Panel from 'primevue/panel';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import Sidebar from 'primevue/sidebar';
-import ObsSettingsSlider from '@/components/ObsSettingsSlider.vue';
-import { BotStatusType } from '@/models/bot-status-type.enum';
+import ObsSettingsSlider from '@/components/dashboard/features/obs/ObsSettingsSlider.vue';
+import { BotStatusType } from '@/components/dashboard/models/bot-status-type.enum';
 import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/stores/auth.store';
 import { watch } from 'vue';
 import { useConfirm } from 'primevue/useconfirm';
 import ConfirmDialog from 'primevue/confirmdialog';
-import ChannelCommands from '@/components/dashboard/ChannelCommands.vue';
+import ChannelCommands from '@/components/dashboard/features/commands/ChannelCommands.vue';
 import ScrollPanel from 'primevue/scrollpanel';
-import LogMessage from '@/components/LogMessage.vue';
-import type { ObsSettings } from '@/models/obs-settings.model';
+import LogMessage from '@/components/dashboard/features/log/LogMessage.vue';
+import type { ObsSettings } from '@/components/dashboard/models/obs-settings.model';
 import { useObsSettingsService } from '@/composables/obs-settings.composable';
-import HamdleSettings from '@/components/dashboard/HamdleSettings.vue';
-import ChannelConnectionStatus from '@/components/dashboard/ChannelConnectionStatus.vue';
+import HamdleSettings from '@/components/dashboard/features/channel-settings/HamdleSettings.vue';
+import ChannelConnectionStatus from '@/components/dashboard/features/channel-settings/ChannelConnectionStatus.vue';
 
 const dashboardStore = useDashboardStore();
 const { connectToObs, disconnectFromObs } = useObsSettingsService();

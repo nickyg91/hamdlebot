@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { IBotChannelCommand } from '@/models/bot-commands.interface';
+import type { IBotChannelCommand } from '@/components/dashboard/models/bot-commands.interface';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import { useDialog } from 'primevue/usedialog';
 import ChannelCommandForm from './ChannelCommandForm.vue';
 import { h } from 'vue';
-import { useDashboardStore } from '@/stores/dashboard.store';
+import { useDashboardStore } from '@/components/dashboard/stores/dashboard.store';
 import { useBotChannelCommands } from '@/composables/bot-channel-commands.composable';
 import ConfirmDialog from 'primevue/confirmdialog';
 import { useConfirm } from 'primevue/useconfirm';

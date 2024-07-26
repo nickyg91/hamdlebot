@@ -1,16 +1,11 @@
-import HamdleView from '@/views/HamdleView.vue';
 import { createRouter, createWebHistory } from 'vue-router';
-import DashboardView from '@/views/DashboardView.vue';
-import AuthenticateView from '@/views/AuthenticateView.vue';
-import BotAuthenticateView from '@/views/BotAuthenticateView.vue';
-
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/:twitchUserId/hamdle',
       name: 'hamdle',
-      component: HamdleView
+      component: import('@/views/HamdleView.vue')
     },
     {
       path: '/',
@@ -19,17 +14,17 @@ const router = createRouter({
     {
       path: '/dashboard',
       name: 'dashboard',
-      component: DashboardView
+      component: import('@/views/DashboardView.vue')
     },
     {
       path: '/authenticate',
       name: 'authenticate',
-      component: AuthenticateView
+      component: import('@/views/AuthenticateView.vue')
     },
     {
       path: '/bot/authenticate',
       name: 'bot-authenticate',
-      component: BotAuthenticateView
+      component: import('@/views/BotAuthenticateView.vue')
     },
     {
       path: '/:pathMatch(.*)*',

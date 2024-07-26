@@ -1,4 +1,4 @@
-import type { ObsSettings } from '@/models/obs-settings.model';
+import type { ObsSettings } from '@/components/dashboard/models/obs-settings.model';
 import { useAxios } from './http-client.composable';
 
 export const useObsSettingsService = () => {

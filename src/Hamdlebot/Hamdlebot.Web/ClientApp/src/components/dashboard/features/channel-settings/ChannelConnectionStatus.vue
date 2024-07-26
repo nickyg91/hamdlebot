@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ChannelConnectionStatusType } from '@/models/channel-connection-status-type.enum';
-import { ObsConnectionStatusType } from '@/models/obs-connection-status-type.enum';
+import { ChannelConnectionStatusType } from '@/components/dashboard/models/channel-connection-status-type.enum';
+import { ObsConnectionStatusType } from '@/components/dashboard/models/obs-connection-status-type.enum';
 import { computed } from 'vue';
-import ConnectionBadge from '../ConnectionBadge.vue';
+import ConnectionBadge from '@/components/ui/ConnectionBadge.vue';
 
 const props = defineProps<{
   botChannelConnectionStatus: ChannelConnectionStatusType;

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import GuessedLetters from '@/components/GuessedLetters.vue';
-import HamdleTimer from '@/components/HamdleTimer.vue';
-import WordGuess from '@/components/WordGuess.vue';
-import { useHamdleStore } from '@/stores/hamdle.store';
+import GuessedLetters from '@/components/hamdle/features/GuessedLetters.vue';
+import HamdleTimer from '@/components/hamdle/features/HamdleTimer.vue';
+import WordGuess from '@/components/hamdle/features/WordGuess.vue';
+import { useHamdleStore } from '@/components/hamdle/stores/hamdle.store';
 import { computed, onMounted, watchEffect } from 'vue';
 import ProgressSpinner from 'primevue/progressspinner';
 import { useConfetti } from '@/composables/confetti.composable';

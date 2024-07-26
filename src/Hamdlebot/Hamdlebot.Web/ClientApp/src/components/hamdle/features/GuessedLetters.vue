@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useHamdleStore } from '@/stores/hamdle.store';
+import { useHamdleStore } from '@/components/hamdle/stores/hamdle.store';
 import GuessedLetter from './GuessedLetter.vue';
 const store = useHamdleStore();
 

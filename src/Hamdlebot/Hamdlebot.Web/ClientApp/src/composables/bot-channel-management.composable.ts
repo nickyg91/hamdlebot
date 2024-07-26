@@ -1,4 +1,4 @@
-import type { IBotChannel } from '@/models/bot-channel.interface';
+import type { IBotChannel } from '@/components/dashboard/models/bot-channel.interface';
 import { useAxios } from './http-client.composable';
 
 export const useBotManagementService = () => {

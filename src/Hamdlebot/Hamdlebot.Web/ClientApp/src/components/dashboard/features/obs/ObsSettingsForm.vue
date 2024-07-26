@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ObsSettings } from '@/models/obs-settings.model';
+import type { ObsSettings } from '@/components/dashboard/models/obs-settings.model';
 import { toTypedSchema } from '@vee-validate/zod';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';

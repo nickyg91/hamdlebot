@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useBotManagementService } from '@/composables/bot-channel-management.composable';
-import { useDashboardStore } from '@/stores/dashboard.store';
+import { useDashboardStore } from '@/components/dashboard/stores/dashboard.store';
 import Checkbox from 'primevue/checkbox';
 import { computed, ref } from 'vue';
 

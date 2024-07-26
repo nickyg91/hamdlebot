@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useObsSettingsService } from '@/composables/obs-settings.composable';
-import { ObsSettings } from '@/models/obs-settings.model';
+import { ObsSettings } from '@/components/dashboard/models/obs-settings.model';
 import { onMounted } from 'vue';
 import { ref } from 'vue';
 import ObsSettingsForm from './ObsSettingsForm.vue';

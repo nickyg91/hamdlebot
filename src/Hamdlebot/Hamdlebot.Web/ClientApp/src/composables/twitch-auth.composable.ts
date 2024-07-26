@@ -1,4 +1,4 @@
-import type { ITwitchOAuthToken } from '@/models/twitch-oauth-token.interface';
+import type { ITwitchOAuthToken } from '@/models/auth/twitch-oauth-token.interface';
 import { useAxios } from './http-client.composable';
 
 export const useTwitchAuthService = () => {
