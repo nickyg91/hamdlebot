@@ -5,7 +5,7 @@ const router = createRouter({
     {
       path: '/:twitchUserId/hamdle',
       name: 'hamdle',
-      component: import('@/views/HamdleView.vue')
+      component: () => import('@/views/HamdleView.vue')
     },
     {
       path: '/',
@@ -19,12 +19,12 @@ const router = createRouter({
     {
       path: '/authenticate',
       name: 'authenticate',
-      component: import('@/views/AuthenticateView.vue')
+      component: () => import('@/views/AuthenticateView.vue')
     },
     {
       path: '/bot/authenticate',
       name: 'bot-authenticate',
-      component: import('@/views/BotAuthenticateView.vue')
+      component: () => import('@/views/BotAuthenticateView.vue')
     },
     {
       path: '/:pathMatch(.*)*',
