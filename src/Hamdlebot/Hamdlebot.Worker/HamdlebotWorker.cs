@@ -17,6 +17,7 @@ public class HamdlebotWorker : BackgroundService
     private readonly IObsService _obsService;
     private readonly HubConnection _hamdleHub;
     private readonly HubConnection _logHub;
+    private readonly HubConnection _channelNotificationsHub;
     private readonly IHostApplicationLifetime _appLifetime;
     private readonly IBotLogClient _logClient;
     private readonly ICacheService _cacheService;
@@ -28,6 +29,7 @@ public class HamdlebotWorker : BackgroundService
         IWordService wordService,
         [FromKeyedServices("hamdleHub")] HubConnection hamdleHub,
         [FromKeyedServices("logHub")] HubConnection logHub,
+        [FromKeyedServices("channelNotificationsHub")] HubConnection channelNotificationsHub,
         IObsService obsService,
         IHostApplicationLifetime appLifetime,
         IBotLogClient logClient,
@@ -39,6 +41,7 @@ public class HamdlebotWorker : BackgroundService
         _wordService = wordService;
         _hamdleHub = hamdleHub;
         _logHub = logHub;
+        _channelNotificationsHub = channelNotificationsHub;
         _obsService = obsService;
         _appLifetime = appLifetime;
         _logClient = logClient;
@@ -65,7 +68,8 @@ public class HamdlebotWorker : BackgroundService
         // The application has fully started, start the background tasks
         await Task.WhenAll(
             _hamdleHub.StartAsync(cancellationToken),
-            _logHub.StartAsync(cancellationToken)
+            _logHub.StartAsync(cancellationToken),
+            _channelNotificationsHub.StartAsync(cancellationToken)
         );
         await _logClient.LogMessage(new LogMessage("Bot connected.", DateTime.UtcNow, SeverityLevel.Info));
         await _logClient.SendBotStatus(BotStatusType.Online);

@@ -19,6 +19,7 @@ import LogMessage from '@/components/LogMessage.vue';
 import type { ObsSettings } from '@/models/obs-settings.model';
 import { useObsSettingsService } from '@/composables/obs-settings.composable';
 import HamdleSettings from '@/components/dashboard/HamdleSettings.vue';
+import ChannelConnectionStatus from '@/components/dashboard/ChannelConnectionStatus.vue';
 
 const dashboardStore = useDashboardStore();
 const { connectToObs, disconnectFromObs } = useObsSettingsService();
@@ -182,17 +183,23 @@ const onDisconnectFromObs = async () => {
                   <template #header>
                     <h2>Channel Actions</h2>
                   </template>
-                  <div>
+                  <ChannelConnectionStatus
+                    :bot-channel-connection-status="dashboardStore.channelConnectionStatus"
+                    :obs-connection-status="dashboardStore.obsConnectionStatus"
+                  />
+                  <div class="flex justify-content-evenly mt-5">
                     <Button
                       v-if="authStore.isHamdlebot"
                       severity="help"
+                      size="small"
                       icon="pi pi-verified"
                       label="Authenticate Bot"
                       @click="getAuthUrl"
                     ></Button>
                     <Button
-                      v-if="!authStore.isHamdlebot && botChannel!.isHamdleEnabled"
+                      v-if="!authStore.isHamdlebot && botChannel?.isHamdleEnabled"
                       class="ml-3"
+                      size="small"
                       severity="info"
                       label="Obs Settings"
                       icon="pi pi-cog"
@@ -201,6 +208,7 @@ const onDisconnectFromObs = async () => {
                     </Button>
                     <Button
                       class="ml-3"
+                      size="small"
                       severity="success"
                       icon="pi pi-user-plus"
                       label="Join Channel"
@@ -208,6 +216,7 @@ const onDisconnectFromObs = async () => {
                     ></Button>
                     <Button
                       class="ml-3"
+                      size="small"
                       severity="danger"
                       icon="pi pi-user-minus"
                       label="Leave Channel"
@@ -218,12 +227,13 @@ const onDisconnectFromObs = async () => {
                         !authStore.isHamdlebot &&
                         obsSettings &&
                         botChannel?.allowAccessToObs &&
-                        botChannel.isHamdleEnabled
+                        botChannel?.isHamdleEnabled
                       "
                     >
                       <div class="flex mt-2">
                         <Button
                           class="ml-3"
+                          size="small"
                           severity="contrast"
                           icon="pi pi-sign-in"
                           label="Connect to OBS"
@@ -232,6 +242,7 @@ const onDisconnectFromObs = async () => {
                         </Button>
                         <Button
                           class="ml-3"
+                          size="small"
                           severity="warning"
                           icon="pi pi-sign-out"
                           label="Disconnect from OBS"
@@ -242,6 +253,7 @@ const onDisconnectFromObs = async () => {
                     </template>
                   </div>
                   <ChannelCommands
+                    v-if="botChannel"
                     :channel-id="botChannel!.id"
                     :commands="botChannel!.commands"
                   ></ChannelCommands>
@@ -274,6 +286,7 @@ const onDisconnectFromObs = async () => {
     <Dialog
       v-model:visible="isLoginDialogOpen"
       modal
+      :draggable="false"
       header="Log In To Twitch"
       :closable="false"
       :style="{ width: '25rem' }"

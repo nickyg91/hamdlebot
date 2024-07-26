@@ -36,6 +36,12 @@ export default defineConfig(({ command }) => {
             secure: false,
             ws: true
           },
+          '/channelnotificationshub': {
+            target: 'https://localhost:7256',
+            changeOrigin: true,
+            secure: false,
+            ws: true
+          },
           '/api': {
             target: 'https://localhost:7256',
             changeOrigin: true,

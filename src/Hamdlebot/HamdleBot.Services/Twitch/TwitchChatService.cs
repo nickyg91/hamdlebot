@@ -49,9 +49,11 @@ public class TwitchChatService : ITwitchChatService
 
         using var scope = _serviceProvider.CreateScope();
         var hamdleHub = scope.ServiceProvider.GetKeyedService<HubConnection>(KeyedServiceValues.HamdleHub);
+        var channelNotificationsHub =
+            scope.ServiceProvider.GetKeyedService<HubConnection>(KeyedServiceValues.ChannelNotificationsHub);
         var obsSettings = await _cache.GetObject<ObsSettings>($"{CacheKeyType.UserObsSettings}:{channel.TwitchUserId}");
         var twitchChannel = 
-            new TwitchChannel(channel, TwitchWebSocketUrl, oauthToken ?? "", obsSettings, _cache, hamdleHub!, _cancellationToken!.Value);
+            new TwitchChannel(channel, TwitchWebSocketUrl, oauthToken ?? "", obsSettings, _cache, hamdleHub!, channelNotificationsHub!, _cancellationToken!.Value);
         
         _channels.Add(channel.TwitchUserId, twitchChannel);
         

@@ -9,9 +9,11 @@ public abstract class WebSocketHandlerBase
     private readonly string _url;
     private readonly CancellationToken _cancellationToken;
     private readonly byte _maxReconnectAttempts;
-    public event Func<Task>? Connected;
+    public event Action? Connected;
     public event Action? ReconnectStarted;
     public event Action<string>? MessageReceived;
+    public event Action? OnFault;
+    public event Action? OnDisconnect;
     public WebSocketState State => _socket.State;
     protected CancellationToken CancellationToken => _cancellationToken;
     protected WebSocketHandlerBase(string url, CancellationToken cancellationToken, byte maxReconnectAttempts)
@@ -42,6 +44,7 @@ public abstract class WebSocketHandlerBase
         }
         if (retryCount >= _maxReconnectAttempts)
         {
+            OnFault?.Invoke();
             throw new WebSocketException($"Failed to connect to the websocket at {_url}.");
         }
         _ = Task.Run(StartListening, _cancellationToken);
@@ -54,11 +57,21 @@ public abstract class WebSocketHandlerBase
         {
             await _socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "Closing", _cancellationToken);
         }
+        OnDisconnect?.Invoke();
     }
     public async Task SendMessage(string message)
     {
         var bytes = Encoding.UTF8.GetBytes(message);
         await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, _cancellationToken);
+    }
+
+    public void RemoveEvents()
+    {
+        Connected = null;
+        ReconnectStarted = null;
+        MessageReceived = null;
+        OnFault = null;
+        OnDisconnect = null;
     }
     
     private async Task StartListening()
@@ -94,6 +107,7 @@ public abstract class WebSocketHandlerBase
             {
                 await Connect();
             }
+            OnFault?.Invoke();
         }
     }
 }

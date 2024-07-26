@@ -37,16 +37,25 @@ var twitchApiHttpClient = new HttpClient();
 
 var hamdlebotHubUrl = isDevelopment ? "https://localhost:7256/hamdlebothub" : "http://localhost:8080/hamdlebothub";
 var botLogHubUrl = isDevelopment ? "https://localhost:7256/botloghub" : "http://localhost:8080/botloghub";
+var channelNotificationsHubUrl = isDevelopment ? "https://localhost:7256/channelnotificationshub" : "http://localhost:8080/channelnotificationshub";
 var connectionString = builder.Configuration.GetConnectionString("hamdlebot");
 
 var hamdleBotHubConnection = new HubConnectionBuilder()
     .WithUrl(hamdlebotHubUrl)
     .WithAutomaticReconnect()
+    .WithKeepAliveInterval(TimeSpan.FromMinutes(2))
     .Build();
 
 var botLogHubConnection = new HubConnectionBuilder()
     .WithUrl(botLogHubUrl)
     .WithAutomaticReconnect()
+    .WithKeepAliveInterval(TimeSpan.FromMinutes(2))
+    .Build();
+
+var channelNotificationsHubConnection = new HubConnectionBuilder()
+    .WithUrl(channelNotificationsHubUrl)
+    .WithAutomaticReconnect()
+    .WithKeepAliveInterval(TimeSpan.FromMinutes(2))
     .Build();
 
 builder.Services.AddDbContext<HamdlebotContext>(options =>
@@ -73,9 +82,10 @@ builder.Services.AddMassTransit(x =>
 
 builder.Services.AddSingleton<ICacheService, CacheService>();
 builder.Services.AddSingleton<IWordService, WordService>();
-builder.Services.AddKeyedSingleton("twitchApiHttpClient", twitchApiHttpClient);
-builder.Services.AddKeyedSingleton("logHub", botLogHubConnection);
-builder.Services.AddKeyedSingleton("hamdleHub", hamdleBotHubConnection);
+builder.Services.AddKeyedSingleton(KeyedServiceValues.TwitchApiHttpClient, twitchApiHttpClient);
+builder.Services.AddKeyedSingleton(KeyedServiceValues.LogHub, botLogHubConnection);
+builder.Services.AddKeyedSingleton(KeyedServiceValues.HamdleHub, hamdleBotHubConnection);
+builder.Services.AddKeyedSingleton(KeyedServiceValues.ChannelNotificationsHub, channelNotificationsHubConnection);
 builder.Services.AddTransient<IBotLogClient, BotLogClient>();
 builder.Services.AddScoped<IBotChannelRepository, BotChannelRepository>();
 builder.Services.AddHostedService<HamdlebotWorker>();
@@ -127,6 +137,7 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<HamdlebotHub>("/hamdlebothub");
 app.MapHub<BotLogHub>("/botloghub");
+app.MapHub<ChannelNotificationsHub>("/channelnotificationshub");
 app.MapFallbackToFile("index.html");
 
 // move to migration app at some point.

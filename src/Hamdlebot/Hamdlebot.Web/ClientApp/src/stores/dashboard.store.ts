@@ -3,16 +3,24 @@ import { useSignalR } from '@/composables/signalr.composable';
 import type { IBotChannel } from '@/models/bot-channel.interface';
 import type { IBotChannelCommand } from '@/models/bot-commands.interface';
 import { BotStatusType } from '@/models/bot-status-type.enum';
+import { ChannelConnectionStatusType } from '@/models/channel-connection-status-type.enum';
 import type { ILogMessage } from '@/models/log-message.interface';
+import { ObsConnectionStatusType } from '@/models/obs-connection-status-type.enum';
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
 export const useDashboardStore = defineStore('dashboard', () => {
   const botChannel = ref<IBotChannel | null>(null);
   const logMessages = ref<ILogMessage[]>([]);
   const botStatus = ref<BotStatusType>(BotStatusType.Offline);
+  const channelConnectionStatus = ref<ChannelConnectionStatusType>(
+    ChannelConnectionStatusType.Disconnected
+  );
+  const obsConnectionStatus = ref<ObsConnectionStatusType>(ObsConnectionStatusType.Disconnected);
+
   const { getChannel, joinChannel, leaveChannel } = useBotManagementService();
   const { createSignalRConnection } = useSignalR();
+
   const startDashboardSignalRConnection = async () => {
     createSignalRConnection('botloghub', null).then((signalRConnection) => {
       signalRConnection?.on('LogMessage', (message: ILogMessage) => {
@@ -76,10 +84,41 @@ export const useDashboardStore = defineStore('dashboard', () => {
     botChannel.value = channel;
   };
 
+  watch(
+    botChannel,
+    (newChannel) => {
+      if (newChannel) {
+        const queryStringParams = new URLSearchParams();
+        queryStringParams.append('twitchUserId', newChannel.twitchUserId);
+        createSignalRConnection('channelnotificationshub', queryStringParams).then(
+          (signalRConnection) => {
+            signalRConnection?.on(
+              'ReceiveChannelConnectionStatus',
+              (status: ChannelConnectionStatusType) => {
+                channelConnectionStatus.value = status;
+              }
+            );
+            signalRConnection?.on(
+              'ReceiveObsConnectionStatus',
+              (status: ObsConnectionStatusType) => {
+                obsConnectionStatus.value = status;
+              }
+            );
+          }
+        );
+      }
+    },
+    {
+      once: true
+    }
+  );
+
   return {
     logMessages,
     botStatus,
     botChannel,
+    channelConnectionStatus,
+    obsConnectionStatus,
     getMyChannel,
     joinMyChannel,
     leaveMyChannel,
