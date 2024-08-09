@@ -5,7 +5,7 @@ namespace HamdleBot.Services.Handlers;
 
 public abstract class WebSocketHandlerBase
 {
-    private readonly ClientWebSocket _socket = new();
+    private ClientWebSocket _socket;
     private readonly CancellationToken _cancellationToken;
     private readonly byte _maxReconnectAttempts;
     public event Action? Connected;
@@ -28,6 +28,8 @@ public abstract class WebSocketHandlerBase
         {
             throw new ArgumentException("URL is required.");
         }
+        
+        _socket = new ClientWebSocket();
         var retryCount = 0;
         while(_socket.State != WebSocketState.Open
               && retryCount < _maxReconnectAttempts)
