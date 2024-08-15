@@ -6,7 +6,6 @@ using Hamdlebot.Data.Contexts.Hamdlebot;
 using Hamdlebot.Models;
 using Hamdlebot.Models.ViewModels;
 using HamdleBot.Services.Consumers;
-using HamdleBot.Services.Factories;
 using HamdleBot.Services.Twitch.Interfaces;
 using MassTransit;
 using Microsoft.AspNetCore.SignalR.Client;
