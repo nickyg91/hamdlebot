@@ -95,6 +95,7 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
         {
             _eventSet.Add(baseEvent);
         }
+        Console.WriteLine(baseEvent.Payload?.Session?.Id);
         switch (baseEvent.Metadata.MessageType)
         {
             case MessageType.Notification:
@@ -129,14 +130,13 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
                     },
                     Condition = new Dictionary<string, string>
                     {
-                        ["broadcaster_user_id"] = _broadcasterId, 
-                        ["user_id"] = _userId
+                       ["broadcaster_user_id"] = _broadcasterId, 
                     },
                     Version = "1"
                 })).ToList();
             await Task.WhenAll(subscriptionTasks);
             _keepaliveTimeoutSeconds = session.KeepaliveTimeoutSeconds;
-            StartKeepaliveTimer();
+            //StartKeepaliveTimer();
             OnWelcomeMessage?.Invoke(session);
         }
     }
@@ -166,54 +166,6 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
                     OnStreamOffline?.Invoke(streamOfflineMessage.Payload.Event);
                 }
                 break;
-            // case SubscriptionType.ChannelPollBegin:
-            //     OnChannelPollBegin?.Invoke(eventMessage);
-            //     break;
-            // case SubscriptionType.ChannelPollEnd:
-            //     OnChannelPollEnd?.Invoke(eventMessage);
-            //     break;
-            // case SubscriptionType.ChannelPollProgress:
-            //     OnChannelPollProgress?.Invoke(eventMessage);
-            //     break;
-            // case SubscriptionType.ChannelRaid:
-            //     OnChannelRaid?.Invoke(eventMessage);
-            //     break;
-            // case SubscriptionType.ChannelFollow:
-            //     OnChannelFollow?.Invoke(eventMessage);
-            //     break;
-            // case SubscriptionType.ChannelChatMessage:
-            //     OnChatChannelMessage?.Invoke(eventMessage);
-            //     break;
-            // case SubscriptionType.ChannelSubscribe:
-            //     OnChannelSubscribe?.Invoke(eventMessage);
-            //     break;
-            // case SubscriptionType.ChannelSubscriptionEnd:
-            //     OnChannelSubscriptionEnd?.Invoke(eventMessage);
-            //     break;
-            // case SubscriptionType.ChannelCheer:
-            //     OnChannelCheer?.Invoke(eventMessage);
-            //     break;
-            // case SubscriptionType.ChannelBan:
-            //     OnChannelBan?.Invoke(eventMessage);
-            //     break;
-            // case SubscriptionType.ChannelUpdate:
-            //     OnChannelUpdate?.Invoke(eventMessage);
-            //     break;
-            // case SubscriptionType.ChannelPredictionBegin:
-            //     OnChannelPredictionBegin?.Invoke(eventMessage);
-            //     break;
-            // case SubscriptionType.ChannelPredictionLocked:
-            //     OnChannelPredictionLock?.Invoke(eventMessage);
-            //     break;
-            // case SubscriptionType.ChannelPredictionEnd:
-            //     OnChannelPredictionEnd?.Invoke(eventMessage);
-            //     break;
-            // case SubscriptionType.ChannelVipAdd:
-            //     OnChannelVipAdd?.Invoke(eventMessage);
-            //     break;
-            // case SubscriptionType.ChannelVipRemove:
-            //     OnChannelVipRemove?.Invoke(eventMessage);
-            //     break;
             case SubscriptionType.NotSupported:
                 throw new SubscriptionEventNotSupportedException("Subscription event not supported.");
             default:
@@ -243,8 +195,8 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
             {
                 return;
             }
-            await Disconnect();
-            await StartEventSubscriptions();
+            //await Disconnect();
+            //await StartEventSubscriptions();
         };
         _keepaliveTimer.Start();
     }

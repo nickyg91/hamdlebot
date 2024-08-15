@@ -5,7 +5,7 @@ namespace HamdleBot.Services.Handlers;
 
 public abstract class WebSocketHandlerBase
 {
-    private ClientWebSocket _socket;
+    private ClientWebSocket? _socket;
     private readonly CancellationToken _cancellationToken;
     private readonly byte _maxReconnectAttempts;
     public event Action? Connected;
@@ -13,7 +13,7 @@ public abstract class WebSocketHandlerBase
     public event Action<string>? MessageReceived;
     public event Action? OnFault;
     public event Action? OnDisconnect;
-    public WebSocketState State => _socket.State;
+    public WebSocketState State => _socket?.State ?? WebSocketState.None;
     public virtual string Url { get; }
     protected CancellationToken CancellationToken => _cancellationToken;
     protected WebSocketHandlerBase(CancellationToken cancellationToken, byte maxReconnectAttempts)
@@ -29,7 +29,13 @@ public abstract class WebSocketHandlerBase
             throw new ArgumentException("URL is required.");
         }
         
-        _socket = new ClientWebSocket();
+        _socket = new ClientWebSocket()
+        {
+            Options =
+            {
+                KeepAliveInterval = TimeSpan.FromSeconds(60)
+            }
+        };
         var retryCount = 0;
         while(_socket.State != WebSocketState.Open
               && retryCount < _maxReconnectAttempts)
@@ -58,7 +64,7 @@ public abstract class WebSocketHandlerBase
 
     public async Task Disconnect()
     {
-        if (_socket.State == WebSocketState.Open)
+        if (_socket != null && _socket.State == WebSocketState.Open)
         {
             await _socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "Closing", _cancellationToken);
         }
@@ -66,8 +72,11 @@ public abstract class WebSocketHandlerBase
     }
     public async Task SendMessage(string message)
     {
-        var bytes = Encoding.UTF8.GetBytes(message);
-        await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, _cancellationToken);
+        if (_socket != null)
+        {
+            var bytes = Encoding.UTF8.GetBytes(message);
+            await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, _cancellationToken);
+        }
     }
 
     public void RemoveEvents()
@@ -84,7 +93,7 @@ public abstract class WebSocketHandlerBase
         try
         {
             using var ms = new MemoryStream();
-            while (_socket.State == WebSocketState.Open)
+            while (_socket!.State == WebSocketState.Open)
             {
                 WebSocketReceiveResult result;
                 do

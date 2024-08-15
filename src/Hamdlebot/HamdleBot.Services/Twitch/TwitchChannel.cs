@@ -130,7 +130,6 @@ public class TwitchChannel
         catch (Exception e)
         {
             Console.WriteLine(e);
-            throw;
         }
     }
 

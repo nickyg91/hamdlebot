@@ -5,7 +5,6 @@ using Hamdle.Cache;
 using Hamdlebot.Core.HttpHandlers;
 using Hamdlebot.Models.Twitch;
 using HamdleBot.Services.Twitch.Interfaces;
-
 namespace HamdleBot.Services.Twitch;
 
 public class TwitchApiService : ITwitchApiService
