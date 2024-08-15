@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Hamdlebot.Core.Converters;
 using Hamdlebot.Core.Models.Enums;
+using Hamdlebot.Core.Models.Enums.EventSub;
 
 namespace Hamdlebot.Models.Twitch;
 

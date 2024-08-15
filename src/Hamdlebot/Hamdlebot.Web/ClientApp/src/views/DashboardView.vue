@@ -15,7 +15,7 @@ import { useConfirm } from 'primevue/useconfirm';
 import ConfirmDialog from 'primevue/confirmdialog';
 import ChannelCommands from '@/components/dashboard/features/commands/ChannelCommands.vue';
 import ScrollPanel from 'primevue/scrollpanel';
-import LogMessage from '@/components/dashboard/features/bot-log/LogMessage.vue';
+import LogMessage from '@/components/dashboard/features/logging/LogMessage.vue';
 import type { ObsSettings } from '@/components/dashboard/models/obs-settings.model';
 import { useObsSettingsService } from '@/composables/obs-settings.composable';
 import HamdleSettings from '@/components/dashboard/features/channel-settings/HamdleSettings.vue';

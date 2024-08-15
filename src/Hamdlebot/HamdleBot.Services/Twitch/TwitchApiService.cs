@@ -5,18 +5,22 @@ using Hamdle.Cache;
 using Hamdlebot.Core.HttpHandlers;
 using Hamdlebot.Models.Twitch;
 using HamdleBot.Services.Twitch.Interfaces;
-
 namespace HamdleBot.Services.Twitch;
 
 public class TwitchApiService : ITwitchApiService
 {
     private readonly HttpClient _httpClient;
+    private readonly HttpClient _testClient;
     private readonly CancellationToken _cancellationToken;
     public TwitchApiService(string authorizationToken, string clientId, CancellationToken cancellationToken)
     {
         _httpClient = new HttpClient(new TwitchBearerAuthenticationHttpHandler(authorizationToken, clientId))
         {
             BaseAddress = new Uri("https://api.twitch.tv/helix/"),
+        };
+        _testClient = new HttpClient(new TwitchBearerAuthenticationHttpHandler(authorizationToken, clientId))
+        {
+            BaseAddress = new Uri("http://localhost:8080/"),
         };
         _cancellationToken = cancellationToken;
     }
@@ -38,6 +42,7 @@ public class TwitchApiService : ITwitchApiService
 
     public async Task<TwitchApiResponse<EventSubResponse>?> SubscribeToEvents(EventSubRequest request)
     {
+        // testing purposes
         var uri = new Uri("eventsub/subscriptions", UriKind.Relative);
         var response = await _httpClient.PostAsJsonAsync(uri, request, _cancellationToken);
         var content = await response.Content.ReadAsStringAsync(_cancellationToken);

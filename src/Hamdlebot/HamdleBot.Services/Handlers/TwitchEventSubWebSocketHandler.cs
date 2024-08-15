@@ -2,7 +2,10 @@ using System.Text.Json;
 using Hamdlebot.Core.Collections;
 using Hamdlebot.Core.Exceptions;
 using Hamdlebot.Core.Models.Enums;
+using Hamdlebot.Core.Models.Enums.EventSub;
+using Hamdlebot.Core.Models.EventSub;
 using Hamdlebot.Core.Models.EventSub.Messages;
+using Hamdlebot.Core.Models.EventSub.Responses;
 using Hamdlebot.Models.Twitch;
 using HamdleBot.Services.Factories;
 using HamdleBot.Services.Twitch.Interfaces;
@@ -12,47 +15,47 @@ namespace HamdleBot.Services.Handlers;
 
 public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
 {
-    private readonly LimitedSizeHashSet<EventMessage, string> _eventSet = new(25, x => x.Metadata.MessageId);
+    private readonly LimitedSizeHashSet<EventMessage<PayloadBase>, string> _eventSet = new(25, x => x.Metadata.MessageId);
     private readonly string _broadcasterId;
     private readonly string _userId;
     private readonly string _clientId;
     private string _authToken;
     private ITwitchApiService _twitchApiService;
-    private string _sessionId = string.Empty;
     private int _keepaliveTimeoutSeconds;
     private List<SubscriptionType> _events;
     private Timer _keepaliveTimer;
-    public Action<EventMessage>? OnStreamOnline { get; set; }
-    public Action<EventMessage>? OnStreamOffline { get; set; }
-    public Action<EventMessage>? OnChannelPollBegin { get; set; }
-    public Action<EventMessage>? OnChannelPollProgress { get; set; }
-    public Action<EventMessage>? OnChannelPollEnd { get; set; }
-    public Action<EventMessage>? OnChannelFollow { get; set; }
-    public Action<EventMessage>? OnChannelRaid { get; set; }
-    public Action<EventMessage>? OnChannelSubscribe { get; set; }
-    public Action<EventMessage>? OnChannelSubscriptionEnd { get; set; }
-    public Action<EventMessage>? OnChannelCheer { get; set; }
-    public Action<EventMessage>? OnChannelPredictionBegin { get; set; }
-    public Action<EventMessage>? OnChannelPredictionLock { get; set; }
-    public Action<EventMessage>? OnChannelPredictionEnd { get; set; }
-    public Action<EventMessage>? OnChannelVipAdd { get; set; }
-    public Action<EventMessage>? OnChannelVipRemove { get; set; }
-    public Action<EventMessage>? OnChatChannelMessage { get; set; }
-    public Action<EventMessage>? OnChannelBan { get; set; }
-    public Action<EventMessage>? OnChannelUpdate { get; set; }
-    public Action<EventMessage>? OnKeepaliveMessage { get; set; }
-    public Action<EventMessage>? OnWelcomeMessage { get; set; }
+    //public override string Url => "ws://localhost:8080/ws";
+    public override string Url => "wss://eventsub.wss.twitch.tv/ws?keepalive_timeout_seconds=60";
+    public Action<StreamOnlineEvent>? OnStreamOnline { get; set; }
+    public Action<StreamOfflineEvent>? OnStreamOffline { get; set; }
+    // public Action<EventMessage>? OnChannelPollBegin { get; set; }
+    // public Action<EventMessage>? OnChannelPollProgress { get; set; }
+    // public Action<EventMessage>? OnChannelPollEnd { get; set; }
+    // public Action<EventMessage>? OnChannelFollow { get; set; }
+    // public Action<EventMessage>? OnChannelRaid { get; set; }
+    // public Action<EventMessage>? OnChannelSubscribe { get; set; }
+    // public Action<EventMessage>? OnChannelSubscriptionEnd { get; set; }
+    // public Action<EventMessage>? OnChannelCheer { get; set; }
+    // public Action<EventMessage>? OnChannelPredictionBegin { get; set; }
+    // public Action<EventMessage>? OnChannelPredictionLock { get; set; }
+    // public Action<EventMessage>? OnChannelPredictionEnd { get; set; }
+    // public Action<EventMessage>? OnChannelVipAdd { get; set; }
+    // public Action<EventMessage>? OnChannelVipRemove { get; set; }
+    // public Action<EventMessage>? OnChatChannelMessage { get; set; }
+    // public Action<EventMessage>? OnChannelBan { get; set; }
+    // public Action<EventMessage>? OnChannelUpdate { get; set; }
+    public Action<EventMessage<PayloadBase>>? OnKeepaliveMessage { get; set; }
+    public Action<Session>? OnWelcomeMessage { get; set; }
     
     //TODO at some point we need to implement a way to unsubscribe/subscribe to events dynamically
     public TwitchEventSubWebSocketHandler(
-        string url,
         string broadcasterId,
         string userId,
         CancellationToken cancellationToken,
         byte maxReconnectAttempts,
         string authToken,
         string clientId,
-        List<SubscriptionType> events) : base(url, cancellationToken, maxReconnectAttempts)
+        List<SubscriptionType> events) : base(cancellationToken, maxReconnectAttempts)
     {
         MessageReceived += OnMessageReceived;
         _clientId = clientId;
@@ -67,7 +70,7 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
     {
         await Task.Run(async () => await Connect());
     }
-
+    
     public void SetNewAuthToken(string authToken)
     {
         _authToken = authToken;
@@ -82,29 +85,29 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
             return;
         }
 
-        var eventMessage = JsonSerializer.Deserialize<EventMessage>(message);
-        if (eventMessage == null)
+        var baseEvent = JsonSerializer.Deserialize<EventMessage<PayloadBase>>(message);
+        if (baseEvent == null)
         {
             return;
         }
 
-        if (!_eventSet.Contains(eventMessage.Metadata.MessageId))
+        if (!_eventSet.Contains(baseEvent.Metadata.MessageId))
         {
-            _eventSet.Add(eventMessage);
+            _eventSet.Add(baseEvent);
         }
-
-        switch (eventMessage.Metadata.MessageType)
+        Console.WriteLine(baseEvent.Payload?.Session?.Id);
+        switch (baseEvent.Metadata.MessageType)
         {
             case MessageType.Notification:
-                ProcessNotificationMessage(eventMessage);
+                ProcessNotificationMessage(message);
                 break;
             case MessageType.SessionWelcome:
-                await ProcessSessionWelcomeMessage(eventMessage);
+                await ProcessSessionWelcomeMessage(baseEvent.Payload!.Session);
                 break;
             case MessageType.SessionReconnect:
                 break;
             case MessageType.SessionKeepalive:
-                OnKeepaliveMessage?.Invoke(eventMessage);
+                OnKeepaliveMessage?.Invoke(baseEvent);
                 break;
             case MessageType.Revocation:
                 break;
@@ -113,100 +116,69 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
         }
     }
     
-    private async Task ProcessSessionWelcomeMessage(EventMessage eventMessage)
+    private async Task ProcessSessionWelcomeMessage(Session? session)
     {
-        if (eventMessage.Payload is not null)
+        if (session is not null)
         {
-            _sessionId = eventMessage.Payload.Session.Id;
             var subscriptionTasks =
                 _events.Select(eventType => _twitchApiService.SubscribeToEvents(new EventSubRequest
                 {
                     Type = eventType,
                     Transport = new EventSubTransportRequest
                     {
-                        SessionId = _sessionId
+                        SessionId = session.Id
                     },
                     Condition = new Dictionary<string, string>
                     {
-                        ["broadcaster_user_id"] = _broadcasterId, 
-                        ["user_id"] = _userId
+                       ["broadcaster_user_id"] = _broadcasterId, 
                     },
-                    Version = 1
+                    Version = "1"
                 })).ToList();
             await Task.WhenAll(subscriptionTasks);
-            _keepaliveTimeoutSeconds = eventMessage.Payload.Session.KeepaliveTimeoutSeconds;
-            StartKeepaliveTimer();
-            OnWelcomeMessage?.Invoke(eventMessage);
+            _keepaliveTimeoutSeconds = session.KeepaliveTimeoutSeconds;
+            //StartKeepaliveTimer();
+            OnWelcomeMessage?.Invoke(session);
         }
     }
 
-    private void ProcessNotificationMessage(EventMessage eventMessage)
+    private void ProcessNotificationMessage(string eventJson)
     {
-        switch (eventMessage.Payload?.Subscription.Type)
+        var baseMessage = JsonSerializer.Deserialize<EventMessage<PayloadBase>>(eventJson);
+
+        if (baseMessage?.Payload?.Subscription == null)
+        {
+            return;
+        }
+        
+        switch (baseMessage.Payload.Subscription.Type)
         {
             case SubscriptionType.StreamOnline:
-                OnStreamOnline?.Invoke(eventMessage);
+                var streamOnlineMessage = DeserializeEvent<EventMessage<StreamOnlineEvent>>(eventJson);
+                if (streamOnlineMessage?.Payload?.Event != null)
+                {
+                    OnStreamOnline?.Invoke(streamOnlineMessage.Payload.Event);    
+                }
                 break;
             case SubscriptionType.StreamOffline:
-                OnStreamOffline?.Invoke(eventMessage);
+                var streamOfflineMessage = DeserializeEvent<EventMessage<StreamOfflineEvent>>(eventJson);
+                if (streamOfflineMessage?.Payload?.Event != null)
+                {   
+                    OnStreamOffline?.Invoke(streamOfflineMessage.Payload.Event);
+                }
                 break;
-            case SubscriptionType.ChannelPollBegin:
-                OnChannelPollBegin?.Invoke(eventMessage);
-                break;
-            case SubscriptionType.ChannelPollEnd:
-                OnChannelPollEnd?.Invoke(eventMessage);
-                break;
-            case SubscriptionType.ChannelPollProgress:
-                OnChannelPollProgress?.Invoke(eventMessage);
-                break;
-            case SubscriptionType.ChannelRaid:
-                OnChannelRaid?.Invoke(eventMessage);
-                break;
-            case SubscriptionType.ChannelFollow:
-                OnChannelFollow?.Invoke(eventMessage);
-                break;
-            case SubscriptionType.ChannelChatMessage:
-                OnChatChannelMessage?.Invoke(eventMessage);
-                break;
-            case SubscriptionType.ChannelSubscribe:
-                OnChannelSubscribe?.Invoke(eventMessage);
-                break;
-            case SubscriptionType.ChannelSubscriptionEnd:
-                OnChannelSubscriptionEnd?.Invoke(eventMessage);
-                break;
-            case SubscriptionType.ChannelCheer:
-                OnChannelCheer?.Invoke(eventMessage);
-                break;
-            case SubscriptionType.ChannelBan:
-                OnChannelBan?.Invoke(eventMessage);
-                break;
-            case SubscriptionType.ChannelUpdate:
-                OnChannelUpdate?.Invoke(eventMessage);
-                break;
-            case SubscriptionType.ChannelPredictionBegin:
-                OnChannelPredictionBegin?.Invoke(eventMessage);
-                break;
-            case SubscriptionType.ChannelPredictionLocked:
-                OnChannelPredictionLock?.Invoke(eventMessage);
-                break;
-            case SubscriptionType.ChannelPredictionEnd:
-                OnChannelPredictionEnd?.Invoke(eventMessage);
-                break;
-            case SubscriptionType.ChannelVipAdd:
-                OnChannelVipAdd?.Invoke(eventMessage);
-                break;
-            case SubscriptionType.ChannelVipRemove:
-                OnChannelVipRemove?.Invoke(eventMessage);
-                break;
-            case null:
             case SubscriptionType.NotSupported:
                 throw new SubscriptionEventNotSupportedException("Subscription event not supported.");
             default:
                 // create new exception type here
-                throw new InvalidSubscriptionTypeException($"Invalid subscription type: {eventMessage.Payload?.Subscription.Type}");
+                throw new InvalidSubscriptionTypeException($"Invalid subscription type: {baseMessage.Payload?.Subscription.Type}");
         }
     }
 
+    private static T? DeserializeEvent<T>(string eventJson)
+    {
+        return JsonSerializer.Deserialize<T>(eventJson);
+    }
+    
     private async Task HandlePong()
     {
         await SendMessage("PONG");
@@ -223,8 +195,8 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
             {
                 return;
             }
-            await Disconnect();
-            await StartEventSubscriptions();
+            //await Disconnect();
+            //await StartEventSubscriptions();
         };
         _keepaliveTimer.Start();
     }

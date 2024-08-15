@@ -1,13 +1,14 @@
 using System.Text.Json.Serialization;
 using Hamdlebot.Core.Converters;
 using Hamdlebot.Core.Models.Enums;
+using Hamdlebot.Core.Models.Enums.EventSub;
 
 namespace Hamdlebot.Core.Models.EventSub;
 
 public class Session
 {
     [JsonPropertyName("id")]
-    public string Id { get; set; }
+    public string? Id { get; set; }
     [JsonPropertyName("status"), JsonConverter(typeof(SessionStatusTypeEnumConverter))]
     public SessionStatusType SessionStatus { get; set; }
     [JsonPropertyName("keepalive_timeout_seconds")]

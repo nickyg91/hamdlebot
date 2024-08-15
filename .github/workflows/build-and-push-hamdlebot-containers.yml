@@ -4,8 +4,10 @@ env:
   IMAGE_NAME: hamdlebot-web
 
 on:
+  workflow_dispatch:
   push:
     branches: ["main"]
+  
 
 jobs:
   build-web:

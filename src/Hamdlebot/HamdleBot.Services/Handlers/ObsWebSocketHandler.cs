@@ -14,12 +14,13 @@ public class ObsWebSocketHandler : WebSocketHandlerBase
 {
     private readonly ObsSettings _obsSettings;
     private int _hamdleSceneId;
-    private JsonSerializerOptions _jsonSerializerOptions = new()
+    private readonly JsonSerializerOptions _jsonSerializerOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
+    public override string Url => _obsSettings.SocketUrl!;
     public ObsWebSocketHandler(ObsSettings obsSettings, CancellationToken cancellationToken, byte maxReconnectAttempts)
-        : base(obsSettings.SocketUrl!, cancellationToken, maxReconnectAttempts)
+        : base(cancellationToken, maxReconnectAttempts)
     {
         _obsSettings = obsSettings;
         SetUpEventHandlers();

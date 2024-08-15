@@ -6,4 +6,5 @@ public class TwitchConnectionInfo
     public string? ClientId { get; set; }
     public string? ClientRedirectUrl { get; set; }
     public string? WorkerRedirectUrl { get; set; }
+    public string HamdlebotUserId => "978363539";
 }

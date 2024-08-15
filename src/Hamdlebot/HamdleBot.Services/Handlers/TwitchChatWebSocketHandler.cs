@@ -1,8 +1,9 @@
 namespace HamdleBot.Services.Handlers;
 
-public class TwitchChatWebSocketHandler(string url, CancellationToken cancellationToken, string channelName, byte maxReconnectAttempts)
-    : WebSocketHandlerBase(url, cancellationToken, maxReconnectAttempts)
+public class TwitchChatWebSocketHandler(CancellationToken cancellationToken, string channelName, byte maxReconnectAttempts)
+    : WebSocketHandlerBase(cancellationToken, maxReconnectAttempts)
 {
+    public override string Url => "wss://irc-ws.chat.twitch.tv:443";
     public async Task JoinChannel()
     {
         var ircMessage = $"JOIN #{channelName}";

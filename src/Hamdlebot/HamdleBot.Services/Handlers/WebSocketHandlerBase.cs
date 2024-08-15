@@ -5,8 +5,7 @@ namespace HamdleBot.Services.Handlers;
 
 public abstract class WebSocketHandlerBase
 {
-    private readonly ClientWebSocket _socket = new();
-    private readonly string _url;
+    private ClientWebSocket? _socket;
     private readonly CancellationToken _cancellationToken;
     private readonly byte _maxReconnectAttempts;
     public event Action? Connected;
@@ -14,24 +13,36 @@ public abstract class WebSocketHandlerBase
     public event Action<string>? MessageReceived;
     public event Action? OnFault;
     public event Action? OnDisconnect;
-    public WebSocketState State => _socket.State;
+    public WebSocketState State => _socket?.State ?? WebSocketState.None;
+    public virtual string Url { get; }
     protected CancellationToken CancellationToken => _cancellationToken;
-    protected WebSocketHandlerBase(string url, CancellationToken cancellationToken, byte maxReconnectAttempts)
+    protected WebSocketHandlerBase(CancellationToken cancellationToken, byte maxReconnectAttempts)
     {
-        _url = url;
         _cancellationToken = cancellationToken;
         _maxReconnectAttempts = maxReconnectAttempts;
     }
     
     public async Task Connect()
     {
+        if (string.IsNullOrEmpty(Url))
+        {
+            throw new ArgumentException("URL is required.");
+        }
+        
+        _socket = new ClientWebSocket()
+        {
+            Options =
+            {
+                KeepAliveInterval = TimeSpan.FromSeconds(60)
+            }
+        };
         var retryCount = 0;
         while(_socket.State != WebSocketState.Open
               && retryCount < _maxReconnectAttempts)
         {
             try
             {
-                await _socket.ConnectAsync(new Uri(_url), _cancellationToken);
+                await _socket.ConnectAsync(new Uri(Url), _cancellationToken);
                 retryCount = 0;
             }
             catch (WebSocketException e)
@@ -45,7 +56,7 @@ public abstract class WebSocketHandlerBase
         if (retryCount >= _maxReconnectAttempts)
         {
             OnFault?.Invoke();
-            throw new WebSocketException($"Failed to connect to the websocket at {_url}.");
+            throw new WebSocketException($"Failed to connect to the websocket at {Url}.");
         }
         _ = Task.Run(StartListening, _cancellationToken);
         Connected?.Invoke();
@@ -53,7 +64,7 @@ public abstract class WebSocketHandlerBase
 
     public async Task Disconnect()
     {
-        if (_socket.State == WebSocketState.Open)
+        if (_socket != null && _socket.State == WebSocketState.Open)
         {
             await _socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "Closing", _cancellationToken);
         }
@@ -61,8 +72,11 @@ public abstract class WebSocketHandlerBase
     }
     public async Task SendMessage(string message)
     {
-        var bytes = Encoding.UTF8.GetBytes(message);
-        await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, _cancellationToken);
+        if (_socket != null)
+        {
+            var bytes = Encoding.UTF8.GetBytes(message);
+            await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, _cancellationToken);
+        }
     }
 
     public void RemoveEvents()
@@ -79,7 +93,7 @@ public abstract class WebSocketHandlerBase
         try
         {
             using var ms = new MemoryStream();
-            while (_socket.State == WebSocketState.Open)
+            while (_socket!.State == WebSocketState.Open)
             {
                 WebSocketReceiveResult result;
                 do

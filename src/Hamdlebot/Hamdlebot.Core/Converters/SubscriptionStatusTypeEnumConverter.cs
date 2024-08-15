@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Hamdlebot.Core.Models.Enums;
+using Hamdlebot.Core.Models.Enums.EventSub;
 
 namespace Hamdlebot.Core.Converters;
 

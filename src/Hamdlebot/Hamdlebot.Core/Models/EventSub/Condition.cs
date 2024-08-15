@@ -5,5 +5,5 @@ namespace Hamdlebot.Core.Models.EventSub;
 public class Condition
 {
     [JsonPropertyName("broadcaster_user_id")]
-    public long BroadcasterUserId { get; set; }
+    public string BroadcasterUserId { get; set; }
 }

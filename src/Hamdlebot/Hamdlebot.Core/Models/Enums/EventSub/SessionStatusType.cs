@@ -1,4 +1,4 @@
-namespace Hamdlebot.Core.Models.Enums;
+namespace Hamdlebot.Core.Models.Enums.EventSub;
 
 public enum SessionStatusType
 {

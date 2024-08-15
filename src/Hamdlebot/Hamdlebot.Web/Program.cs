@@ -69,7 +69,6 @@ builder.Services.AddDbContext<HamdlebotContext>(options =>
 
 builder.Services.AddSingleton(oauthHttpClient);
 builder.Services.AddSingleton<ITwitchChatService, TwitchChatService>();
-builder.Services.AddSingleton<ITwitchEventSubService, TwitchEventSubService>();
 builder.Services.AddSingleton<ITwitchIdentityApiService, TwitchIdentityApiService>();
 builder.Services.AddSingleton<IObsService, ObsService>();
 builder.Services.AddMassTransit(x =>

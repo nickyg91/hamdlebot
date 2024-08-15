@@ -3,21 +3,22 @@ using Hamdlebot.Core;
 using Hamdlebot.Core.Models.Logging;
 using Hamdlebot.Core.SignalR.Clients.Logging;
 using Hamdlebot.Data.Contexts.Hamdlebot;
+using Hamdlebot.Models;
 using Hamdlebot.Models.ViewModels;
 using HamdleBot.Services.Consumers;
-using HamdleBot.Services.Handlers;
+using HamdleBot.Services.Factories;
 using HamdleBot.Services.Twitch.Interfaces;
 using MassTransit;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace HamdleBot.Services.Twitch;
 
 public class TwitchChatService : ITwitchChatService
 {
-    private const string TwitchWebSocketUrl = "wss://irc-ws.chat.twitch.tv:443";
     private readonly Dictionary<long, TwitchChannel> _channels = new();
     private readonly ICacheService _cache;
     private readonly IBotLogClient _logClient;
@@ -25,22 +26,26 @@ public class TwitchChatService : ITwitchChatService
     private readonly RedisChannel _botTokenChannel;
     private readonly IServiceProvider _serviceProvider;
     private readonly IBus _bus;
+    private readonly IOptions<AppConfigSettings> _settings;
     public TwitchChatService(
         ICacheService cache,
         IBotLogClient logClient,
         IServiceProvider serviceProvider,
-        IBus bus)
+        IBus bus,
+        IOptions<AppConfigSettings> settings)
     {
         _cache = cache;
         _logClient = logClient;
         _serviceProvider = serviceProvider;
         _bus = bus;
+        _settings = settings;
         _botTokenChannel = new RedisChannel(RedisChannelType.BotTwitchToken, RedisChannel.PatternMode.Auto);
         SetupSubscriptions();
     }
 
     public async Task JoinBotToChannel(Channel channel)
     {
+        
         if (_channels.ContainsKey(channel.TwitchUserId))
         {
             return;
@@ -48,12 +53,23 @@ public class TwitchChatService : ITwitchChatService
         var oauthToken = await _cache.GetItem(CacheKeyType.TwitchOauthToken);
 
         using var scope = _serviceProvider.CreateScope();
+        
         var hamdleHub = scope.ServiceProvider.GetKeyedService<HubConnection>(KeyedServiceValues.HamdleHub);
         var channelNotificationsHub =
             scope.ServiceProvider.GetKeyedService<HubConnection>(KeyedServiceValues.ChannelNotificationsHub);
         var obsSettings = await _cache.GetObject<ObsSettings>($"{CacheKeyType.UserObsSettings}:{channel.TwitchUserId}");
+        
+        var aggregate = new TwitchChannelAggregate(
+            _settings.Value.TwitchConnectionInfo!.HamdlebotUserId,
+            _settings.Value.TwitchConnectionInfo!.ClientId!,
+            oauthToken ?? "",
+            obsSettings,
+            channel,
+            hamdleHub!,
+            channelNotificationsHub!);
+        
         var twitchChannel = 
-            new TwitchChannel(channel, TwitchWebSocketUrl, oauthToken ?? "", obsSettings, _cache, hamdleHub!, channelNotificationsHub!, _cancellationToken!.Value);
+            new TwitchChannel(aggregate, _cache, _cancellationToken!.Value);
         
         _channels.Add(channel.TwitchUserId, twitchChannel);
         
