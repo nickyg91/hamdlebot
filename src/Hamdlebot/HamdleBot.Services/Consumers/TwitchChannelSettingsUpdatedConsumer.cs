@@ -16,6 +16,7 @@ public class TwitchChannelSettingsUpdatedConsumer : IConsumer<TwitchChannelUpdat
     
     public async Task Consume(ConsumeContext<TwitchChannelUpdateMessage> context)
     {
+        Console.WriteLine($"Message received: {context.Message.Action} for channel {context.Message.Channel?.TwitchChannelName}");
         switch (context.Message.Action)
         {
             case ActionType.UpdateChannel:
