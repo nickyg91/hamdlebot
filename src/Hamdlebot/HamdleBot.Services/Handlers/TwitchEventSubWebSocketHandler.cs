@@ -95,7 +95,6 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
         {
             _eventSet.Add(baseEvent);
         }
-        Console.WriteLine(baseEvent.Payload?.Session?.Id);
         switch (baseEvent.Metadata.MessageType)
         {
             case MessageType.Notification:
