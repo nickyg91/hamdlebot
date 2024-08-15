@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { ILogMessage } from '@/components/dashboard/models/log-message.interface';
 import { SeverityLevel } from '@/components/dashboard/models/severity-level.enum';
+import type { ILogMessage } from '@/components/dashboard/models/log-message.interface';
+
 defineProps<{ message: ILogMessage }>();
 
 const toTimestamp = (date: string) => date?.replace('T', ' ')?.replace('Z', '') + ' UTC';
