@@ -16,7 +16,7 @@ public class Channel
         TwitchChannelName = channel.TwitchChannelName;
         IsHamdleEnabled = channel.IsHamdleEnabled;
         AllowAccessToObs = channel.AllowAccessToObs;
-        Commands = channel.BotChannelCommands.Select(x => new ChannelCommand(x)).ToList();
+        Commands = channel.BotChannelCommands?.Select(x => new ChannelCommand(x))?.ToList() ?? [];
     }
     public int Id { get; set; }
     public long TwitchUserId { get; set; }

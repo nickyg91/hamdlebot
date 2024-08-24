@@ -72,7 +72,7 @@ public abstract class WebSocketHandlerBase
     }
     public async Task SendMessage(string message)
     {
-        if (_socket != null)
+        if (_socket is { State: WebSocketState.Open })
         {
             var bytes = Encoding.UTF8.GetBytes(message);
             await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, _cancellationToken);

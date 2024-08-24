@@ -117,26 +117,33 @@ public class TwitchEventSubWebSocketHandler : WebSocketHandlerBase
     
     private async Task ProcessSessionWelcomeMessage(Session? session)
     {
-        if (session is not null)
+        try
         {
-            var subscriptionTasks =
-                _events.Select(eventType => _twitchApiService.SubscribeToEvents(new EventSubRequest
-                {
-                    Type = eventType,
-                    Transport = new EventSubTransportRequest
+            if (session is not null)
+            {
+                var subscriptionTasks =
+                    _events.Select(eventType => _twitchApiService.SubscribeToEvents(new EventSubRequest
                     {
-                        SessionId = session.Id
-                    },
-                    Condition = new Dictionary<string, string>
-                    {
-                       ["broadcaster_user_id"] = _broadcasterId, 
-                    },
-                    Version = "1"
-                })).ToList();
-            await Task.WhenAll(subscriptionTasks);
-            _keepaliveTimeoutSeconds = session.KeepaliveTimeoutSeconds;
-            //StartKeepaliveTimer();
-            OnWelcomeMessage?.Invoke(session);
+                        Type = eventType,
+                        Transport = new EventSubTransportRequest
+                        {
+                            SessionId = session.Id
+                        },
+                        Condition = new Dictionary<string, string>
+                        {
+                            ["broadcaster_user_id"] = _broadcasterId, 
+                        },
+                        Version = "1"
+                    })).ToList();
+                await Task.WhenAll(subscriptionTasks);
+                _keepaliveTimeoutSeconds = session.KeepaliveTimeoutSeconds;
+                //StartKeepaliveTimer();
+                OnWelcomeMessage?.Invoke(session);
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
         }
     }
 

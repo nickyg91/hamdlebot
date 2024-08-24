@@ -20,8 +20,6 @@
         <Content Include="..\.dockerignore">
             <Link>.dockerignore</Link>
         </Content>
-        <Content Include="words.txt" CopyToOutputDirectory="Always">
-        </Content>
     </ItemGroup>
 
 

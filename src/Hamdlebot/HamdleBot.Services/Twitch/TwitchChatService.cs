@@ -26,6 +26,7 @@ public class TwitchChatService : ITwitchChatService
     private readonly IServiceProvider _serviceProvider;
     private readonly IBus _bus;
     private readonly IOptions<AppConfigSettings> _settings;
+    private readonly HashSet<string> _queueNames = new();
     public TwitchChatService(
         ICacheService cache,
         IBotLogClient logClient,
@@ -44,7 +45,6 @@ public class TwitchChatService : ITwitchChatService
 
     public async Task JoinBotToChannel(Channel channel)
     {
-        
         if (_channels.ContainsKey(channel.TwitchUserId))
         {
             return;
@@ -71,15 +71,19 @@ public class TwitchChatService : ITwitchChatService
             new TwitchChannel(aggregate, _cache, _cancellationToken!.Value);
         
         _channels.Add(channel.TwitchUserId, twitchChannel);
-        
-        _bus.ConnectReceiveEndpoint($"{MassTransitReceiveEndpoints.TwitchChannelSettingsUpdatedConsumer}-{channel.TwitchUserId}", cfg =>
+        var queueName =
+            $"{MassTransitReceiveEndpoints.TwitchChannelSettingsUpdatedConsumer}-{channel.TwitchUserId}";
+        if (_queueNames.Add(queueName))
         {
-            cfg.Consumer(() => new TwitchChannelSettingsUpdatedConsumer(twitchChannel));
-            cfg.UseMessageRetry(rty =>
+            _bus.ConnectReceiveEndpoint(queueName, cfg =>
             {
-                rty.Immediate(1);
+                cfg.Consumer(() => new TwitchChannelSettingsUpdatedConsumer(twitchChannel));
+                cfg.UseMessageRetry(rty =>
+                {
+                    rty.Immediate(1);
+                });
             });
-        });
+        }
         
         if (oauthToken is null)
         {
