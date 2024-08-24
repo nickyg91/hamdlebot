@@ -33,13 +33,13 @@ export const useSignalR = () => {
       signalRConnection = new HubConnectionBuilder()
         .withUrl(`/${hubName}?${queryString}`)
         .withAutomaticReconnect()
-        .configureLogging(LogLevel.Information)
+        .configureLogging(LogLevel.Debug)
         .build();
     } else {
       signalRConnection = new HubConnectionBuilder()
         .withUrl(`/${hubName}`)
         .withAutomaticReconnect()
-        .configureLogging(LogLevel.Information)
+        .configureLogging(LogLevel.Debug)
         .build();
     }
 

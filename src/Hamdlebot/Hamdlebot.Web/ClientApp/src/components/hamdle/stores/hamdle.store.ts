@@ -1,37 +1,55 @@
 import { defineStore } from 'pinia';
-import { computed, ref } from 'vue';
+import { computed, effect, ref } from 'vue';
 import { useSignalR } from '@/composables/signalr.composable';
+import { type HubConnection, HubConnectionState } from '@microsoft/signalr';
 
 export const useHamdleStore = defineStore('hamdle', () => {
   const { createSignalRConnection } = useSignalR();
+  const signalRConnection = ref<HubConnection | null>(null);
+  const msgs = ref<string[]>([]);
+  effect(() => {
+    console.log(msgs.value);
+  });
+  const isSignalRConnected = computed(() => {
+    if (signalRConnection.value === null) {
+      return false;
+    }
+    return signalRConnection.value.state === HubConnectionState.Connected;
+  });
   const startSignalRConnection = async (twitchUserId: string) => {
     const queryStringParams = new URLSearchParams();
     queryStringParams.append('twitchUserId', twitchUserId);
-    createSignalRConnection('hamdlebothub', queryStringParams).then((signalRConnection) => {
-      signalRConnection?.on('ReceiveSelectedWord', (word: string) => {
-        currentWord.value = word;
-      });
+    signalRConnection.value = await createSignalRConnection('hamdlebothub', queryStringParams);
 
-      signalRConnection?.on('ReceiveGuess', (guess: string) => {
-        guesses.value.push(guess);
-      });
+    signalRConnection.value?.on('ReceiveSelectedWord', (word: string) => {
+      msgs.value.push('ReceiveSelectedWord');
+      currentWord.value = word;
+    });
 
-      signalRConnection?.on('ReceiveResetState', () => {
-        guesses.value = [];
-        currentWord.value = '';
-      });
+    signalRConnection.value?.on('ReceiveGuess', (guess: string) => {
+      msgs.value.push('ReceiveGuess');
+      guesses.value.push(guess);
+    });
 
-      signalRConnection?.on('ReceiveStartGuessTimer', (ms) => {
-        guessMs.value = ms;
-      });
+    signalRConnection.value?.on('ReceiveResetState', () => {
+      msgs.value.push('ReceiveResetState');
+      guesses.value = [];
+      currentWord.value = '';
+    });
 
-      signalRConnection?.on('ReceiveStartVoteTimer', (ms) => {
-        votingMs.value = ms;
-      });
+    signalRConnection.value?.on('ReceiveStartGuessTimer', (ms) => {
+      msgs.value.push('ReceiveStartGuessTimer');
+      guessMs.value = ms;
+    });
 
-      signalRConnection?.on('ReceiveStartBetweenRoundTimer', (ms) => {
-        betweenRoundMs.value = ms;
-      });
+    signalRConnection.value?.on('ReceiveStartVoteTimer', (ms) => {
+      msgs.value.push('ReceiveStartVoteTimer');
+      votingMs.value = ms;
+    });
+
+    signalRConnection.value?.on('ReceiveStartBetweenRoundTimer', (ms) => {
+      msgs.value.push('ReceiveStartBetweenRoundTimer');
+      betweenRoundMs.value = ms;
     });
   };
 
@@ -68,6 +86,8 @@ export const useHamdleStore = defineStore('hamdle', () => {
     votingMs,
     betweenRoundMs,
     showConfetti,
+    isSignalRConnected,
+    msgs,
     resetGuessTimer,
     resetVotingTimer,
     resetBetweenGuessTimer,
